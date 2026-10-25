@@ -51,7 +51,7 @@ class OriginalMacTests(unittest.TestCase):
 
     def test_active_status_checks_official_backup_not_patched_target(self):
         original.prepare()
-        original.activate()
+        self.assertTrue(original.activate_pending())
         with patch.object(original.mac, 'check_compatibility', return_value={}) as check:
             self.assertTrue(original.status()['active'])
             check.assert_called_once_with(bundle=original.BACKUP, preserve_identity=True)
