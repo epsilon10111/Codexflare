@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const vm = require('node:vm');
 
 // Keep the constructor, restore and late resize paths together to catch conflicting patches.
-const fixture = `
+let fixture = `
 function createWindow(e={}) {
   let n=(e.appearance??'primary')==='primary',r=n&&e.page;
   let {show:d=true}=e,w=this.restorePrimaryWindowBounds(),k=w?.isMaximized===true,
@@ -21,6 +21,9 @@ function onboarding(n,t){let i=Cje(t);if((0,W.default)(this.primaryWindowMode,t)
 function callPrimary(e,t,n){return B.createPrimaryWindow({title:m.app.getName(),show:e,initialRoute:t===\`/\`?void 0:t,opener:n})}
 async function load(R,n,r,d,f,ee){return await R.loadURL(t.o(f,{mcpAppSandboxLocalDevelopment:ee})),R}
 `;
+const renamed = JSON.parse(process.env.CODEXFLARE_TEST_BINDINGS || '{}');
+fixture = fixture.replace(/\b[A-Za-z_$][\w$]*\b/g, token => renamed[token] || token);
+
 const result = spawnSync(process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3'), ['-c',
   'import json,sys; from tools.patch_app import patch_main; text=sys.stdin.read(); print(json.dumps({mode if muted else mode+"-audio":patch_main(text,mode,muted) for mode in ("restore","fullscreen","centered") for muted in (True,False)}))'],
 { cwd: path.resolve(__dirname, '..'), input: fixture, encoding: 'utf8' });
@@ -57,6 +60,7 @@ function harness(mode, { saved = null, area = { x: 100, y: 60, width: 1800, heig
     URL, t: { o: () => 'app://-/index.html' },
     process: { env: {} }, Cje: () => ({ width: 560, height: 560 }), W: { default: () => false },
   });
+  for (const [before,after] of Object.entries(renamed)) if (before in context) context[after]=context[before];
   vm.runInContext(scripts[mode], context);
   const manager = { windows: [], restorePrimaryWindowBounds: () => saved,
     getPrimaryMinimumSize: () => ({ width: 480, height: 600 }) };

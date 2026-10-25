@@ -152,15 +152,12 @@ class WindowsManagerTests(unittest.TestCase):
             windows.build_runtime(self.source / 'nested')
 
     def test_windows_patch_keeps_exact_anchors_and_disables_protocol_registration(self):
-        original = ('minWidth:A?.width,minHeight:A?.height,webPreferences:P},R=new m.BrowserWindow(L);'
-                    'await R.loadURL(t.o(f,{mcpAppSandboxLocalDevelopment:ee}));'
-                    'B.createPrimaryWindow({title:m.app.getName(),show:e,initialRoute:t===`/`?void 0:t,opener:n});'
-                    'let i=Cje(t);if((0,W.default)(this.primaryWindowMode,t)){};'
-                    'Ge.deepLinks.registerProtocolClient()')
+        from test_patch import main_fixture
+        original = main_fixture() + ';Ge.deepLinks.registerProtocolClient()'
         result = patch_windows.patch_main(original)
         self.assertIn('codexBootAnimation', result)
         self.assertNotIn('registerProtocolClient()', result)
-        for text in (result, original * 2, original.replace('Ge.deepLinks', 'changed.deepLinks')):
+        for text in (result, original * 2, original.replace('registerProtocolClient', 'changedProtocolAPI')):
             with self.assertRaises(ValueError):
                 patch_windows.patch_main(text)
 

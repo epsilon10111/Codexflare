@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 
 // Semantic fixture for the reviewed macOS build, using its exact patch anchors.
-const fixture = `
+let fixture = `
 function createWindow(e={}) {
   let n=(e.appearance??'primary')==='primary',r=n&&e.page;
   let {show:f=true,appearance:d='primary'}=e,S=this.saved,k=S?.isMaximized===true,
@@ -21,6 +21,9 @@ function primary(e,t,n,r=false){const {background:backgroundLaunch=false}={backg
 async function load(z,n,r,e,p,P){return await z.loadURL(t.o(p,{mcpAppSandboxLocalDevelopment:P}));}
 function protocols(){We.deepLinks.registerProtocolClient();}
 `;
+const renamed = JSON.parse(process.env.CODEXFLARE_TEST_BINDINGS || '{}');
+fixture = fixture.replace(/\b[A-Za-z_$][\w$]*\b/g, token => renamed[token] || token);
+
 const result = spawnSync(process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3'), ['-c',
   'import json,sys; from tools.patch_macos import patch_main; s=sys.stdin.read(); print(json.dumps({m if muted else m+"-audio":patch_main(s,m,muted) for m in ("restore","centered","fullscreen") for muted in (True,False)}))'],
   {cwd:path.resolve(__dirname,'..'),input:fixture,encoding:'utf8'});
@@ -39,6 +42,7 @@ function harness(mode,saved=null,area={x:50,y:35,width:1400,height:900}) {
     screen:{getPrimaryDisplay:()=>({workArea:area}),getDisplayMatching:()=>({workArea:area})}},
     V:{getPrimaryWindow:()=>null,createPrimaryWindow:x=>x},URL,process:{env:{}},
     t:{o:()=> 'app://-/index.html'}, A5e:()=>({width:500,height:500}),q:{default:()=>false}});
+  for (const [before,after] of Object.entries(renamed)) if (before in context) context[after]=context[before];
   vm.runInContext(scripts[mode],context);
   return {context,create:(options={})=>context.createWindow.call({saved},{codexflareStartup:true,...options})};
 }

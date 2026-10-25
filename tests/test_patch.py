@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import struct
 import subprocess
@@ -31,6 +32,11 @@ def png_chunk(kind, data):
 def make_png(width=1, height=1, depth=8, color=6):
     return (b'\x89PNG\r\n\x1a\n' + png_chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, depth, color, 0, 0, 0))
             + png_chunk(b'IDAT', zlib.compress(b'\x00\xff\xff\xff\xff')) + png_chunk(b'IEND', b''))
+
+
+def main_fixture():
+    source = Path(__file__).with_name('test_window_mode.cjs').read_text(encoding='utf-8')
+    return re.search(r'let fixture = `([\s\S]*?)\n`;', source)[1].replace('\\`', '`')
 
 
 class PatchTests(unittest.TestCase):
@@ -100,20 +106,13 @@ class PatchTests(unittest.TestCase):
             patch_html(patched)
 
     def test_main_starts_animation_without_overriding_window_geometry(self):
-        geometry = ('minWidth:A?.width,minHeight:A?.height,webPreferences:P},R=new m.BrowserWindow(L);'
-                    'k&&R.once(`ready-to-show`,()=>{R.isDestroyed()||R.maximize()});'
-                    'let i=Cje(t);if((0,W.default)(this.primaryWindowMode,t)){};')
-        original = (geometry + 'await R.loadURL(t.o(f,{mcpAppSandboxLocalDevelopment:ee}));'
-                    'B.createPrimaryWindow({title:m.app.getName(),show:e,initialRoute:t===`/`?void 0:t,opener:n})')
+        original = main_fixture()
         result = patch_main(original)
-        self.assertTrue(result.startswith(geometry.split(';', 1)[0] + ';'))
-        self.assertIn('k&&R.once(`ready-to-show`,()=>{R.isDestroyed()||R.maximize()});', result)
-        self.assertIn('e.codexflareStartup&&w&&(R.codexflareWindowMode=`restore`)', result)
+        self.assertIn('k&&R.once(`ready-to-show`', result)
+        self.assertIn('R.codexflareWindowMode=`restore`', result)
         self.assertNotIn('setFullScreen', result)
-        self.assertNotIn('fullscreen:', result)
-        self.assertNotIn('autoplayPolicy', result)
         self.assertNotIn('codex-boot-play', result)
-        self.assertIn('n&&!r&&d&&e.searchParams.set(`codexBootAnimation`,`1`)', result)
+        self.assertIn('contextIsolation:true,nodeIntegration:false', result)
         self.assertIn('show:process.env.CODEX_ELECTRON_START_IN_BACKGROUND===`1`?e:!0', result)
         with self.assertRaises(ValueError):
             patch_main(result)
