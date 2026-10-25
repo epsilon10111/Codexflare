@@ -35,7 +35,8 @@ class PathTests(unittest.TestCase):
             root, data = folder / 'installed', folder / 'data'
             (root / 'tools').mkdir(parents=True)
             (root / '.packaged').touch()
-            for name in ('paths.py', 'animation.py', 'background.py', 'manage.py', 'patch_app.py'):
+            for name in ('paths.py', 'animation.py', 'background.py', 'manage.py', 'patch_app.py',
+                         'build_layout.py', 'background_layout.py'):
                 shutil.copyfile(paths.ROOT / 'tools' / name, root / 'tools' / name)
             (root / 'assets').mkdir()
             (root / 'assets/default.webm').touch()

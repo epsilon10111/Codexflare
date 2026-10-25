@@ -126,8 +126,8 @@ class ManageTests(unittest.TestCase):
         with patch.object(manage, 'running_pids', return_value=[123]):
             with self.assertRaisesRegex(ValueError, '仍在运行'):
                 manage.install()
-        self.fingerprint['version'] = 'future'
-        with self.assertRaisesRegex(ValueError, '仅支持'):
+        self.patches.enter_context(patch.object(manage, 'patch_archive', side_effect=ValueError('不兼容的窗口结构')))
+        with self.assertRaisesRegex(ValueError, '不兼容的窗口结构'):
             manage.install()
         self.assertFalse(manage.RUNTIME.exists())
 

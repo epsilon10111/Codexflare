@@ -160,7 +160,9 @@ def analyze_archive(source, platform, settings):
     if platform == 'win32':
         build.require_supported(package)
     main, preloads = discover_layout(source)
-    enabled = background.validate_settings(settings.get('background', {}))['enabled']
+    background_settings = background.validate_settings(settings.get('background', {}))
+    enabled = background_settings['enabled'] and not (background_settings['image'] == 'legacy'
+        and not background.image_path('legacy', animation_config.LOCAL).exists())
     return {
         'version': package['version'], 'build': package.get('codexBuildNumber'),
         'main': main, 'preloads': preloads,

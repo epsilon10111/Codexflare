@@ -235,6 +235,14 @@ class PatchTests(unittest.TestCase):
             patch_archive(original, target)
         self.assertEqual(Asar(target).read('webview/assets/codex-background.png'), png)
 
+    def test_missing_legacy_background_does_not_inject_broken_links(self):
+        original, target = self.prepare_background_archive()
+        with patch.object(patch_app, 'load_settings', return_value={
+            'video': 'default', 'background': {'image': 'legacy'},
+        }):
+            patch_archive(original, target)
+        self.assertNotIn('codex-background', Asar(target).read('webview/index.html').decode())
+
     def test_archive_reads_user_data_outside_code_directory(self):
         original, target = self.prepare_background_archive()
         local = self.root / 'user-data'
