@@ -16,11 +16,13 @@ def one(pattern, text, role):
     return matches[0]
 
 
-def patch_main(text, window_mode='restore', muted=True, *, protocol=False):
+def patch_main(text, window_mode='restore', muted=True, *, protocol=False, preserve_identity=False):
     if window_mode not in ('restore', 'fullscreen', 'centered'):
         raise ValueError('无效的启动窗口方式')
     if type(muted) is not bool:
         raise ValueError('静音开关必须是布尔值')
+    if type(preserve_identity) is not bool:
+        raise ValueError('保留应用身份必须是布尔值')
     if 'codexflare' in text or 'codexBootAnimation' in text:
         raise ValueError('主进程已经包含 Codexflare 补丁')
     edits = []
@@ -125,7 +127,7 @@ def patch_main(text, window_mode='restore', muted=True, *, protocol=False):
         'if((0,$compare.default)(this.primaryWindowMode,$mode))', **onboarding.groupdict(), window=mode_window)))
     if protocol:
         registration = one(IDENT+r'\.deepLinks.registerProtocolClient\(\)', text, 'protocol registration')
-        edits.append((registration, 'void 0'))
+        edits.append((registration, registration[0] if preserve_identity else 'void 0'))
     for match, replacement in sorted(edits, key=lambda edit: edit[0].start(), reverse=True):
         text = text[:match.start()] + replacement + text[match.end():]
     return text

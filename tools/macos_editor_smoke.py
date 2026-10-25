@@ -12,6 +12,22 @@ import time
 from unittest.mock import patch
 
 
+def editor_is_visible(state):
+    viewport = state.get('viewport', {})
+    for selector in ('.app-header', '.preview-column', '.settings-card'):
+        region = state.get('regions', {}).get(selector)
+        if (not region or region.get('opacity', 0) < 0.99
+                or region.get('visibility') != 'visible' or region.get('display') == 'none'):
+            return False
+        rect = region.get('rect', {})
+        if not (rect.get('width', 0) > 0 and rect.get('height', 0) > 0
+                and rect.get('right', 0) > 0 and rect.get('bottom', 0) > 0
+                and rect.get('left', 0) < viewport.get('width', 0)
+                and rect.get('top', 0) < viewport.get('height', 0)):
+            return False
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=Path('work/macos-editor'))
@@ -42,7 +58,7 @@ def main():
         def finish(error=None):
             if error: failures.append(str(error))
             (output/'result.json').write_text(json.dumps({'passed':not failures,'errors':failures,'samples':samples},indent=2))
-            app.stop_(None)
+            desktop_macos.stop_event_loop()
 
         def upload(data, filename):
             encoded=base64.b64encode(data).decode()
@@ -64,9 +80,16 @@ def main():
 
         def received(value, error):
             if error: finish(error); return
-            state=json.loads(value); samples.append(state)
-            (output/'progress.json').write_text(json.dumps({'phase':phase[0],'state':state},indent=2))
-            if time.monotonic()>deadline: finish('Native editor timed out'); return
+            state=json.loads(value); state['phase']=phase[0]; samples.append(state)
+            (output/'progress.json').write_text(json.dumps(state,indent=2))
+            visible = editor_is_visible(state)
+            if time.monotonic()>deadline:
+                finish('Native editor regions are not visible: ' + json.dumps(state.get('regions'))
+                       if not visible else 'Native editor timed out')
+                return
+            if not visible:
+                AppHelper.callLater(0.5, poll)
+                return
             if phase[0]==-1 and state.get('width')==1920 and state.get('canPlay'):
                 phase[0]=0
                 view.evaluateJavaScript_completionHandler_('document.getElementById("toggle-play").click();',lambda *_:None)
@@ -93,22 +116,26 @@ def main():
                 upload(b'broken PNG','broken.png')
             elif phase[0]==5 and state.get('uploadError'):
                 phase[0]=6
-                # Wait for the failed request and UI save cycle to finish before testing close.
-                AppHelper.callLater(0.5, window.performClose_, None)
+                window.performClose_(None)
                 return
             AppHelper.callLater(0.5, poll)
 
         def poll():
             view.evaluateJavaScript_completionHandler_(
                 'JSON.stringify((()=>{let v=document.querySelector("video"),i=document.querySelector("#background-preview img");'
+                'const regions=Object.fromEntries([".app-header",".preview-column",".settings-card"].map(selector=>{'
+                'const element=document.querySelector(selector);if(!element)return [selector,null];'
+                'const style=getComputedStyle(element),r=element.getBoundingClientRect();'
+                'return [selector,{opacity:Number(style.opacity),visibility:style.visibility,display:style.display,'
+                'rect:{x:r.x,y:r.y,width:r.width,height:r.height,left:r.left,top:r.top,right:r.right,bottom:r.bottom}}];}));'
                 'return {canPlay:!document.getElementById("toggle-play")?.disabled,readyState:v?.readyState,networkState:v?.networkState,time:v?.currentTime,width:v?.videoWidth,paused:v?.paused,error:v?.error?.code??null,'
+                'regions,viewport:{width:innerWidth,height:innerHeight},'
                 'imageName:document.getElementById("background-name")?.textContent,uploadError:!document.getElementById("error-banner")?.hidden,'
                 'backgroundLoaded:!!i&&i.complete&&i.naturalWidth>0}})())',received)
         AppHelper.callLater(0.5,poll)
         def deadline_check():
             if time.monotonic() > deadline:
                 finish('Native editor timed out while closing')
-                AppHelper.stopEventLoop()
             else:
                 AppHelper.callLater(1, deadline_check)
         AppHelper.callLater(1, deadline_check)

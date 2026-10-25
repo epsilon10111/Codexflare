@@ -137,7 +137,9 @@ def patch_html(text, *, background=False, preloads=STARTUP_PRELOADS):
         '<script src="./assets/codex-boot.js"></script>\n  </head>')
 
 
-def analyze_archive(source, platform, settings):
+def analyze_archive(source, platform, settings, preserve_identity=False):
+    if type(preserve_identity) is not bool or (preserve_identity and platform != 'darwin'):
+        raise ValueError('原入口模式仅支持 macOS')
     if platform == 'win32':
         if __package__:
             from . import patch_windows as build
@@ -168,7 +170,8 @@ def analyze_archive(source, platform, settings):
         'version': package['version'], 'build': package.get('codexBuildNumber'),
         'main': main, 'preloads': preloads,
         'main_text': patcher(source.read(main).decode(), settings.get('windowMode', 'restore'),
-                             settings.get('muted', True)),
+                             settings.get('muted', True),
+                             **({'preserve_identity': preserve_identity} if platform == 'darwin' else {})),
         'html': patch_html(source.read('webview/index.html').decode(), background=enabled, preloads=preloads),
         'loading_class': loading_class(source),
         'background_css': patch_background_css((ROOT / 'src/background.css').read_text(encoding='utf-8'), source)
@@ -176,15 +179,16 @@ def analyze_archive(source, platform, settings):
     }
 
 
-def check_archive(source_asar, platform, settings=None):
-    result = analyze_archive(Asar(source_asar), platform, load_settings() if settings is None else settings)
+def check_archive(source_asar, platform, settings=None, *, preserve_identity=False):
+    result = analyze_archive(Asar(source_asar), platform, load_settings() if settings is None else settings,
+                             preserve_identity)
     return {key: result[key] for key in ('version', 'build', 'main', 'preloads')}
 
 
-def patch_archive(source_asar, target_asar, *, platform='linux'):
+def patch_archive(source_asar, target_asar, *, platform='linux', preserve_identity=False):
     source = Asar(source_asar)
     settings = load_settings()
-    analysis = analyze_archive(source, platform, settings)
+    analysis = analyze_archive(source, platform, settings, preserve_identity)
     animation = settings | {'duration': video_info(settings['video'])['duration']}
     boot_script = replace_once((ROOT / 'src/boot.js').read_text(encoding='utf-8'),
         '/* CODEX_BOOT_SETTINGS */ null',

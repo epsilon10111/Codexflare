@@ -185,9 +185,10 @@ def main():
             probe: (ROOT / 'tests/native_probe.cjs').read_bytes(),
             'webview/assets/codex-boot.js': (script + page_probe).encode(),
         }
-        if not macos:
-            main, _ = discover_layout(archive)
-            text = archive.read(main).decode()
+        main, _ = discover_layout(archive)
+        text = archive.read(main).decode()
+        if not macos or re.search(IDENT+r'\.deepLinks.registerProtocolClient\(\)', text):
+            # Original-entry copies preserve protocol handling; isolated probes must not claim it.
             registration = one(IDENT+r'\.deepLinks.registerProtocolClient\(\)', text, 'protocol registration')
             changes[main] = (text[:registration.start()] + 'void 0' + text[registration.end():]).encode()
         temporary = archive_path.with_suffix('.qa.asar')
