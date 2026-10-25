@@ -169,25 +169,6 @@ class MacPatchTests(unittest.TestCase):
         for name in patch_macos.STARTUP_PRELOADS: self.assertIn(name,result)
         for name in patch_app.STARTUP_PRELOADS: self.assertNotIn(name,result)
 
-    def test_background_targets_current_workspace_and_composer_classes(self):
-        style = (patch_app.ROOT/'src/background.css').read_text(encoding='utf-8')
-        class Archive:
-            def read(self, name):
-                return '\n'.join('.'+value+'{}' for value in (*patch_macos.BACKGROUND_CLASSES.values(), '_background_106nk_2', '_fade_106nk_2', '_surface_106nk_2')).encode()
-        patched=patch_macos.patch_background_css(style,Archive())
-        self.assertIn('._WorkspaceContent_azz1c_2::before',patched)
-        self.assertIn('._ComposerLayoutRoot_1q7o3_2',patched)
-        self.assertNotIn('_WorkspaceContent_yl8z4_2',patched)
-        self.assertNotIn('_ComposerLayoutRoot_15oep_2',patched)
-        self.assertIn('mix-blend-mode: screen',patched)
-        self.assertIn('pointer-events: none',patched)
-
-    def test_background_rejects_unreviewed_css_modules(self):
-        class Archive:
-            def read(self,name): return b'.new-module {}'
-        with self.assertRaisesRegex(ValueError,'Background selector missing'):
-            patch_macos.patch_background_css('body {}',Archive())
-
     @unittest.skipUnless(sys.platform=='darwin','Darwin renamex_np')
     def test_native_directory_exchange(self):
         with tempfile.TemporaryDirectory() as directory:

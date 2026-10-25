@@ -34,6 +34,12 @@ def make_png(width=1, height=1, depth=8, color=6):
             + png_chunk(b'IDAT', zlib.compress(b'\x00\xff\xff\xff\xff')) + png_chunk(b'IEND', b''))
 
 
+def style_fixture():
+    return (''.join('._'+role+'_fixture_2{}' for role in ('WorkspaceContent','MainContentSurface',
+        'MainContentViewport','ComposerLayoutRoot','compactScrollMask','delayedBlossom'))
+        + '.bg-gradient-to-t{}.from-surface{}').encode()
+
+
 def main_fixture():
     source = Path(__file__).with_name('test_window_mode.cjs').read_text(encoding='utf-8')
     return re.search(r'let fixture = `([\s\S]*?)\n`;', source)[1].replace('\\`', '`')
@@ -61,8 +67,9 @@ class PatchTests(unittest.TestCase):
         make_archive(seed)
         Asar(seed).write_changes(original, {
             'package.json': json.dumps({'name': 'openai-codex-electron', 'version': patch_app.VERSION}).encode(),
+            'webview/assets/app-shared-fixture.css': b'shared styles',
             patch_app.MAIN: b'main placeholder', 'webview/index.html': b'<head></head><body></body>',
-            **{f'webview/assets/{name}': b'preload fixture' for name in patch_app.STARTUP_PRELOADS
+            **{f'webview/assets/{name}': (style_fixture() if name.endswith('.css') else b'preload fixture') for name in patch_app.STARTUP_PRELOADS
                if name != missing_asset},
         })
         video = self.root / 'video.webm'
@@ -169,8 +176,9 @@ class PatchTests(unittest.TestCase):
             make_archive(seed)
             Asar(seed).write_changes(original, {
                 'package.json': json.dumps({'name': 'openai-codex-electron', 'version': patch_app.VERSION}).encode(),
-                patch_app.MAIN: b'main placeholder', 'webview/index.html': b'<head></head><body></body>',
-                **{f'webview/assets/{name}': b'preload fixture' for name in patch_app.STARTUP_PRELOADS},
+                'webview/assets/app-shared-fixture.css': b'shared styles',
+            patch_app.MAIN: b'main placeholder', 'webview/index.html': b'<head></head><body></body>',
+                **{f'webview/assets/{name}': (style_fixture() if name.endswith('.css') else b'preload fixture') for name in patch_app.STARTUP_PRELOADS},
             })
             settings = {'video': 'a' * 64, 'speed': 0.5, 'brightness': 1.25,
                         'contrast': 0.75, 'saturation': 0, 'fit': 'contain', 'windowMode': 'centered',

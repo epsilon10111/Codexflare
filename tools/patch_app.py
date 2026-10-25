@@ -13,12 +13,14 @@ if __package__:
     from .animation import load_settings, video_info, video_path
     from .paths import ROOT
     from .build_layout import discover_layout
+    from .background_layout import loading_class, patch_background_css
 else:
     import animation as animation_config
     import background
     from animation import load_settings, video_info, video_path
     from paths import ROOT
     from build_layout import discover_layout
+    from background_layout import loading_class, patch_background_css
 
 VERSION = '26.1002.52244'
 MAIN = '.vite/build/main-B6ZOwXa3.js'
@@ -163,6 +165,7 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
     boot_script = replace_once((ROOT / 'src/boot.js').read_text(encoding='utf-8'),
         '/* CODEX_BOOT_SETTINGS */ null',
         json.dumps(animation, separators=(',', ':'), allow_nan=False))
+    boot_script = boot_script.replace('_delayedBlossom_ovcb0_16', loading_class(source))
     background_settings = background.validate_settings(settings.get('background', {}))
     background_data, background_info = background.load_selected(background_settings, animation_config.LOCAL)
     if background_info is not None:
@@ -182,8 +185,7 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
                      f"--codex-bg-position: {background_settings['position']}%; "
                      f"--codex-bg-scale: {background_settings['scale']}%; }}\n")
         style = (ROOT / 'src/background.css').read_text(encoding='utf-8')
-        if platform == 'darwin':
-            style = build.patch_background_css(style, source)
+        style = patch_background_css(style, source)
         changes['webview/assets/codex-background.css'] = (variables + style).encode()
     source.write_changes(target_asar, changes)
     with Path(source_asar).open('rb') as f:
