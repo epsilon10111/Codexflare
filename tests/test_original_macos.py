@@ -49,6 +49,21 @@ class OriginalMacTests(unittest.TestCase):
         self.sequence = 0
         self.before = original.bundle_digest(self.source)
 
+    def test_active_status_checks_official_backup_not_patched_target(self):
+        original.prepare()
+        original.activate()
+        with patch.object(original.mac, 'check_compatibility', return_value={}) as check:
+            self.assertTrue(original.status()['active'])
+            check.assert_called_once_with(bundle=original.BACKUP, preserve_identity=True)
+
+    def test_incompatible_structure_stops_before_backup_or_replacement(self):
+        with patch.object(original.mac, 'check_compatibility', side_effect=ValueError('incompatible structure')):
+            with self.assertRaisesRegex(ValueError, 'incompatible structure'):
+                original.prepare()
+        self.assertFalse(original.BACKUP.exists())
+        self.assertFalse(original.STATE.exists())
+        self.assertEqual(original.bundle_digest(self.source), self.before)
+
     def build_runtime(self, destination, source=None, preserve_identity=False):
         self.assertEqual(source, original.BACKUP)
         self.assertTrue(preserve_identity)
