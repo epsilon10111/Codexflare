@@ -15,4 +15,3 @@ def patch_main(text, window_mode='restore', muted=True):
     else:
         from window_patch import patch_main as patch_window
     return patch_window(text, window_mode, muted, protocol=True)
-

@@ -15,12 +15,12 @@ import tempfile
 import shlex
 
 if __package__:
-    from .patch_app import Asar, patch_archive
+    from .patch_app import Asar, patch_archive, check_archive
     from .patch_macos import VERSION, BUILD
     from .paths import ROOT, LOCAL
     from .manage import atomic_write, digest
 else:
-    from patch_app import Asar, patch_archive
+    from patch_app import Asar, patch_archive, check_archive
     from patch_macos import VERSION, BUILD
     from paths import ROOT, LOCAL
     from manage import atomic_write, digest
@@ -71,11 +71,16 @@ def fingerprint():
 
 
 def require_supported(source):
-    if (source['version'], source['build']) != (VERSION, BUILD):
-        raise ValueError(f'仅支持 macOS Codex {VERSION} / build {BUILD}；当前 {source["version"]} / {source["build"]}')
+    if not source.get('version') or not source.get('build'):
+        raise ValueError('macOS 应用缺少版本或构建信息')
     arch = subprocess.check_output(['/usr/bin/lipo', '-archs', str(executable(SOURCE))], text=True).strip()
     if arch != 'arm64':
         raise ValueError(f'当前 macOS 补丁仅验证 Apple Silicon arm64；来源为 {arch}')
+
+
+def check_compatibility(settings=None):
+    require_supported(fingerprint())
+    return check_archive(SOURCE / ASAR, 'darwin', settings)
 
 
 def read_state():
@@ -295,4 +300,4 @@ def launch(arguments):
 def status():
     state = read_state()
     print(f'状态：{runtime_problem(state) or "定制副本可用"}')
-    print(f'目标：macOS arm64 Codex {VERSION} / build {BUILD}\n原版：{SOURCE}\n副本：{RUNTIME}\n启动器：{DESKTOP}')
+    print(f'目标：macOS arm64 Codex（按结构检测兼容性）\n原版：{SOURCE}\n副本：{RUNTIME}\n启动器：{DESKTOP}')

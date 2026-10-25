@@ -1,9 +1,4 @@
 """Windows x64 Owl 26.1002.52244 / build 13536 (MSIX 26.1002.7124.0)."""
-if __package__:
-    from .patch_app import patch_main as patch_shared_main, replace_once
-else:
-    from patch_app import patch_main as patch_shared_main, replace_once
-
 VERSION = '26.1002.52244'
 BUILD = '13536'
 MAIN = '.vite/build/main-p91kJShj.js'
@@ -15,10 +10,10 @@ STARTUP_PRELOADS = (
 
 
 def require_supported(package):
-    if (package.get('name'), package.get('version'), package.get('codexBuildNumber'),
-            package.get('codexWindowsPackageIdentity')) != (
-            'openai-codex-electron', VERSION, BUILD, 'OpenAI.Codex'):
-        raise ValueError(f'仅支持 Windows Codex {VERSION} / build {BUILD} 正式版')
+    if (package.get('name') != 'openai-codex-electron'
+            or package.get('codexWindowsPackageIdentity') != 'OpenAI.Codex'
+            or not isinstance(package.get('version'), str) or not package['version']):
+        raise ValueError('仅支持具有有效版本信息的 Windows Codex 正式版')
 
 
 def patch_main(text, window_mode='restore', muted=True):

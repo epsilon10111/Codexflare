@@ -114,9 +114,9 @@ class MacManagerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             mac.install()
 
-    def test_mismatched_build_and_architecture_rejected(self):
+    def test_new_build_allowed_but_unsupported_architecture_rejected(self):
         info = mac.fingerprint(); info['build'] = '99999'
-        with self.assertRaises(ValueError): mac.require_supported(info)
+        mac.require_supported(info)
         with patch.object(mac.subprocess, 'check_output', return_value='x86_64'):
             with self.assertRaises(ValueError): mac.require_supported(mac.fingerprint())
 

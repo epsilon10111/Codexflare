@@ -37,7 +37,7 @@ STATIC = {'/': ('index.html', 'text/html; charset=utf-8'),
 def installation_status():
     try:
         state = manage.read_state()
-        available = manage.fingerprint()['version'] == manage.VERSION
+        manage.check_compatibility()
         problem = manage.runtime_problem(state)
         active = bool(state and state.get('active') and not problem
                       and manage.desktop_snapshot() == state.get('installed_desktop'))
@@ -45,11 +45,9 @@ def installation_status():
         message = '定制动画已启用' if active else (problem or '菜单入口已被其他操作修改')
         if active and hasattr(manage, 'LAUNCH_HINT'):
             message += '；' + manage.LAUNCH_HINT
-        if not available:
-            message = f'当前应用版本尚未适配，仅支持 {manage.VERSION}；仍可预览和保存'
-        elif running:
+        if running:
             message = '定制 Codex 正在运行；退出 Codex 后刷新状态，再点击应用。预览和保存不受影响'
-        return {'active': active, 'available': available, 'running': running, 'message': message}
+        return {'active': active, 'available': True, 'running': running, 'message': message}
     except (OSError, ValueError, KeyError, struct.error, subprocess.SubprocessError) as error:
         return {'active': False, 'available': False, 'running': False,
                 'message': f'当前无法应用，仍可预览和保存：{error}'}
@@ -337,8 +335,7 @@ class EditorHandler(BaseHTTPRequestHandler):
                 if manage.running_pids():
                     self.reply(409, {'error': '定制 Codex 正在运行；退出 Codex 后刷新状态，再点击应用。可先保存设置'})
                     return
-                if manage.fingerprint()['version'] != manage.VERSION:
-                    raise ValueError(f'当前版本尚未适配，仅支持 {manage.VERSION}')
+                manage.check_compatibility(settings)
             animation.save_settings(settings)
             if path == '/api/install':
                 try:

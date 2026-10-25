@@ -100,7 +100,7 @@ class EditorTests(unittest.TestCase):
         settings = {'background': {'image': image_id, 'opacity': 0.25, 'position': 85, 'scale': 90}}
         self.assertEqual(self.request('POST', '/api/settings', settings)[0], 200)
         with patch.object(editor.manage, 'running_pids', return_value=[]), \
-                patch.object(editor.manage, 'fingerprint', return_value={'version': editor.manage.VERSION}), \
+                patch.object(editor.manage, 'check_compatibility', return_value={'version': '99.1.1'}), \
                 patch.object(editor.manage, 'install') as install:
             self.assertEqual(self.request('POST', '/api/install', settings)[0], 200)
             install.assert_called_once_with()
@@ -173,7 +173,7 @@ class EditorTests(unittest.TestCase):
 
     def test_install_and_uninstall_delegate_to_existing_manager(self):
         with patch.object(editor.manage, 'running_pids', return_value=[]), \
-                patch.object(editor.manage, 'fingerprint', return_value={'version': editor.manage.VERSION}), \
+                patch.object(editor.manage, 'check_compatibility', return_value={'version': '99.1.1'}), \
                 patch.object(editor.manage, 'install') as install, \
                 patch.object(editor.manage, 'uninstall') as uninstall:
             self.assertEqual(self.request('POST', '/api/install', {'speed': 2})[0], 200)
@@ -195,7 +195,7 @@ class EditorTests(unittest.TestCase):
 
     def test_failed_install_preserves_saved_settings_and_reports_failure(self):
         with patch.object(editor.manage, 'running_pids', return_value=[]), \
-                patch.object(editor.manage, 'fingerprint', return_value={'version': editor.manage.VERSION}), \
+                patch.object(editor.manage, 'check_compatibility', return_value={'version': '99.1.1'}), \
                 patch.object(editor.manage, 'install', side_effect=ValueError('来源改变')):
             status, data, _ = self.request('POST', '/api/install', {'speed': 0.5})
         self.assertEqual(status, 400)

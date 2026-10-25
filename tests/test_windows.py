@@ -145,7 +145,8 @@ class WindowsManagerTests(unittest.TestCase):
             self.assertIs(manage.platform_manager(), windows)
         package = json.loads(patch_app.Asar(self.source / windows.ASAR).read('package.json'))
         patch_windows.require_supported(package)
-        for key in ('version', 'codexBuildNumber', 'codexWindowsPackageIdentity'):
+        patch_windows.require_supported(package | {'version': '99.1.1', 'codexBuildNumber': '99999'})
+        for key in ('name', 'codexWindowsPackageIdentity'):
             with self.assertRaises(ValueError):
                 patch_windows.require_supported(package | {key: 'future'})
         with self.assertRaises(ValueError):

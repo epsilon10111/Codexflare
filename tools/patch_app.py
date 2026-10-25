@@ -136,45 +136,64 @@ def patch_html(text, *, background=False, preloads=STARTUP_PRELOADS):
         '<script src="./assets/codex-boot.js"></script>\n  </head>')
 
 
-def patch_archive(source_asar, target_asar, *, platform='linux'):
+def analyze_archive(source, platform, settings):
     if platform == 'win32':
         if __package__:
             from . import patch_windows as build
         else:
             import patch_windows as build
-        version, patcher = build.VERSION, build.patch_main
+        patcher = build.patch_main
     elif platform == 'darwin':
         if __package__:
             from . import patch_macos as build
         else:
             import patch_macos as build
-        version, patcher = build.VERSION, build.patch_main
+        patcher = build.patch_main
     elif platform == 'linux':
-        version, patcher = VERSION, patch_main
+        patcher = patch_main
     else:
         raise ValueError(f'不支持的平台: {platform}')
-    source = Asar(source_asar)
     package = json.loads(source.read('package.json'))
-    if package['name'] != 'openai-codex-electron' or package['version'] != version:
-        raise ValueError(f'仅支持 Codex {version} ({platform})；当前 {package.get("version")}')
+    if (package.get('name') != 'openai-codex-electron'
+            or not isinstance(package.get('version'), str) or not package['version']):
+        raise ValueError('来源不是具有有效版本信息的 Codex Electron 应用')
     if platform == 'win32':
         build.require_supported(package)
     main, preloads = discover_layout(source)
+    enabled = background.validate_settings(settings.get('background', {}))['enabled']
+    return {
+        'version': package['version'], 'build': package.get('codexBuildNumber'),
+        'main': main, 'preloads': preloads,
+        'main_text': patcher(source.read(main).decode(), settings.get('windowMode', 'restore'),
+                             settings.get('muted', True)),
+        'html': patch_html(source.read('webview/index.html').decode(), background=enabled, preloads=preloads),
+        'loading_class': loading_class(source),
+        'background_css': patch_background_css((ROOT / 'src/background.css').read_text(encoding='utf-8'), source)
+                          if enabled else None,
+    }
+
+
+def check_archive(source_asar, platform, settings=None):
+    result = analyze_archive(Asar(source_asar), platform, load_settings() if settings is None else settings)
+    return {key: result[key] for key in ('version', 'build', 'main', 'preloads')}
+
+
+def patch_archive(source_asar, target_asar, *, platform='linux'):
+    source = Asar(source_asar)
     settings = load_settings()
+    analysis = analyze_archive(source, platform, settings)
     animation = settings | {'duration': video_info(settings['video'])['duration']}
     boot_script = replace_once((ROOT / 'src/boot.js').read_text(encoding='utf-8'),
         '/* CODEX_BOOT_SETTINGS */ null',
         json.dumps(animation, separators=(',', ':'), allow_nan=False))
-    boot_script = boot_script.replace('_delayedBlossom_ovcb0_16', loading_class(source))
+    boot_script = boot_script.replace('_delayedBlossom_ovcb0_16', analysis['loading_class'])
     background_settings = background.validate_settings(settings.get('background', {}))
     background_data, background_info = background.load_selected(background_settings, animation_config.LOCAL)
     if background_info is not None:
         background_data, background_info = background.prepare_image(background_data, background_info)
     changes = {
-        main: patcher(source.read(main).decode(), settings.get('windowMode', 'restore'),
-                         settings.get('muted', True)).encode(),
-        'webview/index.html': patch_html(source.read('webview/index.html').decode(),
-                                       background=background_info is not None, preloads=preloads).encode(),
+        analysis['main']: analysis['main_text'].encode(),
+        'webview/index.html': analysis['html'].encode(),
         'webview/assets/codex-boot.js': boot_script.encode(),
         'webview/assets/codex-boot.css': (ROOT / 'src/boot.css').read_bytes(),
         'webview/assets/codex-boot.webm': video_path(settings['video']).read_bytes(),
@@ -184,10 +203,10 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
         variables = (f":root {{ --codex-bg-opacity: {background_settings['opacity']}; "
                      f"--codex-bg-position: {background_settings['position']}%; "
                      f"--codex-bg-scale: {background_settings['scale']}%; }}\n")
-        style = (ROOT / 'src/background.css').read_text(encoding='utf-8')
-        style = patch_background_css(style, source)
+        style = analysis['background_css']
         changes['webview/assets/codex-background.css'] = (variables + style).encode()
     source.write_changes(target_asar, changes)
     with Path(source_asar).open('rb') as f:
         digest = hashlib.file_digest(f, 'sha256').hexdigest()
-    return {'version': version, 'source_sha256': digest, 'animation': animation, 'background': background_info}
+    return {'version': analysis['version'], 'build': analysis['build'], 'source_sha256': digest,
+            'animation': animation, 'background': background_info}

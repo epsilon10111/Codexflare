@@ -122,7 +122,7 @@ class ManageTests(unittest.TestCase):
             manage.launch([])
             execute.assert_called_once_with(str(manage.SYSTEM_LAUNCHER), [str(manage.SYSTEM_LAUNCHER)])
 
-    def test_running_runtime_and_unsupported_version_refuse_install(self):
+    def test_running_runtime_and_incompatible_structure_refuse_install(self):
         with patch.object(manage, 'running_pids', return_value=[123]):
             with self.assertRaisesRegex(ValueError, '仍在运行'):
                 manage.install()
