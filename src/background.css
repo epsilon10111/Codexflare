@@ -1,0 +1,93 @@
+/* 工作区、分支页与输入框使用同一底色，避免露出标题栏的半透明底层。 */
+:root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] {
+  background-color: var(--color-surface);
+}
+
+/* 单张图片固定在整个工作区下方；滤色使图片黑底融入当前主题。 */
+:root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--codex-bg-position, 80%) - var(--codex-bg-scale, 70%) / 2);
+  width: var(--codex-bg-scale, 70%);
+  z-index: -1;
+  pointer-events: none;
+  background: url("./codex-background.png") center / cover no-repeat;
+  mix-blend-mode: screen;
+  opacity: var(--codex-bg-opacity, 0.18);
+  -webkit-mask-image: linear-gradient(to right, transparent, #00000026 25%, #000 68%);
+  mask-image: linear-gradient(to right, transparent, #00000026 25%, #000 68%);
+}
+
+/* shortcut: 仅移除此构建的三层工作区填充，升级时重新核对类名和层级。 */
+:root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] > ._WorkspaceContent_yl8z4_2::before,
+:root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] aside[data-app-shell-focus-area="right-panel"] :is([data-app-shell-pane-frame], [data-app-shell-compact-page-gutter]) {
+  background-color: transparent;
+}
+
+/* shortcut: 此构建的 FooterFade 是不透明遮罩；仅在可固定文字遮罩时替换。 */
+@supports (animation-timeline: scroll(nearest y)) and (height: 100cqh) {
+  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] [data-request-input-activity-root]:has(> .thread-scroll-container > [data-thread-scroll-footer="true"]:not(.home-composer-anchor)) {
+    container-type: size;
+  }
+
+  /* 遮罩跟随可视区，仅隐藏滚动文字；同级输入框和工作区背景不受影响。 */
+  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container:has(> [data-thread-scroll-footer="true"]:not(.home-composer-anchor)) > :first-child {
+    mask-image: linear-gradient(to bottom, #000 calc(100% - var(--thread-scroll-padding-bottom, 0px) - 16px), transparent calc(100% - var(--thread-scroll-padding-bottom, 0px) + 16px));
+    mask-size: 100% 100cqh;
+    mask-repeat: no-repeat;
+    animation: codex-transcript-mask 1s linear both;
+    animation-timeline: scroll(nearest y);
+  }
+  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container.flex-col-reverse:has(> [data-thread-scroll-footer="true"]:not(.home-composer-anchor)) > :first-child {
+    animation-direction: reverse;
+  }
+  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container > [data-thread-scroll-footer="true"]:not(.home-composer-anchor),
+  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container > [data-thread-scroll-footer="true"]:not(.home-composer-anchor) > [aria-hidden="true"].bg-surface {
+    background-color: transparent;
+  }
+  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container:has(> [data-thread-scroll-footer="true"]:not(.home-composer-anchor)) > div > [aria-hidden="true"] > .bg-gradient-to-t.from-surface {
+    background-image: none;
+  }
+  @keyframes codex-transcript-mask {
+    from { mask-position: 0 0%; }
+    to { mask-position: 0 100%; }
+  }
+}
+
+/* 仅减淡深色输入表面；文字不透明，拖入附件和特殊编辑器仍使用原反馈。 */
+@media (prefers-reduced-transparency: no-preference) and (prefers-contrast: no-preference) and (forced-colors: none) {
+  :root[data-codex-window-type="electron"][data-theme="dark"] main[data-app-shell-main-surface="default"]:not([data-theme="light"]) [data-thread-scroll-footer] ._ComposerLayoutRoot_15oep_2:is([data-composer-surface-variant="default"], [data-composer-surface-variant="opaque"]):not([data-composer-drag-active]),
+  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"][data-theme="dark"] [data-thread-scroll-footer] ._ComposerLayoutRoot_15oep_2:is([data-composer-surface-variant="default"], [data-composer-surface-variant="opaque"]):not([data-composer-drag-active]) {
+    --composer-layout-surface-background: color-mix(in srgb, var(--color-surface) 48%, transparent);
+    --composer-layout-surface-backdrop-filter: blur(6px);
+    --composer-layout-surface-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+  }
+}
+
+:root[data-codex-window-type="electron"][data-theme="light"] main[data-app-shell-main-surface="default"]:not([data-theme="dark"])::before,
+:root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"][data-theme="light"]::before {
+  filter: invert(1);
+  mix-blend-mode: multiply;
+  opacity: calc(var(--codex-bg-opacity, 0.18) * 0.5);
+}
+
+@media (max-width: 900px) {
+  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"]::before { opacity: calc(var(--codex-bg-opacity, 0.18) * 0.555556); }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"]::before { display: none; }
+  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container:has(> [data-thread-scroll-footer="true"]:not(.home-composer-anchor)) > :first-child {
+    mask-image: none;
+    animation: none;
+  }
+  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container > [data-thread-scroll-footer="true"]:not(.home-composer-anchor),
+  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container > [data-thread-scroll-footer="true"]:not(.home-composer-anchor) > [aria-hidden="true"].bg-surface {
+    background-color: revert-layer;
+  }
+  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container:has(> [data-thread-scroll-footer="true"]:not(.home-composer-anchor)) > div > [aria-hidden="true"] > .bg-gradient-to-t.from-surface {
+    background-image: revert-layer;
+  }
+}

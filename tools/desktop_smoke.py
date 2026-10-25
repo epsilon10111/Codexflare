@@ -1,47 +1,73 @@
 #!/usr/bin/python3
 """在隔离配置下自检独立桌面窗口，保留截图，不安装或恢复 Codex。"""
+import argparse
 from contextlib import ExitStack
 import json
 from pathlib import Path
 import subprocess
+import struct
+import sys
+import zlib
 import tempfile
 import threading
 import time
 from unittest.mock import patch
 
-if __package__:
-    from . import animation, desktop, editor
-else:
-    import animation
-    import desktop
-    import editor
-
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--app-root', type=Path, help='从解包的应用目录加载代码与资源；输出仍保存在源码仓库 work 中')
+    args = parser.parse_args()
+    if args.app_root:
+        args.app_root = args.app_root.resolve()
+        if not all((args.app_root / 'tools' / name).is_file() for name in ('animation.py', 'desktop.py', 'editor.py')):
+            parser.error('--app-root 必须包含 Codexflare 的 tools 目录')
+        sys.path.insert(0, str(args.app_root / 'tools'))
+    if __package__ and not args.app_root:
+        from . import animation, desktop, editor
+    else:
+        import animation
+        import desktop
+        import editor
+    if args.app_root:
+        assert all(Path(module.__file__).resolve().parents[1] == args.app_root
+                   for module in (animation, desktop, editor)), '未加载指定应用目录中的模块'
     Gtk = desktop.init_desktop()
     from gi.repository import Gdk, GLib, WebKit2
-    work = animation.ROOT / 'work'
+    work = Path(__file__).resolve().parents[1] / 'work'
     work.mkdir(exist_ok=True)
     output = Path(tempfile.mkdtemp(prefix='desktop-smoke-', dir=work))
     expected = animation.DEFAULT_SETTINGS | {
         'speed': 0.5, 'brightness': 1.25, 'contrast': 1.1, 'saturation': 0.8, 'fit': 'contain',
+        'windowMode': 'centered',
     }
     state = {'phase': -3, 'logged': None, 'pending': False, 'closed': False, 'chooser': False,
-             'error': None, 'try_close_calls': 0, 'native': {}}
+             'error': None, 'try_close_calls': 0, 'native': {}, 'background_chooser': False, 'close_cancelled': False}
     with tempfile.TemporaryDirectory(prefix='codex-desktop-test-') as folder, ExitStack() as patches:
         local = Path(folder)
         for name, value in {'LOCAL': local, 'SETTINGS': local / 'animation.json', 'MEDIA': local / 'media'}.items():
             patches.enter_context(patch.object(animation, name, value))
-        fixture = animation.ROOT / 'work/editor-qa/upload-test.mp4'
+        fixture = work / 'editor-qa/upload-test.mp4'
         if not fixture.is_file():
             fixture = local / 'upload-test.mp4'
             subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i',
                             'testsrc2=size=320x180:rate=24:duration=3', '-c:v', 'mpeg4', str(fixture)], check=True)
+        def png_chunk(kind, payload):
+            return struct.pack('>I', len(payload)) + kind + payload + struct.pack('>I', zlib.crc32(kind + payload))
+        background_fixture = local / 'background-test.png'
+        pixels = b''.join(b'\x00' + b''.join(bytes((x % 256, y % 256, 170)) for x in range(640)) for y in range(360))
+        background_fixture.write_bytes(b'\x89PNG\r\n\x1a\n' + png_chunk(b'IHDR', struct.pack('>IIBBBBB', 640, 360, 8, 2, 0, 0, 0))
+                                       + png_chunk(b'IDAT', zlib.compress(pixels)) + png_chunk(b'IEND', b''))
+        broken_background = local / 'broken.png'
+        broken_background.write_bytes(b'broken png')
         server = editor.EditorServer()
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         window, view = desktop.create_window(f'http://127.0.0.1:{server.server_port}', server)
         titlebar = window.get_titlebar()
+        assert window.get_title() == 'Codexflare' and titlebar.get_title() == 'Codexflare', '小程序名称未更新'
+        window.set_title('Codexflare · 自动验证中')
+        titlebar.set_title('Codexflare · 自动验证中，请勿操作')
         assert isinstance(titlebar, Gtk.HeaderBar), '未安装原生自绘标题栏'
         assert window.get_decorated() and window.get_resizable(), '窗口装饰或缩放被禁用'
         original_close = view.try_close
@@ -49,7 +75,7 @@ def main():
             state['try_close_calls'] += 1
             original_close()
         view.try_close = traced_close
-        deadline = time.monotonic() + 90
+        deadline = time.monotonic() + 120
 
         def title_buttons():
             buttons = {}
@@ -103,6 +129,12 @@ def main():
 
         def fail(error):
             state['error'] = str(error)
+            native = window.get_window()
+            if native:
+                pixels = Gdk.pixbuf_get_from_window(native, 0, 0, native.get_width(), native.get_height())
+                if pixels:
+                    pixels.savev(str(output / 'failure.png'), 'png', [], [])
+            (output / 'failure.json').write_text(json.dumps(state, ensure_ascii=False, indent=2))
             window.destroy()
 
         def evaluate(script, callback=lambda value: None):
@@ -119,8 +151,13 @@ def main():
             evaluate('(() => {' + script + ';return JSON.stringify(true);})()')
 
         def choose_file(_view, request):
-            state['chooser'] = True
-            request.select_files([str(fixture)])
+            if state['phase'] >= 11:
+                state['background_chooser'] = True
+                chosen = broken_background if state['phase'] == 15 else background_fixture
+            else:
+                state['chooser'] = True
+                chosen = fixture
+            request.select_files([str(chosen)])
             return True
 
         def snapshot(webview, result, filename):
@@ -139,6 +176,10 @@ def main():
                     state['phase'], state['scroll_index'], state['minimum_scroll'] = 10, 0, {}
                     action("document.getElementById('save').scrollIntoView({block:'center',behavior:'instant'})")
                     return
+                if filename == 'background.png':
+                    state['phase'] = 13
+                    action("document.getElementById('background-enabled').click()")
+                    return
                 state['phase'] = 5
                 action("const source=document.getElementById('video-source');source.value='default';"
                        "source.dispatchEvent(new Event('change'));document.getElementById('reset').click();"
@@ -148,12 +189,12 @@ def main():
 
         def check(data):
             state['last'] = data
-            assert not data.get('error'), data.get('error')
+            assert not data.get('error') or state['phase'] == 15, data.get('error')
             if not data.get('ready'):
                 return
             phase = state['phase']
             if phase in (0, 1, 3, 7) and (phase != 7 or time.monotonic() - state['resized_at'] > 0.5):
-                for name in ('save', 'install', 'video-source', 'upload-button', 'reset'):
+                for name in ('save', 'install', 'video-source', 'upload-button', 'reset', 'window-mode', 'toggle-mute'):
                     rect = data['controls'][name]
                     assert (rect['width'] > 0 and rect['height'] > 0 and rect['left'] >= 0 and rect['top'] >= 0
                             and rect['right'] <= data['viewport']['width']
@@ -165,6 +206,9 @@ def main():
                     assert float(data['fonts'][name][:-2]) + 0.01 >= minimum, f'{name} 字号过小：{data["fonts"][name]}'
             if phase == 0:
                 assert (data['width'], data['height']) == (1920, 1080), '默认视频未正常解码'
+                assert data['window_mode'] == 'restore', '默认启动方式未恢复上次窗口'
+                assert data['muted'] and data['mute_pressed'] == 'true', '默认静音状态不一致'
+                assert data['background']['source'] == 'default', '未选择内置默认背景'
                 state['hover_before'], state['hover_at'], state['phase'] = data['hover'], time.monotonic(), 8
                 rect = data['controls']['upload-button']
                 motion((rect['left'] + rect['width'] / 2) * view.get_allocated_width() / data['viewport']['width'],
@@ -182,10 +226,12 @@ def main():
                 state['phase'] = 1
                 action("for(const [id,value] of Object.entries({speed:.5,brightness:1.25,contrast:1.1,saturation:.8})){"
                        "const input=document.getElementById(id);input.value=value;input.dispatchEvent(new Event('input'));}"
+                       "const mode=document.getElementById('window-mode');mode.value='centered';mode.dispatchEvent(new Event('change'));"
                        "const fit=document.querySelector('input[value=contain]');fit.checked=true;fit.dispatchEvent(new Event('change'));"
                        "document.getElementById('restart').click();document.getElementById('save').click()")
             elif phase == 1 and data['time'] > 1.4 and not data['paused'] and animation.load_settings() == expected:
                 assert data['rate'] == 0.5 and data['fit'] == 'contain'
+                assert data['window_mode'] == 'centered', '居中小窗口方式未保存'
                 assert data['filter'] == 'brightness(1.25) contrast(1.1) saturate(0.8)'
                 state['default_playback'] = data
                 state['phase'] = 4
@@ -198,7 +244,7 @@ def main():
                 state['phase'] = 2
                 action("document.getElementById('upload-button').click()")
             elif phase == 10:
-                names = ('save', 'install', 'video-source', 'upload-button', 'reset')
+                names = ('save', 'install', 'video-source', 'upload-button', 'reset', 'window-mode', 'toggle-mute')
                 name = names[state['scroll_index']]
                 rect = data['controls'][name]
                 assert rect['top'] >= -1 and rect['bottom'] <= data['viewport']['height'] + 1, f'最小窗口无法滚动到 {name}'
@@ -213,6 +259,7 @@ def main():
             elif phase == 2 and data['video'] != 'default':
                 assert state['chooser'], '未经过原生文件选择器'
                 assert (data['width'], data['height']) == (320, 180), '导入视频未正常解码'
+                assert data['muted'] == expected['muted'], '更换视频不应改变静音偏好'
                 assert data['rate'] == 0.5 and data['fit'] == 'contain'
                 assert data['filter'] == 'brightness(1.25) contrast(1.1) saturate(0.8)'
                 expected['video'] = data['video']
@@ -223,7 +270,73 @@ def main():
                 state['imported_playback'] = data
                 state['phase'] = 4
                 view.get_snapshot(WebKit2.SnapshotRegion.VISIBLE, WebKit2.SnapshotOptions.NONE, None, snapshot, 'desktop.png')
-            elif phase == 5 and data['video'] == 'default' and data['saved'] and animation.load_settings() == animation.DEFAULT_SETTINGS:
+            elif phase == 5 and data['video'] == 'default' and data['saved'] and animation.load_settings() == animation.DEFAULT_SETTINGS | {'windowMode': 'centered'}:
+                assert data['window_mode'] == 'centered', '重置动画参数不应重置启动方式'
+                state['phase'] = 11
+                action("document.getElementById('background-tab').click();document.getElementById('background-upload-button').click()")
+            elif phase == 11 and data['background']['source'] != 'legacy' and data['background']['width'] == 640:
+                assert state['background_chooser'], '图片未经过原生文件选择器'
+                assert not data['background']['hidden'], '上传背景没有显示'
+                state['phase'] = 12
+                action("for(const [name,value] of Object.entries({opacity:.26,position:86,scale:92})){"
+                       "const input=document.getElementById('background-'+name);input.value=value;input.dispatchEvent(new Event('input'));}"
+                       "const mode=document.getElementById('window-mode');mode.value='fullscreen';mode.dispatchEvent(new Event('change'));"
+                       "document.getElementById('save').click()")
+            elif phase == 12 and data['saved']:
+                background = animation.load_settings()['background']
+                assert background == {'enabled': True, 'image': data['background']['source'], 'opacity': .26, 'position': 86, 'scale': 92}
+                assert data['background']['opacity'] == '0.26' and data['background']['left'] == '40%'
+                assert animation.load_settings()['windowMode'] == data['window_mode'] == 'fullscreen', '背景页未保存全屏方式'
+                state['background'], state['phase'] = data['background'], 4
+                view.get_snapshot(WebKit2.SnapshotRegion.VISIBLE, WebKit2.SnapshotOptions.NONE, None, snapshot, 'background.png')
+            elif phase == 13 and data['background']['hidden'] and not data['saved']:
+                state['phase'] = 14
+                title_buttons()['close'].clicked()
+            elif phase == 14 and state['close_cancelled']:
+                assert not state['closed'], '未保存背景的关闭取消未生效'
+                state['phase'] = 15
+                action("document.getElementById('background-upload-button').click()")
+            elif phase == 15 and data.get('error'):
+                assert 'PNG' in data['error'], '未显示图片格式错误'
+                state['background_error'], state['phase'] = data['error'], 16
+                action("document.getElementById('error-banner').hidden=true;document.getElementById('save').click()")
+            elif phase == 16 and data['saved']:
+                assert animation.load_settings()['background']['enabled'] is False
+                assert animation.load_settings()['windowMode'] == 'fullscreen'
+                state['phase'] = 17
+                action("const mode=document.getElementById('window-mode');mode.value='restore';mode.dispatchEvent(new Event('change'));"
+                       "document.getElementById('save').click()")
+            elif phase == 17 and data['saved']:
+                assert animation.load_settings()['windowMode'] == data['window_mode'] == 'restore', '恢复上次窗口方式未保存'
+                state['window_modes'] = ['restore', 'centered', 'fullscreen', 'restore']
+                assert data['paused'], '静音设置自检应在暂停状态进行'
+                state['phase'] = 18
+                action("document.getElementById('animation-tab').click();"
+                       "document.getElementById('toggle-mute').click();document.getElementById('save').click()")
+            elif phase == 18 and data['saved']:
+                assert not data['muted'] and data['mute_pressed'] == 'false' and animation.load_settings()['muted'] is False
+                state['phase'] = 19
+                action("document.getElementById('refresh-state').click()")
+            elif phase == 19 and data['saved']:
+                assert not data['muted'] and data['mute_pressed'] == 'false', '刷新未保留声音偏好'
+                state['mute_after_refresh'], state['phase'] = data['muted'], 20
+                action("document.getElementById('toggle-mute').click();document.getElementById('save').click()")
+            elif phase == 20 and data['saved']:
+                assert data['muted'] and data['mute_pressed'] == 'true' and animation.load_settings()['muted'] is True
+                state['phase'] = 21
+                action("document.getElementById('background-tab').click();document.getElementById('background-enabled').click();"
+                       "const image=document.getElementById('background-source');image.value='default2';image.dispatchEvent(new Event('change'));"
+                       "document.getElementById('save').click()")
+            elif phase == 21 and data['saved'] and data['background']['complete'] and data['background']['width'] > 0:
+                assert animation.load_settings()['background']['image'] == data['background']['source'] == 'default2'
+                assert data['background']['src'].endswith('/background/default2') and not data['background']['hidden']
+                state['second_builtin'], state['phase'] = data['background'], 22
+                action("const image=document.getElementById('background-source');image.value='default';image.dispatchEvent(new Event('change'));"
+                       "document.getElementById('save').click()")
+            elif phase == 22 and data['saved'] and data['background']['complete'] and data['background']['width'] > 0:
+                assert animation.load_settings()['background']['image'] == data['background']['source'] == 'default'
+                assert data['background']['src'].endswith('/background/default') and not data['background']['hidden']
+                state['first_builtin'] = data['background']
                 state['phase'] = 6
                 title_buttons()['close'].clicked()
 
@@ -250,15 +363,30 @@ def main():
                 state['native']['restored'], state['phase'] = True, 0
                 motion(2, 2)
             if not state['pending'] and state['phase'] not in (4, 6):
+                if state['phase'] == 8:
+                    # 实际桌面指针移动会覆盖合成事件，在采样前保持测试悬停位置。
+                    rect, viewport = state['last']['controls']['upload-button'], state['last']['viewport']
+                    motion((rect['left'] + rect['width'] / 2) * view.get_allocated_width() / viewport['width'],
+                           (rect['top'] + rect['height'] / 2) * view.get_allocated_height() / viewport['height'])
                 evaluate("JSON.stringify((()=>{const v=document.getElementById('preview');"
                          "if(!v||document.readyState==='loading')return {ready:false};"
+                         "if(!window.probeMedia){window.probeMedia=[];for(const type of ['volumechange','loadstart','loadedmetadata']){"
+                         "v.addEventListener(type,()=>window.probeMedia.push({event:type,muted:v.muted,defaultMuted:v.defaultMuted,src:v.currentSrc}));}"
+                         "document.addEventListener('click',e=>window.probeMedia.push({event:'click',id:e.target.closest('button')?.id,trusted:e.isTrusted}),true);}"
                          "const error=document.getElementById('error-banner');const hover=getComputedStyle(document.getElementById('upload-button'));return {"
+                         "media_events:window.probeMedia,"
                          "ready:!!v&&v.readyState>=2&&!document.getElementById('adjustments').disabled&&!document.getElementById('restart').disabled,"
                          "error:error&&!error.hidden?document.getElementById('error-text').textContent:null,"
+                         "background:{source:document.getElementById('background-source').value,"
+                         "src:document.getElementById('background-image').currentSrc,complete:document.getElementById('background-image').complete,"
+                         "width:document.getElementById('background-image').naturalWidth,hidden:document.getElementById('background-image').hidden,"
+                         "opacity:getComputedStyle(document.getElementById('background-image')).opacity,left:document.getElementById('background-image').style.left},"
                          "video:document.getElementById('video-source')?.value,time:v?.currentTime,paused:v?.paused,"
+                         "muted:v?.muted,mute_pressed:document.getElementById('toggle-mute').getAttribute('aria-pressed'),"
+                         "window_mode:document.getElementById('window-mode').value,"
                          "width:v?.videoWidth,height:v?.videoHeight,rate:v?.playbackRate,"
                          "viewport:{width:innerWidth,height:innerHeight},page_width:document.documentElement.scrollWidth,"
-                         "controls:Object.fromEntries(['save','install','video-source','upload-button','reset'].map(id=>"
+                         "controls:Object.fromEntries(['save','install','video-source','upload-button','reset','window-mode','toggle-mute'].map(id=>"
                          "[id,document.getElementById(id)?.getBoundingClientRect()])),"
                          "fonts:Object.fromEntries(['body','h1','h2','.control-label','#save','#upload-button','.field-hint'].map(selector=>"
                          "[selector,getComputedStyle(document.querySelector(selector)).fontSize])),"
@@ -278,6 +406,14 @@ def main():
                 fail(error)
                 return True
 
+        def script_dialog(_view, dialog):
+            if dialog.get_dialog_type() == WebKit2.ScriptDialogType.BEFORE_UNLOAD_CONFIRM:
+                dialog.confirm_set_confirmed(False)
+                state['close_cancelled'] = True
+                return True
+            return False
+
+        view.connect('script-dialog', script_dialog)
         view.connect('run-file-chooser', choose_file)
         window.connect('destroy', lambda _window: state.update(closed=True))
         timer = GLib.timeout_add(200, poll)
@@ -293,12 +429,17 @@ def main():
         assert not thread.is_alive(), '编辑器服务未正常退出'
         assert not state['error'], state['error']
         assert state['phase'] == 6 and state['closed'], f"窗口未通过 try_close 正常关闭，阶段 {state['phase']}"
-        assert state['try_close_calls'] == 1, '标题栏关闭未经过 try_close'
-        assert all((output / name).stat().st_size > 0 for name in ('default.png', 'minimum.png', 'desktop.png')), '截图为空'
-    report = {'passed': True, 'chooser': state['chooser'], 'service_stopped': not thread.is_alive(),
+        assert state['try_close_calls'] == 2, '标题栏关闭未经过 try_close 或未保存保护未验证'
+        assert all((output / name).stat().st_size > 0 for name in ('default.png', 'minimum.png', 'desktop.png', 'background.png')), '截图为空'
+    report = {'passed': True, 'app_root': str(animation.ROOT),
+              'chooser': state['chooser'], 'service_stopped': not thread.is_alive(),
               'native': state['native'], 'minimum': state['minimum'], 'minimum_scroll': state['minimum_scroll'], 'motion': state['motion'],
               'hover_before': state['hover_before'], 'hover_after': state['hover_after'],
-              'try_close_calls': state['try_close_calls'],
+              'try_close_calls': state['try_close_calls'], 'close_cancelled': state['close_cancelled'],
+              'window_modes': state['window_modes'],
+              'mute_after_refresh': state['mute_after_refresh'],
+              'builtin_backgrounds': [state['first_builtin'], state['second_builtin']],
+              'background': state['background'], 'background_error': state['background_error'], 'background_chooser': state['background_chooser'],
               'default_playback': state['default_playback'], 'imported_playback': state['imported_playback'],
               'output': str(output)}
     (output / 'result.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))

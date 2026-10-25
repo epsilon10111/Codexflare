@@ -18,9 +18,10 @@ import threading
 from urllib.parse import unquote, urlsplit
 
 if __package__:
-    from . import animation, manage
+    from . import animation, background, manage
 else:
     import animation
+    import background
     import manage
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,7 +44,7 @@ def installation_status():
         if not available:
             message = f'当前应用版本尚未适配，仅支持 {manage.VERSION}；仍可预览和保存'
         elif running:
-            message = '定制 Codex 正在运行；请完全退出后再应用，预览和保存不受影响'
+            message = '定制 Codex 正在运行；退出 Codex 后刷新状态，再点击应用。预览和保存不受影响'
         return {'active': active, 'available': available, 'running': running, 'message': message}
     except (OSError, ValueError, KeyError, struct.error) as error:
         return {'active': False, 'available': False, 'running': False,
@@ -54,7 +55,29 @@ def public_video(video_id):
     return {**animation.video_info(video_id), 'url': '/media/' + video_id}
 
 
-def probe_video(path):
+def public_image(image_id):
+    return {**background.image_info(image_id, animation.LOCAL), 'url': '/background/' + image_id}
+
+
+def import_image(data, filename):
+    filename = Path(filename.replace('\\', '/')).name
+    if not filename or len(filename) > 240 or any(ord(char) < 32 for char in filename):
+        raise ValueError('图片文件名无效或过长')
+    info = background.validate_png(data)
+    image_id = info['sha256']
+    path = background.image_path(image_id, animation.LOCAL)
+    animation.LOCAL.mkdir(parents=True, exist_ok=True)
+    animation.LOCAL.chmod(0o700)
+    path.parent.mkdir(exist_ok=True)
+    path.parent.chmod(0o700)
+    manage.atomic_write(path, data)
+    manage.atomic_write(path.with_suffix('.json'), json.dumps({
+        'id': image_id, 'name': filename, 'width': info['width'], 'height': info['height'],
+    }, ensure_ascii=False).encode())
+    return public_image(image_id)
+
+
+def probe_video(path, max_duration=30):
     result = subprocess.run([
         'ffprobe', '-v', 'error', '-protocol_whitelist', 'file,pipe',
         '-format_whitelist', 'mov,matroska,webm,avi,ogg',
@@ -68,7 +91,7 @@ def probe_video(path):
     stream = streams[0]
     duration = float(data.get('format', {}).get('duration', stream.get('duration', 0)))
     width, height = stream.get('width', 0), stream.get('height', 0)
-    if not math.isfinite(duration) or not 0 < duration <= 30:
+    if not math.isfinite(duration) or not 0 < duration <= max_duration:
         raise ValueError('请选择时长不超过 30 秒的有效视频')
     if not 0 < width <= 7680 or not 0 < height <= 7680 or width * height > 33177600:
         raise ValueError('视频尺寸无效或超过 8K，请先缩小视频')
@@ -89,13 +112,14 @@ def import_video(source, filename):
         subprocess.run([
             'ffmpeg', '-nostdin', '-hide_banner', '-loglevel', 'error', '-xerror',
             '-protocol_whitelist', 'file,pipe', '-format_whitelist', 'mov,matroska,webm,avi,ogg',
-            '-i', str(source), '-map', '0:v:0',
-            '-an', '-sn', '-dn', '-map_metadata', '-1', '-t', '30', '-vf',
+            '-i', str(source), '-map', '0:v:0', '-map', '0:a:0?',
+            '-sn', '-dn', '-map_metadata', '-1', '-t', '30', '-vf',
             "scale=w='min(1920,iw)':h='min(1080,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=30",
             '-c:v', 'libvpx-vp9', '-crf', '34', '-b:v', '0', '-threads', '2',
-            '-row-mt', '1', '-cpu-used', '6', '-pix_fmt', 'yuv420p', str(output),
+            '-row-mt', '1', '-cpu-used', '6', '-pix_fmt', 'yuv420p',
+            '-c:a', 'libopus', '-b:a', '128k', '-ac', '2', str(output),
         ], capture_output=True, timeout=180, check=True)
-        info = probe_video(output)
+        info = probe_video(output, max_duration=animation.MAX_ENCODED_DURATION)
         with output.open('rb') as video:
             video_id = hashlib.file_digest(video, 'sha256').hexdigest()
         metadata = {'id': video_id, 'name': filename, **info}
@@ -187,7 +211,7 @@ class EditorHandler(BaseHTTPRequestHandler):
                     settings = animation.load_settings()
                     animation.video_info(settings['video'])
                 except (ValueError, OSError) as error:
-                    settings = animation.DEFAULT_SETTINGS.copy()
+                    settings = animation.validate_settings({})
                     warning = f'已保存的设置无法读取：{error}。当前展示默认视频，请保存以恢复配置。'
                 videos = [public_video('default')]
                 for metadata in sorted(animation.MEDIA.glob('*.json')):
@@ -195,13 +219,27 @@ class EditorHandler(BaseHTTPRequestHandler):
                         videos.append(public_video(metadata.stem))
                     except (ValueError, OSError):
                         continue
-                self.reply(200, {'settings': settings, 'videos': videos, 'warning': warning,
+                images = []
+                image_ids = ['default', 'default2', 'legacy'] + [path.stem for path in sorted((animation.LOCAL / 'backgrounds').glob('*.json'))]
+                for image_id in image_ids:
+                    try:
+                        images.append(public_image(image_id))
+                    except (ValueError, OSError):
+                        continue
+                try:
+                    background.load_selected(settings['background'], animation.LOCAL)
+                except (ValueError, OSError) as error:
+                    settings['background']['enabled'] = False
+                    warning = (warning + ' ' if warning else '') + f'背景暂不可用：{error}。已暂停预览，请重新导入。'
+                self.reply(200, {'settings': settings, 'videos': videos, 'images': images, 'warning': warning,
                                  'installation': installation_status(), 'token': self.server.token})
             elif path in STATIC:
                 name, content_type = STATIC[path]
                 self.send_file(ROOT / 'ui' / name, content_type)
             elif path.startswith('/media/'):
                 self.send_file(animation.video_path(path.removeprefix('/media/')), 'video/webm')
+            elif path.startswith('/background/'):
+                self.send_file(background.image_path(path.removeprefix('/background/'), animation.LOCAL), 'image/png')
             else:
                 self.reply(404, {'error': '页面不存在'})
         except (FileNotFoundError, ValueError, KeyError) as error:
@@ -245,7 +283,7 @@ class EditorHandler(BaseHTTPRequestHandler):
         if not self.allowed(write=True):
             return
         path = urlsplit(self.path).path
-        if path not in ('/api/upload', '/api/settings', '/api/install', '/api/uninstall'):
+        if path not in ('/api/upload', '/api/background/upload', '/api/settings', '/api/install', '/api/uninstall'):
             self.reply(404, {'error': '操作不存在'})
             return
         if not self.server.write_lock.acquire(blocking=False):
@@ -253,9 +291,16 @@ class EditorHandler(BaseHTTPRequestHandler):
             return
         try:
             length = int(self.headers.get('Content-Length', '-1'))
-            limit = MAX_UPLOAD if path == '/api/upload' else 4096
+            limit = {'/api/upload': MAX_UPLOAD, '/api/background/upload': background.MAX_UPLOAD}.get(path, 4096)
             if self.headers.get('Transfer-Encoding') or not 0 < length <= limit:
-                self.reply(413, {'error': '视频不能为空且须小于 100 MiB；设置请求须小于 4 KiB'})
+                self.reply(413, {'error': '上传不能为空；视频上限 100 MiB，PNG 上限 40 MiB，设置上限 4 KiB'})
+                return
+            if path == '/api/background/upload':
+                raw = self.rfile.read(length)
+                if len(raw) != length:
+                    raise ValueError('图片上传未完成，请重试')
+                image = import_image(raw, unquote(self.headers.get('X-Filename', 'background.png')))
+                self.reply(200, {'image': image})
                 return
             if path == '/api/upload':
                 animation.LOCAL.mkdir(parents=True, exist_ok=True)
@@ -286,7 +331,7 @@ class EditorHandler(BaseHTTPRequestHandler):
             animation.video_info(settings['video'])
             if path == '/api/install':
                 if manage.running_pids():
-                    self.reply(409, {'error': '定制 Codex 正在运行，请完全退出后再应用；可先保存设置'})
+                    self.reply(409, {'error': '定制 Codex 正在运行；退出 Codex 后刷新状态，再点击应用。可先保存设置'})
                     return
                 if manage.fingerprint()['version'] != manage.VERSION:
                     raise ValueError(f'当前版本尚未适配，仅支持 {manage.VERSION}')
@@ -296,7 +341,7 @@ class EditorHandler(BaseHTTPRequestHandler):
                     manage.install()
                 except (OSError, ValueError, KeyError, struct.error, subprocess.CalledProcessError) as error:
                     raise ValueError(f'配置已保存，但尚未应用：{error}') from error
-                self.reply(200, {'settings': settings, 'message': '已应用。完全退出 Codex 后，从原菜单入口重新打开即可生效',
+                self.reply(200, {'settings': settings, 'message': '已应用。重新打开 Codex 即可查看新的动画与背景。',
                                  'installation': installation_status()})
             else:
                 self.reply(200, {'settings': settings})

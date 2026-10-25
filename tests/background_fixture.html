@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark" data-codex-window-type="electron" data-app-shell-unified-tab-strip="true">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'">
+  <title>Codexflare · 背景隔离验证</title>
+  <link rel="stylesheet" href="./assets/app-shared-f2d570e85ceb.css">
+  <link rel="stylesheet" href="./assets/app-initial-c43288484373.css">
+  <link rel="stylesheet" href="./assets/thread-scroll-layout-24b9bd243051.css">
+  <link rel="stylesheet" href="./assets/codex-background.css">
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+    body { font: 16px/1.7 system-ui, sans-serif; color: var(--color-text-primary); display: flex; }
+    #root { display: flex; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+    .sidebar { width: 220px; flex: none; padding: 28px 24px; background: var(--color-surface-secondary); }
+    .sidebar h1 { margin: 0 0 36px; font-size: 22px; font-weight: 650; }
+    .sidebar p { margin: 18px 0; opacity: .7; }
+    main { --height-toolbar: 64px; }
+    header { height: 64px; flex: none; padding: 16px 24px; border-bottom: 1px solid #8882; display: flex; justify-content: space-between; align-items: center; }
+    ._WorkspaceContent_yl8z4_2 { position: relative; isolation: isolate; flex: 1; min-height: 0; display: flex; }
+    .thread-probe { position: relative; height: 100%; min-height: 0; flex: 1; --thread-scroll-padding-bottom: 160px; --thread-composer-bottom-inset: 24px; }
+    .thread-scroll-container { height: 100%; overflow: auto; display: flex; flex-direction: column-reverse; }
+    .transcript { min-height: 100%; display: flex; flex-direction: column; flex-shrink: 0; }
+    .conversation, .footer-content { width: min(760px, 100%); margin-inline: auto; padding: 28px; }
+    .conversation { padding-top: 60px; }
+    .conversation h2 { margin: 0 0 20px; font-size: 26px; font-weight: 600; }
+    .conversation p { margin: 14px 0; }
+    pre { border: 1px solid #8884; border-radius: 14px; padding: 18px; font: 14px/1.7 monospace; margin: 26px 0; }
+    .footer-content { padding-block: 16px 0; position: relative; z-index: 10; pointer-events: auto; }
+    .composer { min-height: 104px; display: flex; flex-direction: row; align-items: center; gap: 12px; padding: 18px; }
+    input { flex: 1; width: 0; border: 0; outline: none; background: transparent; }
+    button { border: 1px solid #8885; border-radius: 10px; padding: 6px 14px; cursor: pointer; }
+    .note { font-size: 12px; opacity: .55; }
+    #right-panel { position: relative; width: 400px; flex: none; min-width: 0; border-left: 1px solid var(--color-border); }
+    #right-panel[hidden] { display: none; }
+    #pane-frame { position: absolute; inset: 0; display: flex; flex-direction: column; }
+    #pane-content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    #pane-content .conversation, #pane-content .footer-content { padding-inline: 24px; }
+    #pane-content h2 { font-size: 22px; }
+    #pane-content pre { font-size: 12px; }
+    @media (max-width: 900px) { .sidebar { width: 150px; padding: 24px 16px; } .conversation, .footer-content { padding-inline: 24px; } .conversation { padding-top: 24px; } #right-panel { width: 310px; } }
+  </style>
+</head>
+<body>
+  <div id="root">
+  <aside class="sidebar"><h1>Codex</h1><p>新建任务</p><p>项目</p><p>Codexflare</p><p>背景样式验证</p></aside>
+  <main class="_MainContentSurface_yl8z4_2" data-app-shell-main-surface="default" data-theme="dark">
+    <header class="probe-content"><span>Codexflare / 背景预览</span><button id="toggle-panel">切换子代理面板</button></header>
+    <div class="_WorkspaceContent_yl8z4_2">
+      <div class="_MainContentViewport_yl8z4_2" data-app-shell-main-content-layout="default" data-app-shell-right-panel-full-width="false">
+        <div class="flex h-full min-h-0 min-w-0 flex-1 flex-col" data-app-shell-focus-area="main">
+        <div class="thread-probe group/thread-scroll-layout" data-request-input-activity-root>
+          <div class="thread-scroll-container flex-col-reverse"><div class="transcript">
+            <section class="conversation probe-content" data-thread-find-target="conversation">
+              <h2>让微光停留在右侧</h2>
+              <p>这是一段用于验证可读性的模拟对话。图片位于内容底层，向左逐渐淡出，不接收鼠标事件。</p>
+              <p>主对话和右侧分支共享同一张背景。输入框轻微透出背景，文字与按钮保持清晰。</p>
+              <pre class="bg-surface" id="code">const background = {<br>  opacity: 0.18,<br>  placement: "right",<br>  interaction: "none"<br>};</pre>
+              <p class="note">隔离测试窗口 · 模拟会话 · 真实应用 CSS · 不读取账户或聊天</p>
+            </section>
+            <!-- 原应用 FooterFade(part=fade) 位于滚动区的 sticky 占位层。 -->
+            <div aria-hidden="true" class="pointer-events-none sticky bottom-0 z-10 mt-auto w-full shrink-0 h-[calc(var(--thread-scroll-padding-bottom)-var(--spacing)*4)]"><div id="footer-fade" aria-hidden="true" class="pointer-events-none absolute inset-x-0 -top-8 z-0 h-8 bg-gradient-to-t from-surface"></div></div>
+          </div>
+          <!-- 原应用 FooterFade(part=surface) 与输入框本体为同级，不清除 composer 底色。 -->
+          <div class="pointer-events-none absolute inset-x-0 bottom-0 z-20 pb-(--thread-composer-bottom-inset)" data-thread-scroll-footer="true" id="footer">
+            <div id="footer-surface" aria-hidden="true" class="pointer-events-none absolute inset-x-0 -top-8 z-0 bottom-0 mt-8 bg-surface"></div>
+            <div class="footer-content probe-content" data-pip-obstacle="thread-footer">
+              <div class="composer _ComposerLayoutRoot_15oep_2" id="composer" data-composer-layout="multiline" data-composer-radius-variant="default" data-composer-surface-variant="default"><input id="prompt" placeholder="输入一条测试消息…"><button id="send">发送</button></div>
+            </div>
+          </div></div>
+        </div>
+        </div>
+      </div>
+      <aside id="right-panel" data-app-shell-focus-area="right-panel" hidden>
+        <div id="pane-frame" data-app-shell-pane-frame class="bg-[var(--app-shell-panel-background,var(--color-surface))]">
+          <header class="probe-content">子代理 / 背景检查</header>
+          <div id="pane-content" class="bg-[var(--app-shell-panel-background,var(--color-surface))]" data-app-shell-compact-page-gutter="false" data-app-shell-pane-content-viewport>
+            <div class="thread-probe group/thread-scroll-layout" data-request-input-activity-root>
+              <div class="thread-scroll-container flex-col-reverse"><div class="transcript">
+                <section class="conversation probe-content" data-thread-find-target="conversation">
+                  <h2>分支也保留背景</h2><p>这是模拟子代理对话。</p><p>两侧共享同一张背景。图片按整个工作区定位。</p>
+                  <pre id="panel-code" class="bg-surface">background: transparent;<br>pointer-events: none;</pre>
+                </section>
+                <div aria-hidden="true" class="pointer-events-none sticky bottom-0 z-10 mt-auto w-full shrink-0 h-[calc(var(--thread-scroll-padding-bottom)-var(--spacing)*4)]"><div id="panel-footer-fade" aria-hidden="true" class="pointer-events-none absolute inset-x-0 -top-8 z-0 h-8 bg-gradient-to-t from-surface"></div></div>
+              </div>
+              <div class="pointer-events-none absolute inset-x-0 bottom-0 z-20 pb-(--thread-composer-bottom-inset)" data-thread-scroll-footer="true" id="panel-footer">
+                <div id="panel-footer-surface" aria-hidden="true" class="pointer-events-none absolute inset-x-0 -top-8 z-0 bottom-0 mt-8 bg-surface"></div>
+                <div class="footer-content probe-content" data-pip-obstacle="thread-footer">
+                  <div id="panel-composer" class="composer _ComposerLayoutRoot_15oep_2" data-composer-layout="multiline" data-composer-radius-variant="default" data-composer-surface-variant="default"><input id="panel-prompt" placeholder="回复子代理…"><button id="panel-send">发送</button></div>
+                </div>
+              </div></div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+  </div>
+</body>
+</html>

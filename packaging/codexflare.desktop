@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Codexflare
+Comment=Customize Codex startup animation and workspace background
+Comment[zh_CN]=自定义 Codex 开屏动画与工作区背景
+Exec=codexflare
+Icon=codexflare
+Terminal=false
+Categories=Settings;
+StartupWMClass=CodexAnimationStudio
+Keywords=Codex;animation;background;

@@ -1,0 +1,58 @@
+Codexflare Bundled Media License 1.0
+
+Copyright (c) 2026 epsilon10111. All rights reserved except as granted below.
+
+Scope
+
+This license covers the following bundled media files and their converted,
+resized, cropped, or other application-specific versions:
+
+- default.mp4
+- default.webm
+- default1.png
+- default2.png
+- boot.webm
+
+It also covers reproductions of these media in Codexflare documentation and
+screenshots. It does not cover the source code that processes or generates
+media, which is licensed under the repository's MIT License.
+
+Permission
+
+A worldwide, non-exclusive, royalty-free permission is granted to:
+
+1. Use and display the media within Codexflare and modified versions of
+   Codexflare.
+2. Copy and redistribute the media together with Codexflare or its modified
+   versions, including source archives, RPM packages, and other software
+   distributions.
+3. Convert, resize, crop, and otherwise adapt the media as needed for those
+   applications, and distribute such adaptations with those applications.
+4. Display the media in screenshots, demonstrations, and documentation of
+   Codexflare or its modified versions.
+
+Conditions and reserved rights
+
+Redistributions must retain this license and the copyright notice. Modified
+media must be identified as modified when distributed.
+
+This permission does not authorize extracting the media for separate sale or
+licensing, or publishing the media in an external stock-media or asset library.
+Any use not expressly granted above requires separate permission from the
+applicable rights holder. This media license is not the MIT License and does
+not grant unrestricted reuse of the media in other projects.
+
+Third-party rights
+
+This license grants only rights held by the licensor. It does not grant rights
+to third-party trademarks, names, likenesses, or other third-party material,
+and does not imply endorsement by OpenAI or any media-generation platform.
+Users who import their own media are responsible for the rights to that media.
+
+Disclaimer
+
+THE MEDIA IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. TO THE MAXIMUM EXTENT
+PERMITTED BY APPLICABLE LAW, THE LICENSOR SHALL NOT BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY ARISING FROM THE MEDIA OR ITS USE.

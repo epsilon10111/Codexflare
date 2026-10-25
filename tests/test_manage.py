@@ -3,6 +3,7 @@ import io
 from pathlib import Path
 import shutil
 import stat
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -68,6 +69,28 @@ class ManageTests(unittest.TestCase):
         manage.uninstall()
         self.assertFalse(self.desktop.exists())
         self.assertFalse(manage.read_state()['active'])
+
+    def test_desktop_uses_persistent_launcher_with_uninstall_fallback(self):
+        manager = self.root / 'installed/tools/manage.py'
+        manager.parent.mkdir(parents=True)
+        manager.touch()
+        with patch.object(manage, '__file__', str(manager)):
+            manage.install()
+        launcher = self.local / 'launch.py'
+        self.assertTrue(launcher.is_file())
+        self.assertIn(f'{manage.desktop_quote(launcher)} %U', self.desktop.read_text())
+        arguments = ['codex://threads/123', 'argument with spaces', '--example']
+        for installed in (True, False):
+            if not installed:
+                manager.unlink()
+            with self.subTest(installed=installed), patch.object(manage.os, 'execv') as execute, \
+                    patch.object(sys, 'argv', [str(launcher), *arguments]):
+                exec(compile(launcher.read_bytes(), str(launcher), 'exec'), {})
+                command = [sys.executable, str(manager), 'launch'] if installed else [str(manage.SYSTEM_LAUNCHER)]
+                execute.assert_called_once_with(command[0], [*command, *arguments])
+        manage.uninstall()
+        self.assertTrue(launcher.is_file())
+        self.assertFalse(self.desktop.exists())
 
     def test_user_modification_is_never_overwritten(self):
         manage.install()

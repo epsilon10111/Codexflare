@@ -1,4 +1,4 @@
-html[data-codex-boot] .startup-loader { display: none; }
+html:is([data-codex-boot="loading"], [data-codex-boot="waiting-app"]) #root > .startup-loader { visibility: hidden; }
 #codex-boot {
   position: fixed;
   inset: 0;
@@ -9,18 +9,24 @@ html[data-codex-boot] .startup-loader { display: none; }
   -webkit-app-region: no-drag;
 }
 #codex-boot video { width: 100%; height: 100%; object-fit: cover; display: block; }
-#codex-boot button {
+#codex-boot .skip-hint {
   position: absolute;
-  right: 32px;
-  bottom: 28px;
-  padding: 10px 16px;
-  border: 1px solid #ffffff40;
-  border-radius: 24px;
-  background: #070b18b3;
-  color: #ffffffc9;
-  font: 14px system-ui, sans-serif;
-  cursor: pointer;
+  right: 16px;
+  bottom: 16px;
+  color: #ffffffb3;
+  font: 12px / 1.5 system-ui, sans-serif;
+  letter-spacing: .02em;
+  text-shadow: 0 1px 4px #0009;
+  pointer-events: none;
+  user-select: none;
 }
-#codex-boot button:focus-visible { outline: 2px solid #b9caff; outline-offset: 4px; }
+#codex-boot p {
+  position: absolute;
+  left: 32px;
+  bottom: 28px;
+  margin: 0;
+  color: #ffffffb3;
+  font: 14px system-ui, sans-serif;
+}
 #codex-boot.leaving { opacity: 0; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { #codex-boot { transition: none; } }

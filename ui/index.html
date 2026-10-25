@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>Codex · 启动动画编辑器</title>
+  <title>Codexflare</title>
   <link rel="stylesheet" href="/editor.css">
   <script src="/editor.js" defer></script>
 </head>
@@ -12,15 +12,19 @@
   <svg class="depth-lines" viewBox="0 0 720 720" aria-hidden="true"><g><path d="m360 40 277 160v320L360 680 83 520V200Z"/><path d="m360 100 225 130v260L360 620 135 490V230Z"/><path d="m360 160 173 100v200L360 560 187 460V260Z"/><path d="m360 220 121 70v140l-121 70-121-70V290Z"/><path d="m360 280 69 40v80l-69 40-69-40v-80Z"/></g></svg>
   <div class="app-shell">
     <header class="app-header">
-      <div class="brand"><img class="brand-mark" src="/mark.svg" alt=""><div><h1>启动动画</h1><p class="brand-caption">预览、调整与应用</p></div></div>
+      <div class="brand"><img class="brand-mark" src="/mark.svg" alt=""><div><h1>Codexflare</h1><p class="brand-caption">开场动画与工作区背景</p></div></div>
       <div class="header-status"><span class="local-badge"><span class="status-dot"></span>本机工作区</span><span id="save-state" class="save-state" role="status">正在连接…</span></div>
     </header>
 
+    <nav class="editor-tabs" role="tablist" aria-label="个性化设置">
+      <button id="animation-tab" type="button" role="tab" aria-selected="true" aria-controls="animation-preview">开场动画</button>
+      <button id="background-tab" type="button" role="tab" aria-selected="false" aria-controls="background-preview-card" tabindex="-1">常驻背景</button>
+    </nav>
     <main>
       <div class="workspace">
         <div class="preview-column">
-          <section class="preview-card" aria-labelledby="preview-heading">
-            <div class="card-heading"><div class="heading-label"><h2 id="preview-heading">实时预览</h2><span class="preview-muted">静音</span></div><span id="playback-state" class="subtle-label">准备中</span></div>
+          <section id="animation-preview" class="preview-card" role="tabpanel" aria-labelledby="animation-tab">
+            <div class="card-heading"><div class="heading-label"><h2 id="preview-heading">实时预览</h2><button id="toggle-mute" class="mute-button" type="button" aria-label="静音播放" aria-pressed="true" data-edit disabled><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M11 4 6 8H2v8h4l5 4Z"/><path id="mute-icon" d="m17 9 5 6m0-6-5 6"/></svg><span id="mute-label">静音</span></button></div><span id="playback-state" class="subtle-label">准备中</span></div>
             <div class="preview-stage">
               <video id="preview" muted playsinline preload="auto" aria-label="启动动画视频预览"></video>
               <div id="preview-placeholder" class="preview-placeholder"><img class="preview-symbol" src="/mark.svg" alt=""><span>正在载入视频</span></div>
@@ -32,11 +36,28 @@
             </div>
           </section>
 
-          <section class="source-card" aria-labelledby="source-heading">
+          <section id="animation-source-card" class="source-card" aria-labelledby="source-heading">
             <div class="section-heading"><div class="heading-label"><h2 id="source-heading">视频素材</h2></div><span class="subtle-label">本机处理</span></div>
             <label class="sr-only" for="video-source">当前视频</label>
             <div class="source-actions"><select id="video-source" data-edit disabled><option value="default">默认启动动画</option></select><button id="upload-button" class="upload-button" type="button" data-edit disabled><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M5 15v5h14v-5"/></svg>上传视频</button><input id="video-file" type="file" accept="video/*,.mp4,.mov,.webm,.mkv,.m4v" hidden></div>
             <p class="field-hint">最长 30 秒 · 最大 100 MiB · 支持 MP4、MOV、WebM 等</p>
+          </section>
+          <section id="background-preview-card" class="preview-card" role="tabpanel" aria-labelledby="background-tab" hidden>
+            <div class="card-heading"><div class="heading-label"><h2>背景预览</h2><span class="preview-muted">模拟对话</span></div><span class="subtle-label">左侧渐隐</span></div>
+            <div id="background-preview" class="background-preview">
+              <img id="background-image" class="background-image" alt="" hidden>
+              <div class="sample-toolbar"><img src="/mark.svg" alt=""><span>Codex</span><span class="sample-toolbar-end">新对话</span></div>
+              <div class="sample-conversation"><p class="sample-question">让每一次打开，都有自己的风格。</p><p class="sample-answer">背景安静地留在右侧，<br>让想法与对话保持清晰。</p></div>
+              <div class="sample-composer"><span>描述你的想法…</span><span class="sample-send" aria-hidden="true">↑</span></div>
+              <div id="background-placeholder" class="background-placeholder">上传一张 PNG，预览你的工作区。</div>
+            </div>
+            <div class="preview-footer"><div class="video-details"><strong id="background-name">尚未选择图片</strong><span id="background-meta">仅在本机保存与处理</span></div></div>
+          </section>
+          <section id="background-source-card" class="source-card" aria-labelledby="background-source-heading" hidden>
+            <div class="section-heading"><h2 id="background-source-heading">背景图片</h2><span class="subtle-label">本机处理</span></div>
+            <label class="sr-only" for="background-source">当前背景</label>
+            <div class="source-actions"><select id="background-source" data-edit disabled><option value="default">default1 · 内置</option></select><button id="background-upload-button" class="upload-button" type="button" data-edit disabled><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M5 15v5h14v-5"/></svg>上传图片</button><input id="background-file" type="file" accept="image/png,.png" hidden></div>
+            <p class="field-hint">PNG · 最大 40 MiB · 单边不超过 8192 像素</p>
           </section>
           <div class="message-stack">
             <div id="error-banner" class="notice error-notice" role="alert" hidden><span id="error-text"></span><button id="retry-state" type="button" hidden>重新连接</button></div>
@@ -59,7 +80,24 @@
             <div class="slider-field"><div class="control-label"><label for="saturation">饱和度</label><output id="saturation-value" for="saturation">100%</output></div><input id="saturation" type="range" min="0" max="2" step="0.05" value="1"><div class="range-labels"><span>黑白</span><span>浓郁</span></div></div>
             <div class="fit-field"><span id="fit-label" class="input-label">画面适配</span><div class="segmented-control" role="group" aria-labelledby="fit-label"><label><input type="radio" name="fit" value="cover" checked><span><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="M8 8h8v8H8Z"/></svg>铺满画面</span></label><label><input type="radio" name="fit" value="contain"><span><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="M8 10h8v4H8Z"/></svg>完整显示</span></label></div><p id="fit-hint" class="field-hint">保持比例铺满窗口，超出部分会被裁切。</p></div>
           </fieldset>
-          <div class="apply-area"><div id="busy-message" class="busy-message" role="status" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-text"></span></div><div class="apply-buttons"><button id="save" class="save-button" type="button" disabled>保存设置</button><button id="install" class="primary-button" type="button" disabled>应用到 Codex <span aria-hidden="true">↗</span></button></div><p class="apply-hint">应用后，完全退出 Codex 并重新打开。</p></div>
+          <fieldset id="background-adjustments" disabled hidden>
+            <legend class="sr-only">背景参数</legend>
+            <label class="toggle-field" for="background-enabled"><span>启用图片背景</span><input id="background-enabled" type="checkbox" checked><span class="toggle-switch" aria-hidden="true"></span></label>
+            <p class="field-hint background-hint">背景向左渐隐，自动融合深浅主题。输入框与代码块保持清晰。</p>
+            <div class="slider-field"><div class="control-label"><label for="background-opacity">不透明度</label><output id="background-opacity-value" for="background-opacity">18%</output></div><input id="background-opacity" type="range" min="0" max="0.5" step="0.01" value="0.18"></div>
+            <div class="slider-field"><div class="control-label"><label for="background-position">水平位置</label><output id="background-position-value" for="background-position">80%</output></div><input id="background-position" type="range" min="50" max="100" step="1" value="80"><p class="field-hint">越大越靠右，左侧留给对话。</p></div>
+            <div class="slider-field"><div class="control-label"><label for="background-scale">图片大小</label><output id="background-scale-value" for="background-scale">70%</output></div><input id="background-scale" type="range" min="40" max="140" step="1" value="70"><p class="field-hint">按工作区宽度缩放，超出窗口的部分会被裁切。</p></div>
+          </fieldset>
+          <div class="window-mode-field">
+            <label class="input-label" for="window-mode">Codex 启动窗口</label>
+            <select id="window-mode" aria-describedby="window-mode-hint" data-edit disabled>
+              <option value="restore">恢复上次关闭的大小</option>
+              <option value="fullscreen">全屏</option>
+              <option value="centered">居中小窗口</option>
+            </select>
+            <p id="window-mode-hint" class="field-hint">沿用 Codex 保存的窗口大小与位置。</p>
+          </div>
+          <div class="apply-area"><div id="busy-message" class="busy-message" role="status" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-text"></span></div><div class="apply-buttons"><button id="save" class="save-button" type="button" disabled>保存设置</button><button id="install" class="primary-button" type="button" disabled>应用到 Codex <span aria-hidden="true">↗</span></button></div><p class="apply-hint">退出 Codex 后刷新状态，再点击应用。</p></div>
         </section>
       </div>
     </main>

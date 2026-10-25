@@ -15,18 +15,18 @@ import tempfile
 
 if __package__:
     from .patch_app import Asar, VERSION, patch_archive
+    from .paths import ROOT, LOCAL, data_home
 else:
     from patch_app import Asar, VERSION, patch_archive
+    from paths import ROOT, LOCAL, data_home
 
-ROOT = Path(__file__).resolve().parents[1]
-LOCAL = ROOT / '.local'
 RUNTIME = LOCAL / 'runtime'
 STATE = LOCAL / 'install.json'
 BACKUP = LOCAL / 'chatgpt.desktop.original'
 SOURCE = Path('/usr/lib/chatgpt')
 SYSTEM_LAUNCHER = Path('/usr/bin/chatgpt')
 SYSTEM_DESKTOP = Path('/usr/share/applications/chatgpt.desktop')
-DESKTOP = Path.home() / '.local/share/applications/chatgpt.desktop'
+DESKTOP = data_home() / 'applications/chatgpt.desktop'
 
 
 def digest(data):
@@ -94,8 +94,20 @@ def desktop_quote(value):
     return '"' + value.replace('\\', '\\\\') + '"'
 
 
+def launcher_content():
+    # RPM 卸载后保留用户启动器，原有菜单仍可回到系统 Codex。
+    return f'''import os
+from pathlib import Path
+import sys
+
+manager = Path({str(Path(__file__).resolve())!r})
+command = [sys.executable, str(manager), 'launch'] if manager.is_file() else [{str(SYSTEM_LAUNCHER)!r}]
+os.execv(command[0], [*command, *sys.argv[1:]])
+'''.encode()
+
+
 def desktop_content():
-    command = f'{desktop_quote(sys.executable)} {desktop_quote(Path(__file__).resolve())} launch %U'
+    command = f'{desktop_quote(sys.executable)} {desktop_quote(LOCAL / "launch.py")} %U'
     lines = SYSTEM_DESKTOP.read_text().splitlines(keepends=True)
     section = None
     replaced = 0
@@ -186,6 +198,7 @@ def install():
             save_state(state)
         require_stopped()
         swap_runtime(staged)
+        atomic_write(LOCAL / 'launch.py', launcher_content())
         state.update(active=True, source=before, patch=metadata,
                      installed_desktop={'sha256': digest(content), 'mode': 0o644})
         save_state(state)

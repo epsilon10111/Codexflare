@@ -36,13 +36,13 @@ def create_window(url, server):
     context.connect('download-started', lambda _context, download: download.cancel())
     view = WebKit2.WebView.new_with_context(context)
     view.set_background_color(Gdk.RGBA(0.015, 0.015, 0.015, 1))
-    window = Gtk.Window(title='Codex · 启动动画工作室')
+    window = Gtk.Window(title='Codexflare')
     window.set_name('codex-animation-window')
     window.set_wmclass('codex-animation-studio', 'CodexAnimationStudio')
     window.set_default_size(1280, 900)
     window.set_size_request(1000, 720)
     window.set_position(Gtk.WindowPosition.CENTER)
-    titlebar = Gtk.HeaderBar(title='CODEX / MOTION STUDIO', show_close_button=True)
+    titlebar = Gtk.HeaderBar(title='Codexflare', show_close_button=True)
     titlebar.set_name('codex-animation-titlebar')
     titlebar.set_has_subtitle(False)
     titlebar.set_decoration_layout(':minimize,maximize,close')
@@ -73,7 +73,7 @@ def create_window(url, server):
                                    message_type=Gtk.MessageType.INFO,
                                    buttons=Gtk.ButtonsType.OK,
                                    text='操作仍在进行，请完成后再关闭')
-        dialog.format_secondary_text('视频导入或动画应用尚未结束，窗口会保留当前进度。')
+        dialog.format_secondary_text('素材导入或设置应用尚未结束，窗口会保留当前进度。')
         dialog.run()
         dialog.destroy()
         return True

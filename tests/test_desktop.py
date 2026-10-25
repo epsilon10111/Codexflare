@@ -1,4 +1,7 @@
 from pathlib import Path
+import subprocess
+import sys
+import tempfile
 import threading
 from types import SimpleNamespace
 import unittest
@@ -10,6 +13,19 @@ try:
 except (ImportError, ValueError):
     desktop = None
     local_navigation = None
+
+
+class DesktopSmokeCLITests(unittest.TestCase):
+    def test_help_and_missing_app_root_do_not_require_gtk(self):
+        script = Path(__file__).resolve().parents[1] / 'tools/desktop_smoke.py'
+        result = subprocess.run([sys.executable, str(script), '--help'], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('--app-root', result.stdout)
+        with tempfile.TemporaryDirectory() as folder:
+            result = subprocess.run([sys.executable, str(script), '--app-root', folder],
+                                    capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn('--app-root 必须包含 Codexflare 的 tools 目录', result.stderr)
 
 
 @unittest.skipIf(local_navigation is None, '需要系统 Python 的 GTK/WebKit 运行时')
@@ -44,7 +60,7 @@ class DesktopTests(unittest.TestCase):
         server = SimpleNamespace(write_lock=threading.Lock())
         with patch.multiple(repository, Gtk=gtk, Gdk=gdk, GdkPixbuf=pixbuf, WebKit2=webkit):
             self.assertEqual(desktop.create_window('http://127.0.0.1:12345/', server), (window, view))
-        gtk.HeaderBar.assert_called_once_with(title='CODEX / MOTION STUDIO', show_close_button=True)
+        gtk.HeaderBar.assert_called_once_with(title='Codexflare', show_close_button=True)
         window.set_titlebar.assert_called_once_with(gtk.HeaderBar.return_value)
         window.set_decorated.assert_not_called()
 
