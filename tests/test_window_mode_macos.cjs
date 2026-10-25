@@ -17,7 +17,7 @@ function createWindow(e={}) {
 }
 function syncPrimaryMinimumSize(){let e=this.windows;let t=this.getPrimaryMinimumSize();for(let n of e){if(n.setMinimumSize(t.width,t.height),n.isMaximized()||n.isFullScreen())continue;}}
 function onboarding(n,t){let i=A5e(t);if((0,q.default)(this.primaryWindowMode,t)){};return i;}
-function primary(e,t,n,r=false){return V.createPrimaryWindow({title:O.app.getName(),show:e,initialRoute:t===\`/\`?void 0:t,opener:n});}
+function primary(e,t,n,r=false){const {background:backgroundLaunch=false}={background:r};return V.createPrimaryWindow({title:O.app.getName(),show:e,initialRoute:t===\`/\`?void 0:t,opener:n});}
 async function load(z,n,r,e,p,P){return await z.loadURL(t.o(p,{mcpAppSandboxLocalDevelopment:P}));}
 function protocols(){We.deepLinks.registerProtocolClient();}
 `;

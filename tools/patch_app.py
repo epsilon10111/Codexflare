@@ -109,61 +109,11 @@ def replace_once(text, old, new):
 
 
 def patch_main(text, window_mode='restore', muted=True):
-    if window_mode not in ('restore', 'fullscreen', 'centered'):
-        raise ValueError('无效的启动窗口方式')
-    if type(muted) is not bool:
-        raise ValueError('静音开关必须是布尔值')
-    # Owl 构建需要本地播放手势；固定事件只授权配置为有声的开屏主窗口。
-    sound_bridge = ('' if muted else
-        'n&&!r&&d&&R.webContents.once(`dom-ready`,async()=>{try{'
-        'await R.webContents.executeJavaScript("document.dispatchEvent(new Event(`codex-boot-play`))",!0)'
-        '}catch{}});')
-    # shortcut: 精确匹配此版本的压缩代码，升级后必须重新审查补丁位置。
-    text = replace_once(text,
-        'await R.loadURL(t.o(f,{mcpAppSandboxLocalDevelopment:ee}))',
-        'await R.loadURL((()=>{' + sound_bridge +
-        'let e=new URL(t.o(f,{mcpAppSandboxLocalDevelopment:ee}));'
-        'n&&!r&&d&&e.searchParams.set(`codexBootAnimation`,`1`);return e.toString()})())')
-    # 仅普通启动提前显示，保留截图、预热等调用方的隐藏窗口语义。
-    text = replace_once(text,
-        'B.createPrimaryWindow({title:m.app.getName(),show:e,initialRoute:t===`/`?void 0:t,opener:n})',
-        'B.createPrimaryWindow({title:m.app.getName(),'
-        'show:process.env.CODEX_ELECTRON_START_IN_BACKGROUND===`1`?e:!0,'
-        'initialRoute:t===`/`?void 0:t,opener:n,codexflareStartup:!e&&!B.getPrimaryWindow()})')
-    if window_mode == 'restore':
-        text = replace_once(text,
-            'minWidth:A?.width,minHeight:A?.height,webPreferences:P},R=new m.BrowserWindow(L);',
-            'minWidth:A?.width,minHeight:A?.height,webPreferences:P},R=new m.BrowserWindow(L);'
-            'n&&!r&&d&&e.codexflareStartup&&w&&(R.codexflareWindowMode=`restore`);')
+    if __package__:
+        from .window_patch import patch_main as patch_window
     else:
-        text = replace_once(text,
-            'minWidth:A?.width,minHeight:A?.height,webPreferences:P},R=new m.BrowserWindow(L);',
-            'minWidth:A?.width,minHeight:A?.height,webPreferences:P},'
-            f'codexflareMode=n&&!r&&d&&e.codexflareStartup?`{window_mode}`:null;'
-            'if(codexflareMode){k=!1;'
-            'if(codexflareMode===`centered`){'
-            'let a=(Number.isFinite(L.x)&&Number.isFinite(L.y)?'
-            'm.screen.getDisplayMatching(L):m.screen.getPrimaryDisplay()).workArea,'
-            'w=Math.min(1100,a.width),h=Math.min(760,a.height);'
-            'Object.assign(L,{width:w,height:h,x:a.x+Math.round((a.width-w)/2),'
-            'y:a.y+Math.round((a.height-h)/2),'
-            'minWidth:Math.min(L.minWidth??w,w),minHeight:Math.min(L.minHeight??h,h)})}}'
-            'let R=new m.BrowserWindow(L);'
-            'if(codexflareMode){R.codexflareWindowMode=codexflareMode;'
-            'if(codexflareMode===`fullscreen`){let enter=()=>{R.isDestroyed()||R.setFullScreen(!0)};'
-            'R.isVisible()?enter():R.once(`show`,enter)}}')
-        if window_mode == 'centered':
-            text = replace_once(text,
-                'let t=this.getPrimaryMinimumSize();for(let n of e){if(n.setMinimumSize(t.width,t.height)',
-                'for(let n of e){let t=this.getPrimaryMinimumSize();'
-                'if(n.codexflareWindowMode===`centered`){let a=m.screen.getDisplayMatching(n.getBounds()).workArea;'
-                't={width:Math.min(t.width,a.width),height:Math.min(t.height,a.height)}}'
-                'if(n.setMinimumSize(t.width,t.height)')
-    # 登录界面的尺寸建议不能覆盖启动模式或已恢复的窗口边界。
-    text = replace_once(text,
-        'let i=Cje(t);if((0,W.default)(this.primaryWindowMode,t))',
-        'let i=n.codexflareWindowMode?null:Cje(t);if((0,W.default)(this.primaryWindowMode,t))')
-    return text
+        from window_patch import patch_main as patch_window
+    return patch_window(text, window_mode, muted)
 
 
 def patch_html(text, *, background=False, preloads=STARTUP_PRELOADS):

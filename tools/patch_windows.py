@@ -22,6 +22,8 @@ def require_supported(package):
 
 
 def patch_main(text, window_mode='restore', muted=True):
-    # This Windows build shares the Linux window anchors; each must match exactly once.
-    text = patch_shared_main(text, window_mode, muted)
-    return replace_once(text, 'Ge.deepLinks.registerProtocolClient()', 'void 0')
+    if __package__:
+        from .window_patch import patch_main as patch_window
+    else:
+        from window_patch import patch_main as patch_window
+    return patch_window(text, window_mode, muted, protocol=True)
