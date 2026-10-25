@@ -25,7 +25,7 @@ const renamed = JSON.parse(process.env.CODEXFLARE_TEST_BINDINGS || '{}');
 fixture = fixture.replace(/\b[A-Za-z_$][\w$]*\b/g, token => renamed[token] || token);
 
 const result = spawnSync(process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3'), ['-c',
-  'import json,sys; from tools.patch_macos import patch_main; s=sys.stdin.read(); print(json.dumps({m if muted else m+"-audio":patch_main(s,m,muted) for m in ("restore","centered","fullscreen") for muted in (True,False)}))'],
+  'import json,sys; from tools.patch_macos import patch_main; s=sys.stdin.read(); print(json.dumps({m if muted else m+"-audio":patch_main(s,m,muted) for m in ("restore","centered","fullscreen") for muted in (True,False)} | {"identity":patch_main(s,preserve_identity=True)}))'],
   {cwd:path.resolve(__dirname,'..'),input:fixture,encoding:'utf8'});
 assert.equal(result.status,0,result.stderr);
 const scripts=JSON.parse(result.stdout);
@@ -38,13 +38,14 @@ function harness(mode,saved=null,area={x:50,y:35,width:1400,height:900}) {
     getBounds(){return this.options;} setMinimumSize(w,h){this.minimum={w,h};}
     async loadURL(url){this.url=url;}
   }
-  const context=vm.createContext({O:{BrowserWindow:Window,app:{getName:()=> 'Codex'},
+  let protocolCalls=0;
+  const context=vm.createContext({We:{deepLinks:{registerProtocolClient:()=>protocolCalls++}},O:{BrowserWindow:Window,app:{getName:()=> 'Codex'},
     screen:{getPrimaryDisplay:()=>({workArea:area}),getDisplayMatching:()=>({workArea:area})}},
     V:{getPrimaryWindow:()=>null,createPrimaryWindow:x=>x},URL,process:{env:{}},
     t:{o:()=> 'app://-/index.html'}, A5e:()=>({width:500,height:500}),q:{default:()=>false}});
   for (const [before,after] of Object.entries(renamed)) if (before in context) context[after]=context[before];
   vm.runInContext(scripts[mode],context);
-  return {context,create:(options={})=>context.createWindow.call({saved},{codexflareStartup:true,...options})};
+  return {context,protocolCalls:()=>protocolCalls,create:(options={})=>context.createWindow.call({saved},{codexflareStartup:true,...options})};
 }
 
 test('macOS restore retains saved size and maximization',()=>{
@@ -96,4 +97,12 @@ test('macOS sound playback is authorized once, only for the startup main window'
     const secondary=create();await context.load(secondary,main,page,{codexflareStartup:start},'/',false);
     assert.equal(secondary.webContents.listenerCount('did-finish-load'),0);
   }
+});
+
+
+test('original-entry mode keeps protocol registration callable',()=>{
+  const h=harness('identity');
+  h.context.protocols();
+  assert.equal(h.protocolCalls(),1);
+  assert.equal(h.context.primary(false,'/',null).codexflareStartup,true);
 });
