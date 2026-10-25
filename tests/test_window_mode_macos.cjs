@@ -5,21 +5,21 @@ const { spawnSync } = require('node:child_process');
 const vm = require('node:vm');
 const path = require('node:path');
 
-// Semantic fixture for the reviewed macOS build, using its exact patch anchors.
+// Semantic fixture for macOS build 20586, using its exact patch anchors and locals.
 const fixture = `
 function createWindow(e={}) {
   let n=(e.appearance??'primary')==='primary',r=n&&e.page;
-  let {show:f=true,appearance:d='primary'}=e,S=this.saved,k=S?.isMaximized===true,
+  let {show:f=true,appearance:d='primary'}=e,C=this.saved,k=C?.isMaximized===true,
     A={width:480,height:600},F={contextIsolation:true,nodeIntegration:false},
-    R={width:S?.width??1280,height:S?.height??820,x:S?.x,y:S?.y,show:f,
-      minWidth:A?.width,minHeight:A?.height,webPreferences:F},z=new O.BrowserWindow(R);
+    R={width:C?.width??1280,height:C?.height??820,x:C?.x,y:C?.y,show:f,
+      minWidth:A?.width,minHeight:A?.height,webPreferences:F},z=new D.BrowserWindow(R);
   k&&z.once('ready-to-show',()=>z.maximize()); return z;
 }
 function syncPrimaryMinimumSize(){let e=this.windows;let t=this.getPrimaryMinimumSize();for(let n of e){if(n.setMinimumSize(t.width,t.height),n.isMaximized()||n.isFullScreen())continue;}}
-function onboarding(n,t){let i=A5e(t);if((0,q.default)(this.primaryWindowMode,t)){};return i;}
-function primary(e,t,n,r=false){return V.createPrimaryWindow({title:O.app.getName(),show:e,initialRoute:t===\`/\`?void 0:t,opener:n});}
+function onboarding(n,t){let i=YPe(t);if((0,Fe.default)(this.primaryWindowMode,t)){};return i;}
+function primary(e,t,n,r=false){return V.createPrimaryWindow({title:D.app.getName(),show:e,initialRoute:t===\`/\`?void 0:t,opener:n});}
 async function load(z,n,r,e,p,P){return await z.loadURL(t.o(p,{mcpAppSandboxLocalDevelopment:P}));}
-function protocols(){We.deepLinks.registerProtocolClient();}
+function protocols(){Ke.deepLinks.registerProtocolClient();}
 `;
 const result = spawnSync(process.env.PYTHON || 'python3', ['-c',
   'import json,sys; from tools.patch_macos import patch_main; s=sys.stdin.read(); print(json.dumps({m if muted else m+"-audio":patch_main(s,m,muted) for m in ("restore","centered","fullscreen") for muted in (True,False)}))'],
@@ -35,10 +35,10 @@ function harness(mode,saved=null,area={x:50,y:35,width:1400,height:900}) {
     getBounds(){return this.options;} setMinimumSize(w,h){this.minimum={w,h};}
     async loadURL(url){this.url=url;}
   }
-  const context=vm.createContext({O:{BrowserWindow:Window,app:{getName:()=> 'Codex'},
+  const context=vm.createContext({D:{BrowserWindow:Window,app:{getName:()=> 'Codex'},
     screen:{getPrimaryDisplay:()=>({workArea:area}),getDisplayMatching:()=>({workArea:area})}},
     V:{getPrimaryWindow:()=>null,createPrimaryWindow:x=>x},URL,process:{env:{}},
-    t:{o:()=> 'app://-/index.html'}, A5e:()=>({width:500,height:500}),q:{default:()=>false}});
+    t:{o:()=> 'app://-/index.html'}, YPe:()=>({width:500,height:500}),Fe:{default:()=>false},S:path});
   vm.runInContext(scripts[mode],context);
   return {context,create:(options={})=>context.createWindow.call({saved},{codexflareStartup:true,...options})};
 }
@@ -54,6 +54,14 @@ test('macOS restore explicitly reapplies non-maximized saved bounds',()=>{
   const h=harness('restore',{x:210,y:80,width:980,height:720,isMaximized:false});
   const w=h.create();w.maximized=true;w.emit('ready-to-show');
   assert.equal(w.maximized,false);assert.equal(w.options.x,210);assert.equal(w.options.width,980);
+});
+test('macOS restore uses saved bounds C, never the path module S',()=>{
+  const {context,create}=harness('restore');
+  assert.equal(context.S,path);
+  const w=create();w.emit('ready-to-show');
+  assert.equal(w.codexflareWindowMode,undefined);
+  assert.equal(w.options.width,1280);assert.equal(w.options.height,820);
+  assert.deepEqual({...context.onboarding(w,'login')},{width:500,height:500});
 });
 test('macOS centered fits small displays and suppresses restored maximization',()=>{
   const h=harness('centered',{width:1600,height:1100,isMaximized:true},{x:0,y:25,width:800,height:550});

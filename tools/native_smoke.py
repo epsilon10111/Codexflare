@@ -157,9 +157,10 @@ def main():
     source = args.runtime.resolve()
     if macos:
         if __package__:
-            from . import manage_macos
+            from . import manage_macos, patch_macos
         else:
             import manage_macos
+            import patch_macos
         subprocess.run(['/usr/bin/ditto', str(source), str(runtime)], check=True)
     else:
         subprocess.run(['cp', '-a', '--reflink=auto', str(source), str(runtime)], check=True)
@@ -183,6 +184,12 @@ def main():
         if not macos:
             changes[MAIN] = replace_once(archive.read(MAIN).decode(),
                 'Ge.deepLinks.registerProtocolClient()', 'void 0').encode()
+        else:
+            # Original-entry candidates retain URL handling; isolated tests must not claim it.
+            main = archive.read(patch_macos.MAIN).decode()
+            protocol_call = 'Ke.deepLinks.registerProtocolClient()'
+            if protocol_call in main:
+                changes[patch_macos.MAIN] = replace_once(main, protocol_call, 'void 0').encode()
         temporary = archive_path.with_suffix('.qa.asar')
         archive.write_changes(temporary, changes)
         temporary.replace(archive_path)

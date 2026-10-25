@@ -34,8 +34,22 @@ STATIC = {'/': ('index.html', 'text/html; charset=utf-8'),
           '/mark.svg': ('mark.svg', 'image/svg+xml')}
 
 
+def original_manager():
+    if sys.platform != 'darwin' or not (getattr(sys, 'frozen', False) or
+                                       (animation.LOCAL / 'original-install.json').exists()):
+        return None
+    if __package__:
+        from . import original_macos
+    else:
+        import original_macos
+    return original_macos
+
+
 def installation_status():
     try:
+        original = original_manager()
+        if original is not None:
+            return original.status()
         state = manage.read_state()
         available = manage.fingerprint()['version'] == manage.VERSION
         problem = manage.runtime_problem(state)
@@ -46,7 +60,7 @@ def installation_status():
         if not available:
             message = f'当前应用版本尚未适配，仅支持 {manage.VERSION}；仍可预览和保存'
         elif running:
-            message = '定制 Codex 正在运行；退出 Codex 后刷新状态，再点击应用。预览和保存不受影响'
+            message = '定制版 Codex 正在运行；退出定制版后返回本窗口，再点击应用。预览和保存不受影响'
         return {'active': active, 'available': available, 'running': running, 'message': message}
     except (OSError, ValueError, KeyError, struct.error) as error:
         return {'active': False, 'available': False, 'running': False,
@@ -324,27 +338,42 @@ class EditorHandler(BaseHTTPRequestHandler):
             if len(raw) != length:
                 raise ValueError('设置请求未完成')
             data = json.loads(raw)
+            original = original_manager() if path in ('/api/install', '/api/uninstall') else None
             if path == '/api/uninstall':
-                manage.uninstall()
-                self.reply(200, {'message': '已恢复原版入口；未停止当前会话',
-                                 'installation': installation_status()})
+                if original is not None:
+                    original.uninstall()
+                    original.launch_worker()
+                    status = original.status()
+                    message = status['message']
+                else:
+                    manage.uninstall()
+                    status = installation_status()
+                    message = '已恢复原版入口；未停止当前会话'
+                self.reply(200, {'message': message, 'installation': status})
                 return
             settings = animation.validate_settings(data)
             animation.video_info(settings['video'])
-            if path == '/api/install':
+            if path == '/api/install' and original is None:
                 if manage.running_pids():
-                    self.reply(409, {'error': '定制 Codex 正在运行；退出 Codex 后刷新状态，再点击应用。可先保存设置'})
+                    self.reply(409, {'error': '定制版 Codex 正在运行；退出定制版后返回本窗口，再点击应用。可先保存设置'})
                     return
                 if manage.fingerprint()['version'] != manage.VERSION:
                     raise ValueError(f'当前版本尚未适配，仅支持 {manage.VERSION}')
             animation.save_settings(settings)
             if path == '/api/install':
                 try:
-                    manage.install()
+                    if original is not None:
+                        original.prepare()
+                        original.launch_worker()
+                        status = original.status()
+                        message = status['message']
+                    else:
+                        manage.install()
+                        status = installation_status()
+                        message = '已应用。重新打开 Codex 即可查看新的动画与背景。'
                 except (OSError, ValueError, KeyError, struct.error, subprocess.CalledProcessError) as error:
                     raise ValueError(f'配置已保存，但尚未应用：{error}') from error
-                self.reply(200, {'settings': settings, 'message': '已应用。重新打开 Codex 即可查看新的动画与背景。',
-                                 'installation': installation_status()})
+                self.reply(200, {'settings': settings, 'message': message, 'installation': status})
             else:
                 self.reply(200, {'settings': settings})
         except (ValueError, KeyError, TypeError, struct.error) as error:

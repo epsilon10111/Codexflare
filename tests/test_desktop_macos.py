@@ -2,7 +2,7 @@ import ctypes
 import threading
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 try:
     from tools import desktop_macos as desktop
 except ImportError:
@@ -59,6 +59,16 @@ class MacDesktopTests(unittest.TestCase):
             self.assertTrue(server.write_lock.locked())
             server.write_lock.release()
             self.assertTrue(delegate.windowShouldClose_(None))
+
+    def test_closed_window_stops_and_wakes_the_event_loop(self):
+        delegate = desktop.EditorDelegate.alloc().init()
+        with patch.object(desktop, 'NSApplication') as application, patch.object(desktop, 'NSEvent') as events:
+            app = application.sharedApplication.return_value
+            factory = events.otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2_
+            delegate.windowWillClose_(None)
+            factory.assert_called_once_with(
+                desktop.NSEventTypeApplicationDefined, (0, 0), 0, 0, 0, None, 0, 0, 0)
+            self.assertEqual(app.mock_calls, [call.stop_(None), call.postEvent_atStart_(factory.return_value, True)])
 
     def test_native_file_panel_returns_only_selected_urls(self):
         delegate=desktop.EditorDelegate.alloc().init()

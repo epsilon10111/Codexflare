@@ -36,6 +36,9 @@ class MacManagerTests(unittest.TestCase):
         (source / 'Contents/MacOS/ChatGPT').write_bytes(b'binary fixture')
         (source / mac.PLIST).write_bytes(plistlib.dumps({'CFBundleExecutable':'ChatGPT',
             'CFBundleVersion':patch_macos.BUILD, 'CFBundleIdentifier':'com.openai.codex',
+            'CrProductDirName':'Codex', 'CFBundleDisplayName':'Codex',
+            'CFBundleIconFile':'electron.icns', 'CFBundleIconName':'Icon',
+            'CodexAppIconBaseName':'icon-chatgpt',
             'CFBundleURLTypes':[{'CFBundleURLSchemes':['codex']}]}))
         raw = asar(source / mac.ASAR, {'package.json':json.dumps({
             'name':'openai-codex-electron', 'version':patch_macos.VERSION}).encode()})
@@ -52,6 +55,8 @@ class MacManagerTests(unittest.TestCase):
             self.enterContext(patch.object(mac, name, value))
         self.enterContext(patch.object(mac, 'running_pids', return_value=[]))
         self.enterContext(patch.object(mac.subprocess, 'check_output', return_value='arm64'))
+        self.source_entitlements = {}
+        self.signed_entitlements = []
         self.enterContext(patch.object(mac.subprocess, 'run', side_effect=self.run_command))
         self.enterContext(patch.object(mac, 'patch_archive', side_effect=self.patch_archive))
         # Cross-platform unit tests use a rename implementation; native swap is tested separately.
@@ -60,9 +65,15 @@ class MacManagerTests(unittest.TestCase):
     def run_command(self, command, **kw):
         if command[0] == '/usr/bin/ditto':
             shutil.copytree(command[1], command[2])
+        elif command[0] == '/usr/bin/codesign' and '--display' in command:
+            return mac.subprocess.CompletedProcess(command, 0, plistlib.dumps(self.source_entitlements), b'')
+        elif command[0] == '/usr/bin/codesign' and '--force' in command:
+            self.signed_entitlements.append(plistlib.loads(Path(command[command.index('--entitlements') + 1]).read_bytes()))
 
     def patch_archive(self, source, target, **kw):
-        self.assertEqual(kw, {'platform':'darwin'})
+        self.assertEqual(kw.keys(), {'platform', 'preserve_identity'})
+        self.assertEqual(kw['platform'], 'darwin')
+        self.assertIs(type(kw['preserve_identity']), bool)
         patch_app.Asar(source).write_changes(target, {'custom.txt':b'patched'})
         return {'version':patch_macos.VERSION}
 
@@ -137,6 +148,63 @@ class MacManagerTests(unittest.TestCase):
             mac.update_framework_integrity(mac.SOURCE,{},mac.bundle_info(mac.SOURCE)['ElectronAsarIntegrity'])
         self.assertEqual(framework.read_bytes(),before)
 
+    def test_original_identity_keeps_metadata_and_only_local_resource_entitlements(self):
+        target = self.root/'OriginalEntry.app'
+        shutil.copytree(mac.SOURCE, target)
+        before = mac.bundle_info(target)
+        allowed = {'com.apple.security.device.audio-input': True,
+                   'com.apple.security.device.camera': True,
+                   'com.apple.security.automation.apple-events': True,
+                   'com.apple.security.files.user-selected.read-write': True,
+                   'com.apple.security.network.client': True,
+                   'com.apple.security.personal-information.calendars': True,
+                   'com.apple.security.app-sandbox': False}
+        self.source_entitlements = allowed | {
+            'com.apple.application-identifier': 'TEAM.com.openai.codex',
+            'com.apple.developer.team-identifier': 'TEAM',
+            'com.apple.security.application-groups': ['TEAM.group'],
+            'keychain-access-groups': ['TEAM.*'],
+            'com.apple.developer.aps-environment': 'production',
+            'com.apple.developer.usernotifications.communication': True,
+            'com.apple.security.cs.allow-dyld-environment-variables': True,
+        }
+        mac.seal_bundle(target, preserve_identity=True)
+        after = mac.bundle_info(target)
+        self.assertEqual({k:v for k,v in after.items() if k != 'ElectronAsarIntegrity'},
+                         {k:v for k,v in before.items() if k != 'ElectronAsarIntegrity'})
+        self.assertFalse((target/'Contents/Resources/codexflare.icns').exists())
+        self.assertEqual(self.signed_entitlements, [allowed | {
+            'com.apple.security.cs.allow-jit': True,
+            'com.apple.security.cs.allow-unsigned-executable-memory': True,
+            'com.apple.security.cs.disable-library-validation': True}])
+
+    def test_invalid_original_entitlement_refuses_before_writing_bundle(self):
+        target = self.root/'OriginalEntry.app'
+        shutil.copytree(mac.SOURCE, target)
+        before = (target/mac.PLIST).read_bytes()
+        self.source_entitlements = {'com.apple.security.device.camera': 'yes'}
+        with self.assertRaisesRegex(ValueError, '签名权限值'):
+            mac.seal_bundle(target, preserve_identity=True)
+        self.assertEqual((target/mac.PLIST).read_bytes(), before)
+        self.assertFalse(self.signed_entitlements)
+
+    def test_build_from_backup_does_not_depend_on_global_source(self):
+        backup = self.root/'Backup.app'
+        mac.SOURCE.rename(backup)
+        before = mac.fingerprint(backup)
+        target = self.root/'OriginalEntry.app'
+        with patch.object(mac, 'patch_archive', side_effect=self.patch_archive) as patcher, \
+                patch.object(mac.subprocess, 'check_output', return_value='arm64') as arch:
+            source, metadata = mac.build_runtime(target, source=backup, preserve_identity=True)
+        self.assertEqual(source, before)
+        self.assertEqual(mac.fingerprint(backup), before)
+        self.assertFalse(mac.SOURCE.exists())
+        self.assertEqual(metadata['version'], patch_macos.VERSION)
+        patcher.assert_called_once_with(backup/mac.ASAR, target/'Contents/Resources/app.patched.asar',
+                                       platform='darwin', preserve_identity=True)
+        arch.assert_called_once_with(['/usr/bin/lipo', '-archs', str(mac.executable(backup))], text=True)
+        self.assertEqual(mac.bundle_info(target)['CFBundleIdentifier'], 'com.openai.codex')
+
     def test_source_update_falls_back_without_profile_override(self):
         mac.install()
         (mac.SOURCE/'Contents/MacOS/ChatGPT').write_bytes(b'new version')
@@ -163,18 +231,71 @@ class MacPatchTests(unittest.TestCase):
         for name in patch_macos.STARTUP_PRELOADS: self.assertIn(name,result)
         for name in patch_app.STARTUP_PRELOADS: self.assertNotIn(name,result)
 
+    def test_original_identity_archive_keeps_protocol_registration(self):
+        main = ('await z.loadURL(t.o(p,{mcpAppSandboxLocalDevelopment:P}));'
+                'V.createPrimaryWindow({title:D.app.getName(),show:e,initialRoute:t===`/`?void 0:t,opener:n});'
+                'minWidth:A?.width,minHeight:A?.height,webPreferences:F},z=new D.BrowserWindow(R);'
+                'let i=YPe(t);if((0,Fe.default)(this.primaryWindowMode,t)){};'
+                'Ke.deepLinks.registerProtocolClient();')
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            seed, source = root/'seed.asar', root/'source.asar'
+            asar(seed, {'package.json':json.dumps({
+                'name':'openai-codex-electron', 'version':patch_macos.VERSION}).encode()})
+            patch_app.Asar(seed).write_changes(source, {
+                patch_macos.MAIN:main.encode(), 'webview/index.html':b'<head></head><body></body>',
+                **{'webview/assets/'+name:b'preload fixture' for name in patch_macos.STARTUP_PRELOADS},
+            })
+            before = source.read_bytes()
+            video = root/'video.webm'
+            video.write_bytes(b'video fixture')
+            with patch.object(patch_app, 'load_settings', return_value={
+                    'video':'default', 'background':{'enabled':False}}), \
+                    patch.object(patch_app, 'video_info', return_value={'duration':4}), \
+                    patch.object(patch_app, 'video_path', return_value=video):
+                for preserve in (False, True):
+                    with self.subTest(preserve_identity=preserve):
+                        target = root/f'target-{preserve}.asar'
+                        patch_app.patch_archive(source, target, platform='darwin', preserve_identity=preserve)
+                        patched = patch_app.Asar(target).read(patch_macos.MAIN).decode()
+                        self.assertEqual('Ke.deepLinks.registerProtocolClient()' in patched, preserve)
+                        self.assertIn('codexBootAnimation',patched)
+            self.assertEqual(source.read_bytes(), before)
+        with self.assertRaisesRegex(ValueError, '唯一'):
+            patch_macos.patch_main(main+'Ke.deepLinks.registerProtocolClient();', preserve_identity=True)
+
     def test_background_targets_current_workspace_and_composer_classes(self):
         style = (patch_app.ROOT/'src/background.css').read_text()
         class Archive:
             def read(self, name):
-                return '\n'.join('.'+value+'{}' for value in (*patch_macos.BACKGROUND_CLASSES.values(), '_background_106nk_2', '_fade_106nk_2', '_surface_106nk_2')).encode()
+                return {
+                    'webview/assets/app-shared-ae384120d279.css': b':root {}',
+                    'webview/assets/app-initial-e7c27dd40beb.css': (
+                        b'._WorkspaceContent_etoz9_2{}._MainContentSurface_etoz9_2{}'
+                        b'._MainContentViewport_etoz9_2{}._ComposerLayoutRoot_5est5_2{}'
+                        b'._background_106nk_2{}._fade_106nk_2{}._surface_106nk_2{}'),
+                    'webview/assets/thread-scroll-layout-24b9bd243051.css': b'._compactScrollMask_121j8_2{}',
+                }[name]
         patched=patch_macos.patch_background_css(style,Archive())
-        self.assertIn('._WorkspaceContent_azz1c_2::before',patched)
-        self.assertIn('._ComposerLayoutRoot_1q7o3_2',patched)
+        self.assertIn('._WorkspaceContent_etoz9_2::before',patched)
+        self.assertIn('._ComposerLayoutRoot_5est5_2',patched)
+        self.assertIn('._background_106nk_2._fade_106nk_2.from-surface',patched)
         self.assertNotIn('_WorkspaceContent_yl8z4_2',patched)
         self.assertNotIn('_ComposerLayoutRoot_15oep_2',patched)
         self.assertIn('mix-blend-mode: screen',patched)
         self.assertIn('pointer-events: none',patched)
+
+    def test_background_fixture_uses_reviewed_macos_footer_and_workspace(self):
+        fixture = (patch_app.ROOT/'tests/background_fixture.html').read_text()
+        patched = patch_macos.adapt_background_fixture(fixture)
+        self.assertIn('class="_MainContentSurface_etoz9_2"',patched)
+        self.assertIn('class="_MainContentViewport_etoz9_2"',patched)
+        self.assertEqual(patched.count('composer _ComposerLayoutRoot_5est5_2'),2)
+        self.assertEqual(patched.count('_background_106nk_2 _fade_106nk_2'),2)
+        self.assertEqual(patched.count('_background_106nk_2 _surface_106nk_2'),2)
+        self.assertNotIn('bg-gradient-to-t from-surface',patched)
+        with self.assertRaisesRegex(ValueError,'Unexpected footer fixture structure'):
+            patch_macos.adapt_background_fixture(fixture.replace('bg-gradient-to-t','changed-footer',1))
 
     def test_background_rejects_unreviewed_css_modules(self):
         class Archive:

@@ -182,7 +182,7 @@ def patch_html(text, *, background=False, preloads=STARTUP_PRELOADS):
         '<script src="./assets/codex-boot.js"></script>\n  </head>')
 
 
-def patch_archive(source_asar, target_asar, *, platform='linux'):
+def patch_archive(source_asar, target_asar, *, platform='linux', preserve_identity=False):
     if platform == 'darwin':
         if __package__:
             from . import patch_macos as build
@@ -214,7 +214,8 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
         background_data, background_info = background.prepare_image(background_data, background_info)
     changes = {
         main: patcher(source.read(main).decode(), settings.get('windowMode', 'restore'),
-                         settings.get('muted', True)).encode(),
+                         settings.get('muted', True),
+                         **({'preserve_identity': preserve_identity} if platform == 'darwin' else {})).encode(),
         'webview/index.html': patch_html(source.read('webview/index.html').decode(),
                                        background=background_info is not None, preloads=preloads).encode(),
         'webview/assets/codex-boot.js': boot_script.encode(),
