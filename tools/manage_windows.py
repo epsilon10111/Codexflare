@@ -26,11 +26,15 @@ def powershell(script, **values):
     # Values travel as environment variables, never interpolated PowerShell source.
     script = "$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[Text.UTF8Encoding]::new(); " + script
     encoded = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
-    return subprocess.check_output(
-        ['powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded],
-        env={**os.environ, **{key: str(value) for key, value in values.items()}},
-        creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), stderr=subprocess.PIPE,
-        encoding='utf-8', timeout=30).strip()
+    try:
+        return subprocess.check_output(
+            ['powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive', '-OutputFormat', 'Text',
+             '-EncodedCommand', encoded],
+            env={**os.environ, **{key: str(value) for key, value in values.items()}},
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), stderr=subprocess.PIPE,
+            encoding='utf-8', timeout=30).strip()
+    except subprocess.CalledProcessError as error:
+        raise ValueError(f'Windows shell 操作失败：{error.stderr.strip()}') from error
 
 
 def find_source():
