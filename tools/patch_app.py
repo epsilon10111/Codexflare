@@ -226,7 +226,10 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
         variables = (f":root {{ --codex-bg-opacity: {background_settings['opacity']}; "
                      f"--codex-bg-position: {background_settings['position']}%; "
                      f"--codex-bg-scale: {background_settings['scale']}%; }}\n")
-        changes['webview/assets/codex-background.css'] = variables.encode() + (ROOT / 'src/background.css').read_bytes()
+        style = (ROOT / 'src/background.css').read_text()
+        if platform == 'darwin':
+            style = build.patch_background_css(style, source)
+        changes['webview/assets/codex-background.css'] = (variables + style).encode()
     source.write_changes(target_asar, changes)
     with Path(source_asar).open('rb') as f:
         digest = hashlib.file_digest(f, 'sha256').hexdigest()

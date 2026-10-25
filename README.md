@@ -47,6 +47,8 @@ uv pip install --python .venv/bin/python -r requirements-macos.txt
 
 ![macOS 原生编辑器](docs/images/editor-macos.png)
 
+![macOS 背景效果（真实应用样式、模拟会话）](docs/images/background-macos.png)
+
 在原生编辑器保存设置并点击「应用到 Codex」，或直接运行：
 
 ```bash
@@ -197,6 +199,8 @@ python3 tools/build_rpm.py
 .venv/bin/python -m unittest discover -s tests -v
 node --test tests/test_*.cjs
 .venv/bin/python tools/macos_editor_smoke.py
+.venv/bin/python tools/background_smoke.py
+.venv/bin/python tools/background_smoke.py --startup
 .venv/bin/python tools/native_smoke.py --runtime ".local/Codexflare Runtime.app"
 ```
 

@@ -8,6 +8,7 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 
 if __package__:
@@ -20,19 +21,27 @@ else:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--runtime', type=Path, default=ROOT / '.local/runtime')
+    parser.add_argument('--runtime', type=Path, default=ROOT / ('.local/Codexflare Runtime.app' if sys.platform == 'darwin' else '.local/runtime'))
     parser.add_argument('--startup', action='store_true', help='验证真实动画到模拟工作区的首帧衔接')
     args = parser.parse_args()
     (ROOT / 'work').mkdir(exist_ok=True)
     output = Path(tempfile.mkdtemp(prefix='background-smoke-', dir=ROOT / 'work'))
-    runtime = output / 'runtime'
-    subprocess.run(['cp', '-a', '--reflink=auto', str(args.runtime.resolve()), str(runtime)], check=True)
+    macos = sys.platform == 'darwin'
+    runtime = output / ('Runtime.app' if macos else 'runtime')
+    if macos:
+        if __package__:
+            from . import manage_macos, patch_macos
+        else:
+            import manage_macos, patch_macos
+        subprocess.run(['/usr/bin/ditto', str(args.runtime.resolve()), str(runtime)], check=True)
+    else:
+        subprocess.run(['cp', '-a', '--reflink=auto', str(args.runtime.resolve()), str(runtime)], check=True)
     try:
-        archive_path = runtime / 'resources/app.asar'
+        archive_path = runtime / ('Contents/Resources/app.asar' if macos else 'resources/app.asar')
         archive = Asar(archive_path)
         # 使用候选归档的播放图片，避免把已经缩放的资源换回原始大图。
         archive.read('webview/assets/codex-background.png')
-        system = Asar('/usr/lib/chatgpt/resources/app.asar')
+        system = Asar(manage_macos.SOURCE / manage_macos.ASAR if macos else '/usr/lib/chatgpt/resources/app.asar')
         fixture = (ROOT / 'tests/background_fixture.html').read_text()
         probe = 'startup_probe.cjs' if args.startup else 'background_probe.cjs'
         timeout_ms = 45000
@@ -62,16 +71,31 @@ def main():
         else:
             # 普通背景回归固定摆放参数；首帧回归保留候选归档的实际设置。
             changes['webview/assets/codex-background.css'] = (ROOT / 'src/background.css').read_bytes()
+        names = ('app-shared-f2d570e85ceb.css', 'app-initial-c43288484373.css', 'thread-scroll-layout-24b9bd243051.css')
+        if macos:
+            fixture = patch_macos.adapt_background_fixture(fixture)
+            fixture = fixture.replace('<html ', '<html data-codex-os="darwin" ', 1)
+            probe_path = '.vite/build/background-probe.cjs'
+            changes[probe_path] = patch_macos.adapt_background_classes(changes[probe_path].decode()).encode()
+            if not args.startup:
+                changes['webview/assets/codex-background.css'] = patch_macos.patch_background_css(
+                    (ROOT / 'src/background.css').read_text(), system).encode()
+            # Stable test URLs carry the current build's real shared, composer and workspace styles.
+            for alias, name in zip(names, patch_macos.BACKGROUND_STYLES):
+                changes['webview/assets/' + alias] = system.read('webview/assets/' + name)
+        else:
+            for name in names:
+                changes['webview/assets/' + name] = system.read('webview/assets/' + name)
         changes['webview/background-fixture.html'] = fixture.encode()
-        for name in ('app-shared-f2d570e85ceb.css', 'app-initial-c43288484373.css', 'thread-scroll-layout-24b9bd243051.css'):
-            changes[f'webview/assets/{name}'] = system.read(f'webview/assets/{name}')
         temporary = archive_path.with_suffix('.qa.asar')
         archive.write_changes(temporary, changes)
         temporary.replace(archive_path)
+        if macos:
+            manage_macos.seal_bundle(runtime)
         env = {**os.environ, 'CODEX_BACKGROUND_PROBE_OUTPUT': str(output)}
         if args.startup:
             env['CODEX_STARTUP_PROBE_TIMEOUT_MS'] = str(timeout_ms)
-        if not env.get('DISPLAY'):
+        if not macos and not env.get('DISPLAY'):
             session = {**env, 'XDG_RUNTIME_DIR': f'/run/user/{os.getuid()}',
                        'DBUS_SESSION_BUS_ADDRESS': f'unix:path=/run/user/{os.getuid()}/bus'}
             result = subprocess.run(['systemctl', '--user', 'show-environment'], env=session,
@@ -82,8 +106,8 @@ def main():
             env.update(dict(line.split('=', 1) for line in result.stdout.splitlines()
                             if line.partition('=')[0] in keys))
         with (output / 'app.log').open('wb') as log:
-            process = subprocess.Popen([str(runtime / 'ChatGPT'),
-                '--user-data-dir=' + str(output / 'profile')], env=env,
+            process = subprocess.Popen([str(manage_macos.executable(runtime) if macos else runtime / 'ChatGPT'),
+                '--user-data-dir=' + str(output / 'profile'), *(['--use-mock-keychain'] if macos else [])], env=env,
                 stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
             try:
                 returncode = process.wait(timeout=timeout_ms / 1000 + (10 if args.startup else 0))

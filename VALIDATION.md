@@ -231,3 +231,22 @@ Branch: `feat/macos-support`. This snapshot is not a completed macOS release.
 - ad-hoc 副本不能继承 OpenAI 的 Developer ID / Keychain / app-group 身份；日志中可见签名验证的原生工具拒绝连接。电脑控制、通知、共享账号等签名相关功能不作兼容承诺。
 - 本轮未执行真实账号登录或聊天操作，也未做长期稳定性测试。隔离登录/欢迎界面可交互不等于真实账户冷启动验收。
 - 原版升级后仍须重新审查锚点；现有启动器检测到源应用变化会回退原版。
+
+## macOS 背景与用户参考视频比对 — 2026-10-25
+
+用户提供了 18.6 秒的实拍显示器视频：全屏原始开场动画结束后，工作区右侧保留低不透明度线稿，向左渐隐。视频、默认原始动画和 `default1.png` 为相同角色素材。未将拍摄的显示器画面作为应用媒体，也未提交用户的视频或抽帧。
+
+发现并修复了 macOS 适配中遗漏的 CSS 模块映射：工作区、输入框和 FooterFade 的模块名已变化，旧 Linux 选择器不能移除当前构建的覆盖层。现在按受支持构建映射模块名，并在打包时检查真实 CSS 中的目标类是否存在。背景验证工具也已移植到 macOS：使用当前构建的 shared / initial / primary CSS 和当前 FooterFade 结构，不再使用 Linux 的旧布局 CSS。
+
+本机保存的参考外观设置：默认原视频、1×、cover、全屏启动；默认线稿背景、opacity 0.18、position 80%、scale 70%。保留用户原有静音设置。仅本机配置改变，不修改所有用户的默认启动方式。
+
+验证结果：
+
+- `tools/background_smoke.py` 全部通过。右侧背景可见，左侧像素不受影响，代码块保持不透明；输入框 48% 表面与 6px 模糊生效。
+- 右侧面板打开前后的背景位置/底色一致；输入与按钮事件仍可用。12 种滚动布局检查通过，输入区域不被滚动文字穿透。
+- 0.18 与 0.5 背景不透明度下输入文字/按钮对比度均超过 9:1。浅色、高对比度、减少透明与 forced-colors 验证通过。
+- `tools/background_smoke.py --startup` 的普通工作区、全宽右侧面板两种路径均通过。动画自然结束，背景在揭幕前为 ready；首帧与 500ms 后背景测量区域的差异为 0 像素。
+- macOS 原生测试窗口使用 panel 类型，避免本机 yabai 在抓取 DOM 几何与像素之间异步平铺测试窗口。未修改用户窗口管理器规则。Retina 对比度采样使用迭代最大值，避免像素数组展开超过 JavaScript 参数数量限制。
+- Python：82 个测试，79 通过、3 个 GTK 专用跳过。Node：65 个测试通过。
+
+本地证据：`work/background-smoke-wtjdq6l3/result.json`、`work/background-smoke-7uhn3mj0/result.json`；公开模拟工作区截图 `docs/images/background-macos.png`。验证使用真实应用样式与模拟会话，未读取真实聊天。所匹配的是屏幕内的素材、构图、透明度与转场；拍屏的透视、显示器色彩和环境灯光不构成已验证的逐像素一致性。

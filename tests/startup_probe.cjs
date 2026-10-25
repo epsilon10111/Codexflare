@@ -114,6 +114,7 @@ app.whenReady().then(async () => {
     } catch { return new Response(null, { status: 404 }); }
   });
   const win = new BrowserWindow({ width: 1440, height: 900, useContentSize: true,
+    ...(process.platform === 'darwin' ? { type: 'panel', resizable: false, maximizable: false } : {}),
     title: 'Codexflare · 开屏衔接验证', backgroundColor: '#181818',
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false } });
   win.setMenuBarVisibility(false);
