@@ -189,6 +189,12 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
         else:
             import patch_windows as build
         version, main, preloads, patcher = build.VERSION, build.MAIN, build.STARTUP_PRELOADS, build.patch_main
+    elif platform == 'darwin':
+        if __package__:
+            from . import patch_macos as build
+        else:
+            import patch_macos as build
+        version, main, preloads, patcher = build.VERSION, build.MAIN, build.STARTUP_PRELOADS, build.patch_main
     elif platform == 'linux':
         version, main, preloads, patcher = VERSION, MAIN, STARTUP_PRELOADS, patch_main
     else:
@@ -228,7 +234,10 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
         variables = (f":root {{ --codex-bg-opacity: {background_settings['opacity']}; "
                      f"--codex-bg-position: {background_settings['position']}%; "
                      f"--codex-bg-scale: {background_settings['scale']}%; }}\n")
-        changes['webview/assets/codex-background.css'] = variables.encode() + (ROOT / 'src/background.css').read_bytes()
+        style = (ROOT / 'src/background.css').read_text(encoding='utf-8')
+        if platform == 'darwin':
+            style = build.patch_background_css(style, source)
+        changes['webview/assets/codex-background.css'] = (variables + style).encode()
     source.write_changes(target_asar, changes)
     with Path(source_asar).open('rb') as f:
         digest = hashlib.file_digest(f, 'sha256').hexdigest()

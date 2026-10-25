@@ -376,6 +376,11 @@ def main():
                     from .desktop_windows import run
                 else:
                     from desktop_windows import run
+            elif sys.platform == 'darwin':
+                if __package__:
+                    from .desktop_macos import run
+                else:
+                    from desktop_macos import run
             elif __package__:
                 from .desktop import run
             else:
@@ -383,6 +388,8 @@ def main():
         except (ImportError, ValueError):
             if sys.platform == 'win32':
                 parser.exit(1, 'Windows 编辑器需要 pywebview 和 Microsoft Edge WebView2；请先安装 requirements-windows.txt。\n')
+            if sys.platform == 'darwin':
+                parser.exit(1, 'macOS 编辑器需要 PyObjC；请用 .venv/bin/python tools/editor.py 启动，依赖见 requirements-macos.txt。\n')
             system_python = Path('/usr/bin/python3')
             if system_python.exists() and Path(sys.executable).resolve() != system_python.resolve():
                 os.execv(str(system_python), [str(system_python), str(Path(__file__).resolve()), *sys.argv[1:]])

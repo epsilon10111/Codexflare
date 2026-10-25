@@ -148,6 +148,13 @@ def swap_runtime(staged):
     if not RUNTIME.exists():
         os.replace(staged, RUNTIME)
         return
+    if sys.platform == 'darwin':
+        if __package__:
+            from .manage_macos import swap_directory
+        else:
+            from manage_macos import swap_directory
+        swap_directory(staged, RUNTIME)
+        return
     # Linux 原子交换两个目录，避免更新时留下缺失或半复制的 runtime。
     libc = ctypes.CDLL(None, use_errno=True)
     rename = libc.renameat2
@@ -277,6 +284,12 @@ def platform_manager():
         else:
             import manage_windows
         return manage_windows
+    if sys.platform == 'darwin':
+        if __package__:
+            from . import manage_macos
+        else:
+            import manage_macos
+        return manage_macos
     return sys.modules[__name__]
 
 

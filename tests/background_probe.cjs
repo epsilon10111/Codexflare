@@ -31,6 +31,7 @@ app.whenReady().then(async () => {
     } catch { return new Response(null, { status: 404 }); }
   });
   const win = new BrowserWindow({ width: 1440, height: 900, useContentSize: true,
+    ...(process.platform === 'darwin' ? { type: 'panel', resizable: false, maximizable: false } : {}),
     title: 'Codexflare · 背景隔离验证', backgroundColor: '#181818',
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false } });
   win.setMenuBarVisibility(false);
@@ -285,11 +286,11 @@ app.whenReady().then(async () => {
       const bitmap = background.toBitmap(), width = background.getSize().width;
       const scale = width / (await state()).viewportWidth;
       for (const color of colors) {
-        const values = [];
+        let backgroundMax = 0;
         for (let y = Math.ceil(color.rect.y * scale); y < Math.floor((color.rect.y + color.rect.height) * scale); y++) for (let x = Math.ceil(color.rect.x * scale); x < Math.floor((color.rect.x + color.rect.width) * scale); x++) {
-          const i = (y * width + x) * 4; values.push(luminance([bitmap[i + 2], bitmap[i + 1], bitmap[i]]));
+          const i = (y * width + x) * 4; backgroundMax = Math.max(backgroundMax, luminance([bitmap[i + 2], bitmap[i + 1], bitmap[i]]));
         }
-        const backgroundMax = Math.max(...values), text = luminance(color.foreground.slice(0, 3)), button = luminance(color.button.slice(0, 3));
+        const text = luminance(color.foreground.slice(0, 3)), button = luminance(color.button.slice(0, 3));
         const ratio = foreground => (Math.max(foreground, backgroundMax) + .05) / (Math.min(foreground, backgroundMax) + .05);
         const sample = { id: color.id, opacity, textContrast: ratio(text), buttonContrast: ratio(button) };
         assert(sample.textContrast >= 4.5 && sample.buttonContrast >= 4.5, '半透明输入区对比度不足');

@@ -203,3 +203,64 @@
 未测试其他 Codex 版本、其他 Linux 桌面、Windows/macOS、显示器热插拔或长期运行。仅支持声明的当前构建。真实系统升级未执行；升级回退逻辑通过隔离单元测试验证。
 
 截图、失败日志和独立测试 profile 留在忽略的 `work/` 内；系统应用副本和入口回退信息位于忽略的 `.local/`。两者不进入 Git，也不包含在源码归档中。
+
+## macOS branch checkpoint — 2026-10-25 (WIP)
+
+Branch: `feat/macos-support`. This snapshot is not a completed macOS release.
+
+- Added a Cocoa/WKWebView editor, separate-profile `.app` copy manager, launcher, macOS patch anchors, and regression/smoke tests.
+- Target under development: macOS arm64 Codex `26.1016.61520`, build `21421`. The installed app updated from build `20770` during development; old anchors were replaced rather than bypassing version checks.
+- All six window-mode/audio variants matched the current main bundle and passed `node --check` before the latest signing changes.
+- The initial native launch exposed the Electron framework's additional embedded ASAR integrity digest. Digest updating is now implemented but has not yet passed a fresh-copy native launch test.
+- The Cocoa smoke test currently fails on a missing PyObjC block-signature helper symbol. Editor playback and close behavior are not yet validated.
+- The last full Python test run had 74 tests, three GTK-only skips, and one fallback-test error. The fallback was subsequently corrected, but the later integrity-digest change also requires updating the mocked bundle fixtures before rerunning the suite.
+- No original application or real account profile was patched. Copies, logs, test profiles and the Python environment remain in ignored directories and are not committed.
+
+## macOS 26.1021.31345 / build 21828 — 2026-10-25
+
+此节替代上面的 macOS WIP 状态；历史 checkpoint 保留供追溯。
+
+环境：macOS 26.5.2（25F84）、Apple Silicon arm64、Python 3.14.5、PyObjC 12.2.2、Node 24.16.0。来源为 `/Applications/ChatGPT.app`，安装管理器同时识别 `/Applications/Codex.app`。不支持的版本、build、架构或非唯一补丁锚点均拒绝安装。
+
+### 已完成
+
+- Cocoa / WKWebView 原生编辑器可启动。修复了无签名 WebKit block 回调，保留原生窗口操作、文件选择回调、同源导航限制、关闭写入保护和未保存确认。
+- `tools/macos_editor_smoke.py` 在临时配置下验证 1920×1080 WebM 实际播放、参数保存、背景解码、浏览器 File 上传到实际 HTTP 服务、无效 PNG 错误提示及正常关闭；8 个样本，结果通过。文件选择器返回选择/取消的回调由单元测试覆盖，原生选择面板未进行人工点击验收。
+- `.app` 副本同时更新 ASAR raw-header hash 和 framework 的 v1 integrity dictionary digest，再进行本地 ad-hoc 签名；`codesign --verify --deep --strict` 通过。没有关闭 ASAR 完整性 fuse 或改写原版。
+- 定制副本使用独立 bundle ID、native product directory、UI profile 和 Codex 数据目录。移除副本的供应商 URL scheme 注册；保留原版入口。
+- 已安装并确认 `manage.py status` 为“定制副本可用”，编辑器安装状态为 active/available。
+- Python：80 个测试，77 通过，3 个 Linux GTK 专用测试跳过。Node：65 个测试通过。当前构建全部 6 种窗口模式/声音组合的主进程补丁唯一匹配并通过 `node --check`。
+
+### 原生应用证据
+
+- 默认恢复/静音动画：44 个样本，其中 40 个实际播放样本、1 个正常结束样本；背景到达 `ready`，遮罩移除，应用有可交互界面。
+- 全屏/有声动画：47 个样本，其中 43 个播放样本、1 个正常结束样本；实际检测到 audible，音量配置生效。此机器原生全屏为屏幕顶部安全区域以下的内容边界，因此 macOS 验证接受 native display 或 work-area 边界，并始终要求原生 fullscreen 标志。
+- 一次按 Esc 的运行正确释放了遮罩；一次重叠运行编辑器/全屏测试导致播放被暂停并超时。最终有声全屏验证独立运行并通过。
+- 居中模式在原生采样中先创建为 1100×760、位置 (305,191)，随后本机 yabai 改为平铺最大化。严格持续窗口几何检查因此失败。未修改用户的 yabai 配置；窗口管理器仍可覆盖居中或恢复尺寸。窗口逻辑及非主窗口/后台启动边界由 Node 回归测试覆盖。
+
+本地证据位于忽略的 `work/macos-editor/`、`work/native-smoke-xygsmaai/`、`work/native-smoke-2gl401y1/`、`work/python-tests.log` 和 `work/node-tests.log`。公开编辑器截图为 `docs/images/editor-macos.png`。应用截图、供应商应用、日志及测试 profile 不提交。
+
+### 保留限制
+
+- ad-hoc 副本不能继承 OpenAI 的 Developer ID / Keychain / app-group 身份；日志中可见签名验证的原生工具拒绝连接。电脑控制、通知、共享账号等签名相关功能不作兼容承诺。
+- 本轮未执行真实账号登录或聊天操作，也未做长期稳定性测试。隔离登录/欢迎界面可交互不等于真实账户冷启动验收。
+- 原版升级后仍须重新审查锚点；现有启动器检测到源应用变化会回退原版。
+
+## macOS 背景与用户参考视频比对 — 2026-10-25
+
+用户提供了 18.6 秒的实拍显示器视频：全屏原始开场动画结束后，工作区右侧保留低不透明度线稿，向左渐隐。视频、默认原始动画和 `default1.png` 为相同角色素材。未将拍摄的显示器画面作为应用媒体，也未提交用户的视频或抽帧。
+
+发现并修复了 macOS 适配中遗漏的 CSS 模块映射：工作区、输入框和 FooterFade 的模块名已变化，旧 Linux 选择器不能移除当前构建的覆盖层。现在按受支持构建映射模块名，并在打包时检查真实 CSS 中的目标类是否存在。背景验证工具也已移植到 macOS：使用当前构建的 shared / initial / primary CSS 和当前 FooterFade 结构，不再使用 Linux 的旧布局 CSS。
+
+本机保存的参考外观设置：默认原视频、1×、cover、全屏启动；默认线稿背景、opacity 0.18、position 80%、scale 70%。保留用户原有静音设置。仅本机配置改变，不修改所有用户的默认启动方式。
+
+验证结果：
+
+- `tools/background_smoke.py` 全部通过。右侧背景可见，左侧像素不受影响，代码块保持不透明；输入框 48% 表面与 6px 模糊生效。
+- 右侧面板打开前后的背景位置/底色一致；输入与按钮事件仍可用。12 种滚动布局检查通过，输入区域不被滚动文字穿透。
+- 0.18 与 0.5 背景不透明度下输入文字/按钮对比度均超过 9:1。浅色、高对比度、减少透明与 forced-colors 验证通过。
+- `tools/background_smoke.py --startup` 的普通工作区、全宽右侧面板两种路径均通过。动画自然结束，背景在揭幕前为 ready；首帧与 500ms 后背景测量区域的差异为 0 像素。
+- macOS 原生测试窗口使用 panel 类型，避免本机 yabai 在抓取 DOM 几何与像素之间异步平铺测试窗口。未修改用户窗口管理器规则。Retina 对比度采样使用迭代最大值，避免像素数组展开超过 JavaScript 参数数量限制。
+- Python：82 个测试，79 通过、3 个 GTK 专用跳过。Node：65 个测试通过。
+
+本地证据：`work/background-smoke-wtjdq6l3/result.json`、`work/background-smoke-7uhn3mj0/result.json`；公开模拟工作区截图 `docs/images/background-macos.png`。验证使用真实应用样式与模拟会话，未读取真实聊天。所匹配的是屏幕内的素材、构图、透明度与转场；拍屏的透视、显示器色彩和环境灯光不构成已验证的逐像素一致性。

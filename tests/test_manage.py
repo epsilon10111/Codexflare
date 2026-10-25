@@ -87,7 +87,7 @@ class ManageTests(unittest.TestCase):
             with self.subTest(installed=installed), patch.object(manage.os, 'execv') as execute, \
                     patch.object(sys, 'argv', [str(launcher), *arguments]):
                 exec(compile(launcher.read_bytes(), str(launcher), 'exec'), {})
-                command = [sys.executable, str(manager), 'launch'] if installed else [str(manage.SYSTEM_LAUNCHER)]
+                command = [sys.executable, str(manager.resolve()), 'launch'] if installed else [str(manage.SYSTEM_LAUNCHER)]
                 execute.assert_called_once_with(command[0], [*command, *arguments])
         manage.uninstall()
         self.assertTrue(launcher.is_file())

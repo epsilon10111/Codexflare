@@ -31,7 +31,7 @@ app.on('browser-window-created', (_event, win) => {
     if (!line?.startsWith('CODEX_BOOT_PROBE:')) return;
     const frame = JSON.parse(line.slice('CODEX_BOOT_PROBE:'.length));
     const display = screen.getDisplayMatching(win.getBounds());
-    const native = { fullscreen: win.isFullScreen(), visible: win.isVisible(), maximized: win.isMaximized(),
+    const native = { platform: process.platform, configuredWindowMode: win.codexflareWindowMode ?? null, fullscreen: win.isFullScreen(), visible: win.isVisible(), maximized: win.isMaximized(),
       audible: win.webContents.isCurrentlyAudible(),
       bounds: win.getBounds(), contentBounds: win.getContentBounds(), normalBounds: win.getNormalBounds(),
       display: display.bounds, workArea: display.workArea, scaleFactor: display.scaleFactor };
