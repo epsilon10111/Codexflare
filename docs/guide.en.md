@@ -4,15 +4,20 @@
 
 ## Compatibility
 
-Codexflare is an unofficial local appearance editor. It does not include Codex, ChatGPT, or Electron. Install a supported Codex build first; other builds allow previews and saved settings, but cannot be patched.
+Codexflare is an unofficial local appearance editor. It does not include Codex, ChatGPT, or Electron. Install Codex first. Current source checks application structure; the table lists native validation baselines, not a version allowlist.
 
-| Platform | Codex version / build | Original application |
+| Platform | Native validation baseline / build | Original application |
 | --- | --- | --- |
 | Linux x86_64 | `26.1002.52244 / 13536` | `/usr/lib/chatgpt` |
 | macOS arm64 | `26.1021.31345 / 21828` | `/Applications/Codex.app` or `/Applications/ChatGPT.app` |
 | Windows x64 | `26.1002.52244 / 13536` | Microsoft Store / MSIX `26.1002.7124.0` |
 
-**The v0.1.0 RPM and DEB are Linux packages. Use current `main` source for macOS and Windows.** Allow approximately 1.6 GB for a Linux / macOS copy or 2–3 GB for Windows, plus temporary space during updates. Exact build checks determine compatibility.
+**The v0.1.0 RPM and DEB are Linux packages. Use current `main` source for macOS and Windows.** Allow approximately 1.6 GB for a Linux / macOS copy or 2–3 GB for Windows, plus temporary space during updates. Published v0.1.0 packages retain exact build checks. Run `python tools/manage.py check` (use `.venv/bin/python` on macOS) to inspect compatibility without installing a copy.
+
+
+Resource filename hashes, main-process local bindings, and background CSS-module hashes are discovered automatically. Window flow and workspace/composer/FooterFade structure must match recognized patterns uniquely. Architecture, Windows package identity, integrity, and signing checks remain in place. Passing structural checks does not establish native validation for that build.
+
+After an official app update, the old copy still falls back to the original app. Run the check again and reapply to rebuild a compatible copy. This does not automatically change the official app or inherit its account directories.
 
 <a id="linux"></a>
 

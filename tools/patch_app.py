@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""只为已验证的 Linux 构建生成 ASAR 副本，不写入系统安装目录。"""
+"""按已识别的应用结构生成 ASAR 副本，不写入系统安装目录。"""
 import copy
 import hashlib
 import json
@@ -22,9 +22,10 @@ else:
     from build_layout import discover_layout
     from background_layout import loading_class, patch_background_css
 
+# Reference build and resources retained for regression fixtures; not an install allowlist.
 VERSION = '26.1002.52244'
 MAIN = '.vite/build/main-B6ZOwXa3.js'
-# shortcut: 此构建的动态启动依赖；升级时重新核对模块及其样式文件。
+# Historical fixture URLs; patch_archive always uses discover_layout.
 STARTUP_PRELOADS = (
     'rpc-8fbc4c09eb98.js',
     'app-main-11766fcd548a.js',

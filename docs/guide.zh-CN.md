@@ -4,15 +4,20 @@
 
 ## 兼容范围
 
-Codexflare 是非官方的本地外观编辑器，不附带 Codex、ChatGPT 或 Electron。请先安装下表中的 Codex；其他构建可以预览和保存设置，但不能应用补丁。
+Codexflare 是非官方的本地外观编辑器，不附带 Codex、ChatGPT 或 Electron。请先安装 Codex。当前源码按结构检测兼容性；下表是已有原生验收记录的构建，不是版本白名单。
 
-| 平台 | Codex 版本 / build | 原应用位置 |
+| 平台 | 原生验收基线 / build | 原应用位置 |
 | --- | --- | --- |
 | Linux x86_64 | `26.1002.52244 / 13536` | `/usr/lib/chatgpt` |
 | macOS arm64 | `26.1021.31345 / 21828` | `/Applications/Codex.app` 或 `/Applications/ChatGPT.app` |
 | Windows x64 | `26.1002.52244 / 13536` | Microsoft Store / MSIX `26.1002.7124.0` |
 
-**v0.1.0 的 RPM / DEB 仅适用于 Linux；macOS 与 Windows 请使用当前 `main` 源码。** 创建副本约需 Linux / macOS 1.6 GB、Windows 2–3 GB，更新还需临时空间。兼容性以精确构建校验为准。
+**v0.1.0 的 RPM / DEB 仅适用于 Linux；macOS 与 Windows 请使用当前 `main` 源码。** 创建副本约需 Linux / macOS 1.6 GB、Windows 2–3 GB，更新还需临时空间。已发布的 v0.1.0 包仍使用精确版本校验。当前源码用 `python tools/manage.py check`（macOS 使用 `.venv/bin/python`）只读检查来源，不安装副本。
+
+
+资源文件名中的 hash、主进程局部变量名和背景 CSS-module hash 可自动识别。窗口流程必须符合已识别的结构，背景需具有可识别的工作区、输入框和 FooterFade；无法唯一匹配时会停止。系统架构、Windows 应用身份、完整性和签名检查仍保留。结构检查通过不等于完成该构建的原生验收。
+
+官方应用更新后，旧副本仍会回退原版。重新运行检查，通过后再次「应用到 Codex」即可重建副本；不会自动修改官方应用或继承账户目录。
 
 <a id="linux"></a>
 

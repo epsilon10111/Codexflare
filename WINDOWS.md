@@ -4,9 +4,9 @@
 
 ## 兼容目标
 
-- Windows x64 的正式版 Codex **26.1002.52244 / build 13536**，对应 Microsoft Store / MSIX 包 **26.1002.7124.0**。
+- Windows x64 的正式版 Codex。原生验收基线为 **26.1002.52244 / build 13536**，对应 MSIX **26.1002.7124.0**；当前源码不再把该版本作为白名单。
 - Python **3.12+**，推荐 **3.13 x64**；Microsoft Edge **WebView2 Runtime**。
-- 不支持其他 Codex 构建、Beta、ARM64 或普通 Electron 包；构建、资源和补丁位置不匹配时拒绝安装。
+- 使用 `.venv\Scripts\python.exe tools/manage.py check` 只读检测当前构建；资源、窗口结构或背景角色无法唯一识别时拒绝安装。仍不支持 Beta、ARM64 或普通 Electron 包。
 - 仅分发源码；需用户已安装兼容 Codex。复制整个应用约需 2–3 GB，更新时还需一份临时空间。
 
 ## 安装与打开编辑器
@@ -47,7 +47,7 @@ py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe tools/manage.py uninstall
 ```
 
-`uninstall` 仅删除本工具创建且未被他人修改的快捷方式，保留配置、素材与副本，不停止进程。官方应用升级后启动器回退到当前原版；需重新适配后才能再次应用。Windows 无法原子交换两个目录，更新中断时可能需要重新安装，官方入口仍可使用。
+`uninstall` 仅删除本工具创建且未被他人修改的快捷方式，保留配置、素材与副本，不停止进程。官方应用升级后启动器回退到当前原版；重新运行结构检查，通过后即可再次应用；检查失败则需要适配对应结构。Windows 无法原子交换两个目录，更新中断时可能需要重新安装，官方入口仍可使用。
 
 默认通过 `Get-AppxPackage OpenAI.Codex` 查找应用；自定义位置可指定到含 `resources/app.asar` 的应用目录，也可指定 MSIX 根目录：
 

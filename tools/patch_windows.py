@@ -1,4 +1,4 @@
-"""Windows x64 Owl 26.1002.52244 / build 13536 (MSIX 26.1002.7124.0)."""
+"""Reference build metadata and structural patch entry point; no version allowlist."""
 VERSION = '26.1002.52244'
 BUILD = '13536'
 MAIN = '.vite/build/main-p91kJShj.js'

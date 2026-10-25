@@ -2,7 +2,7 @@
 
 ## 项目结构与模块职责
 
-本仓库为 Linux 和 macOS Codex 桌面版生成可回退的开屏动画副本。Linux 目标为 `26.1002.52244 / build 13536 / x86_64`；macOS 目标为 `26.1021.31345 / build 21828 / arm64`。
+本仓库为 Linux 和 macOS Codex 桌面版生成可回退的开屏动画副本。Linux 原生验收基线为 `26.1002.52244 / build 13536 / x86_64`；macOS 原生验收基线为 `26.1021.31345 / build 21828 / arm64`。当前源码按结构检测兼容性，不使用精确版本白名单。
 
 `feat/windows-support` 分支增加同版本 Windows x64 Owl 适配（MSIX `26.1002.7124.0`）。`desktop_windows.py` 使用 pywebview/WebView2；`manage_windows.py` 管理复制、完整性哈希、独立开始菜单快捷方式和回退；`patch_windows.py` 验证 Windows 构建并复用经过唯一匹配检查的主窗口补丁。Windows 使用 Python 3.12+（推荐 3.13）；命令及边界见 `WINDOWS.md`。不要改写 WindowsApps、官方可执行文件或真实账户目录。
 
@@ -10,7 +10,7 @@
 - `src/background.css`：常驻背景融合与输入区样式；仅打包本地选中的图片，保留内容层可读性与交互。
 - `ui/`：Codexflare 动画/背景编辑界面；`tools/desktop.py` 显示 GTK/WebKit 独立窗口，`tools/editor.py` 提供回环服务，`tools/animation.py` 保存配置，`tools/background.py` 验证 PNG 并管理忽略目录中的图片索引。
 - `assets/default.mp4`：默认开屏原片；`assets/default.webm`：约十秒 VP9 / Opus 播放版本。`assets/default1.png` / `assets/default2.png` 为内置背景，默认选中第一张，`assets/boot.webm` 保留为旧光轨示例。
-- macOS 使用 `tools/desktop_macos.py` 的 Cocoa/WKWebView 窗口、`manage_macos.py` 的独立 `.app` 副本及 `patch_macos.py` 的精确构建锚点；签名时更新 ASAR header 与 framework integrity digest，不关闭完整性检查。
+- macOS 使用 `tools/desktop_macos.py` 的 Cocoa/WKWebView 窗口、`manage_macos.py` 的独立 `.app` 副本及 `patch_macos.py` 的结构匹配入口；签名时更新 ASAR header 与 framework integrity digest，不关闭完整性检查。
 - `tools/`：`generate_demo.py` 生成素材，`patch_app.py` 修改 ASAR 副本，`manage.py` 管理安装与回退，`native_smoke.py` 验证原生窗口。
 - `tests/`：Python 单元测试、Node 动画测试及原生探针；`VALIDATION.md` 记录验收证据和边界。
 - `.local/` 存放运行副本与回退信息，`work/` 存放截图和测试输出；两者均被 Git 忽略。
@@ -29,6 +29,7 @@
 | `python -m unittest discover -s tests -v` | 检查归档补丁、安装保护及回退 |
 | `node --test tests/test_boot.cjs tests/test_editor_ui.cjs tests/test_window_mode.cjs` | 检查动画生命周期、失败退出与编辑器交互 |
 | `/usr/bin/python3 tools/generate_demo.py` | 重新生成旧光轨示例，不覆盖 default；需要 Pillow、NumPy、FFmpeg/ffprobe、libvpx-vp9 和脚本指定的 DejaVuSans 字体 |
+| `python tools/manage.py check` | 只读检查资源、窗口和背景结构兼容性 |
 | `python tools/manage.py install` | 创建定制副本并更新用户菜单入口 |
 | `python tools/manage.py status` | 检查副本及入口状态 |
 | `python tools/manage.py launch` | 启动副本，来源变化时回退到原版 |
@@ -67,7 +68,7 @@ Co-authored-by: Haoran Zhang <zhr20040823@sjtu.edu.cn>
 
 ## 安全与配置边界
 
-仅修改 `.local/` 内的应用副本及受保护的用户菜单入口，不改写 `/usr/lib/chatgpt`、用户登录数据或聊天目录。不提交应用二进制副本、测试 profile 或日志。保留版本检查、唯一匹配校验、CSP、上下文隔离和备份恢复逻辑；升级适配必须重新审查补丁。安装前正常退出定制副本，测试不得终止用户当前会话。
+仅修改 `.local/` 内的应用副本及受保护的用户菜单入口，不改写 `/usr/lib/chatgpt`、用户登录数据或聊天目录。不提交应用二进制副本、测试 profile 或日志。记录来源版本，保留结构和唯一匹配校验、平台身份/架构检查、CSP、上下文隔离和备份恢复逻辑。不得仅因版本号不同拒绝结构兼容的构建，也不得把结构检查当作原生验收。安装前正常退出定制副本，测试不得终止用户当前会话。
 
 ## macOS 验证与边界
 

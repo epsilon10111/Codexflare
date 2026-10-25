@@ -1,4 +1,4 @@
-"""Exact anchors reviewed against the macOS arm64 26.1021.31345 / 21828 build."""
+"""Reference build metadata and structural patch entry point; no version allowlist."""
 VERSION = '26.1021.31345'
 BUILD = '21828'
 MAIN = '.vite/build/main-0FVbxCQU.js'
