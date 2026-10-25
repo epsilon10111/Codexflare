@@ -10,6 +10,7 @@
 - `work/windows-smoke-nr34ffyh/`：全屏、有声；41 个播放样本，39 个原生 audible 样本，1 个正常结束样本。`work/windows-smoke-kr1yozag/`：恢复模式，40 个播放样本，完整保留预置 **100,100,980,700** 边界并正常结束。三种模式均验证背景解码、渲染器初始化、主界面可交互、源应用指纹不变。
 - 初次启动发现 ASAR 完整性错误，已通过更新副本 `ChatGPT.exe` 的唯一匹配 ElectronAsar 资源修复；未关闭 fuse。随后检测到系统减少动态效果，应用正确跳过视频；播放测试使用仅影响测试进程的 `--force-prefers-no-reduced-motion`。一次恢复模式运行收到 `skipped` 状态而非自然片尾，未计为通过；独立重跑通过。
 - 新增 Windows / Ubuntu 单元测试 CI。Windows 原生图形测试仍需手动在桌面运行，不在 CI 中启动 Codex。
+- Ubuntu CI 已通过；Windows CI 首次发现英文系统的 `WScript.Shell.Save` 将中文路径转为 `?`。快捷方式创建已改用 Unicode `IShellLinkW` / `IPersistFile`，测试覆盖中文目录及文件名；Shell 失败也改为报告具体错误。
 
 未安装真实开始菜单入口，未关闭或读取真实账户会话；完整应用测试仅使用隔离登录页。真实登录、账户冷启动、会话恢复、实际会话工作区背景合成、系统更新后的 MSIX 回退激活和长期运行尚未验收。未在本机运行 FFmpeg 转码、Linux/GTK 或 macOS 原生测试；不声明其他构建、ARM64 或签名强制策略兼容。副本签名失效，官方签名不变；应用副本、日志和测试 profile 均留在 Git 忽略目录中。
 

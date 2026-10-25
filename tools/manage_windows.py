@@ -24,12 +24,12 @@ else:
 
 def powershell(script, **values):
     # Values travel as environment variables, never interpolated PowerShell source.
-    script = "$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[Text.UTF8Encoding]::new(); " + script
+    script = ("$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[Text.UTF8Encoding]::new(); try { "
+              + script + " } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }")
     encoded = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
     try:
         return subprocess.check_output(
-            ['powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive', '-OutputFormat', 'Text',
-             '-EncodedCommand', encoded],
+            ['powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded],
             env={**os.environ, **{key: str(value) for key, value in values.items()}},
             creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), stderr=subprocess.PIPE,
             encoding='utf-8', timeout=30).strip()
@@ -165,16 +165,46 @@ def swap_runtime(staged):
 
 
 def make_launcher(path):
+    import ctypes
+    from uuid import UUID
+
     python = Path(sys.executable)
     if python.with_name('pythonw.exe').is_file():
         python = python.with_name('pythonw.exe')
     arguments = subprocess.list2cmdline([str(Path(__file__).with_name('manage.py').resolve()), 'launch'])
-    powershell("$link=(New-Object -ComObject WScript.Shell).CreateShortcut($env:CODEXFLARE_LINK); "
-               "$link.TargetPath=$env:CODEXFLARE_PYTHON; $link.Arguments=$env:CODEXFLARE_ARGS; "
-               "$link.WorkingDirectory=$env:CODEXFLARE_CWD; $link.IconLocation=$env:CODEXFLARE_ICON; "
-               "$link.Description='Codex with Codexflare'; $link.Save()",
-               CODEXFLARE_LINK=path, CODEXFLARE_PYTHON=python, CODEXFLARE_ARGS=arguments,
-               CODEXFLARE_CWD=LOCAL.parent, CODEXFLARE_ICON=RUNTIME / BINARY)
+    # WScript.Shell.Save uses the ANSI code page; IShellLinkW/IPersistFile preserve Unicode paths.
+    ole = ctypes.OleDLL('ole32')
+    ole.CoInitialize.argtypes = [ctypes.c_void_p]
+    ole.CoCreateInstance.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint,
+                                    ctypes.c_void_p, ctypes.POINTER(ctypes.c_void_p)]
+    ole.CoUninitialize.argtypes = []
+    ole.CoUninitialize.restype = None
+    link, persist = ctypes.c_void_p(), ctypes.c_void_p()
+
+    def guid(value):
+        return ctypes.create_string_buffer(UUID(value).bytes_le)
+
+    def method(pointer, index, result, *types):
+        table = ctypes.cast(pointer, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
+        return ctypes.WINFUNCTYPE(result, ctypes.c_void_p, *types)(table[index])
+
+    ole.CoInitialize(None)
+    try:
+        ole.CoCreateInstance(guid('00021401-0000-0000-c000-000000000046'), None, 1,
+                             guid('000214f9-0000-0000-c000-000000000046'), ctypes.byref(link))
+        # IShellLinkW vtable slots: SetPath, SetArguments, SetWorkingDirectory, SetDescription.
+        for index, value in ((20, str(python)), (11, arguments), (9, str(LOCAL.parent)),
+                             (7, 'Codex with Codexflare')):
+            method(link, index, ctypes.HRESULT, ctypes.c_wchar_p)(link, value)
+        method(link, 17, ctypes.HRESULT, ctypes.c_wchar_p, ctypes.c_int)(link, str(RUNTIME / BINARY), 0)
+        method(link, 0, ctypes.HRESULT, ctypes.c_void_p, ctypes.POINTER(ctypes.c_void_p))(
+            link, guid('0000010b-0000-0000-c000-000000000046'), ctypes.byref(persist))
+        method(persist, 6, ctypes.HRESULT, ctypes.c_wchar_p, ctypes.c_int)(persist, str(path), 1)
+    finally:
+        for pointer in (persist, link):
+            if pointer.value:
+                method(pointer, 2, ctypes.c_ulong)(pointer)
+        ole.CoUninitialize()
 
 
 def install():

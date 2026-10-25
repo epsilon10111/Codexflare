@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import shutil
 from pathlib import Path
 import struct
 import sys
@@ -165,13 +166,18 @@ class WindowsManagerTests(unittest.TestCase):
 
     @unittest.skipUnless(sys.platform == 'win32', 'Windows Shell COM integration')
     def test_real_shortcut_quotes_unicode_and_spaces(self):
-        shortcut = self.root / '测试 launcher.lnk'
+        shortcut = self.root / '测试目录/测试 launcher.lnk'
+        shortcut.parent.mkdir()
         # Call the real implementation while preserving the install-test substitute.
         original = REAL_MAKE_LAUNCHER
         original(shortcut)
+        self.assertTrue(shortcut.is_file())
+        # The legacy scripting reader also requires an ANSI-compatible filename.
+        readable = self.root / 'inspect.lnk'
+        shutil.copyfile(shortcut, readable)
         info = json.loads(windows.powershell(
             "$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:CODEXFLARE_LINK); "
-            "@{target=$s.TargetPath;arguments=$s.Arguments}|ConvertTo-Json -Compress", CODEXFLARE_LINK=shortcut))
+            "@{target=$s.TargetPath;arguments=$s.Arguments}|ConvertTo-Json -Compress", CODEXFLARE_LINK=readable))
         self.assertTrue(info['target'].endswith('pythonw.exe'))
         self.assertIn('manage.py', info['arguments'])
         self.assertTrue(info['arguments'].endswith(' launch'))
