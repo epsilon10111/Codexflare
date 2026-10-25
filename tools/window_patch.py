@@ -64,7 +64,7 @@ def patch_main(text, window_mode='restore', muted=True, *, protocol=False):
         '$condition&&$window.webContents.once(`$event`,async()=>{try{'
         'await $window.webContents.executeJavaScript("document.dispatchEvent(new Event(`codex-boot-play`))",!0)'
         '}catch{}});', condition=condition, window=load['window'], event='did-finish-load' if modern else 'dom-ready')
-    edits.append((load, render('await $window.loadURL((()=>{$audio'
+    edits.append((load, render('await $window.loadURL((()=>{${audio}'
         'let codexflareUrl=new URL($url);$condition&&codexflareUrl.searchParams.set(`codexBootAnimation`,`1`);'
         'return codexflareUrl.toString()})())', **load.groupdict(), audio=audio, condition=condition)))
     edits.append((caller, render('$manager.createPrimaryWindow({title:$electron.app.getName(),'
