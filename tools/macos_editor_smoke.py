@@ -65,6 +65,7 @@ def main():
         def received(value, error):
             if error: finish(error); return
             state=json.loads(value); samples.append(state)
+            (output/'progress.json').write_text(json.dumps({'phase':phase[0],'state':state},indent=2))
             if time.monotonic()>deadline: finish('Native editor timed out'); return
             if phase[0]==-1 and state.get('width')==1920 and state.get('canPlay'):
                 phase[0]=0
@@ -92,7 +93,8 @@ def main():
                 upload(b'broken PNG','broken.png')
             elif phase[0]==5 and state.get('uploadError'):
                 phase[0]=6
-                window.performClose_(None)
+                # Wait for the failed request and UI save cycle to finish before testing close.
+                AppHelper.callLater(0.5, window.performClose_, None)
                 return
             AppHelper.callLater(0.5, poll)
 
@@ -103,6 +105,13 @@ def main():
                 'imageName:document.getElementById("background-name")?.textContent,uploadError:!document.getElementById("error-banner")?.hidden,'
                 'backgroundLoaded:!!i&&i.complete&&i.naturalWidth>0}})())',received)
         AppHelper.callLater(0.5,poll)
+        def deadline_check():
+            if time.monotonic() > deadline:
+                finish('Native editor timed out while closing')
+                AppHelper.stopEventLoop()
+            else:
+                AppHelper.callLater(1, deadline_check)
+        AppHelper.callLater(1, deadline_check)
         try:
             AppHelper.runEventLoop()
             if phase[0]!=6 and not failures:
