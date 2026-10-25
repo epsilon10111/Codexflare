@@ -47,9 +47,11 @@ Launch **fullscreen, at the previous window size, or in a centered window**. One
 
 ## Download and install
 
-Patching requires one of the exact Codex builds below. Other versions can preview and save settings, but cannot apply them. Install Codex separately first.
+Install Codex separately first. Current source checks application structure instead of requiring an exact version match. The table lists builds with native validation records. Unrecognized resources, window flows, or background layouts prevent application; previews and saved settings remain available.
 
-| Platform | Codex version / build | Get started |
+Run `python tools/manage.py check` for a read-only compatibility check. Published v0.1.0 packages retain their original exact-version restrictions.
+
+| Platform | Native validation baseline / build | Get started |
 | --- | --- | --- |
 | Linux x86_64 | `26.1002.52244 / 13536` | [RPM](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.0/codexflare-0.1.0-1.noarch.rpm) · [DEB](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.0/codexflare_0.1.0-1_all.deb) |
 | macOS Apple Silicon | `26.1021.31345 / 21828` | [Run from main source](docs/guide.en.md#macos) |

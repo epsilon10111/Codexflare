@@ -12,12 +12,12 @@ import tempfile
 
 if __package__:
     from .manage import atomic_write, digest
-    from .patch_app import Asar, patch_archive
+    from .patch_app import Asar, patch_archive, check_archive
     from .patch_windows import VERSION, BUILD, require_supported
     from .paths import LOCAL
 else:
     from manage import atomic_write, digest
-    from patch_app import Asar, patch_archive
+    from patch_app import Asar, patch_archive, check_archive
     from patch_windows import VERSION, BUILD, require_supported
     from paths import LOCAL
 
@@ -70,6 +70,14 @@ def fingerprint():
         info = (SOURCE / relative).stat()
         result[str(relative)] = [info.st_size, info.st_mtime_ns, info.st_ctime_ns]
     return result
+
+
+def check_compatibility(settings=None):
+    fingerprint()
+    runtime = json.loads((SOURCE / 'owl-shell-runtime.json').read_text(encoding='utf-8'))
+    if runtime.get('platform') != 'win32' or runtime.get('arch') != 'x64':
+        raise ValueError('仅支持 Windows x64 Owl 运行时')
+    return check_archive(SOURCE / ASAR, 'win32', settings)
 
 
 def read_state():
@@ -281,4 +289,4 @@ def launch(arguments):
 
 def status():
     print(f'状态：{runtime_problem(read_state()) or "定制副本可用"}')
-    print(f'目标：Windows x64 Codex {VERSION} / build {BUILD}\n原版：{SOURCE}\n副本：{RUNTIME}\n启动器：{DESKTOP}')
+    print(f'目标：Windows x64 Codex（按结构检测兼容性）\n原版：{SOURCE}\n副本：{RUNTIME}\n启动器：{DESKTOP}')

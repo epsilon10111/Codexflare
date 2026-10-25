@@ -47,9 +47,11 @@
 
 ## 下载与安装
 
-补丁仅适配下表中的 Codex 构建；其他版本可预览和保存，不能应用。请先安装对应的 Codex。
+请先安装 Codex。当前源码按应用结构检测兼容性，不再要求版本号完全相同；下表列出已有原生验收记录的构建。资源、窗口流程或背景结构无法识别时会拒绝应用，仍可预览和保存。
 
-| 平台 | Codex 版本 / build | 安装方式 |
+使用 `python tools/manage.py check` 可只读检查当前应用。已发布的 v0.1.0 安装包仍保留原有精确版本限制。
+
+| 平台 | 原生验收基线 / build | 安装方式 |
 | --- | --- | --- |
 | Linux x86_64 | `26.1002.52244 / 13536` | [RPM](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.0/codexflare-0.1.0-1.noarch.rpm) · [DEB](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.0/codexflare_0.1.0-1_all.deb) |
 | macOS Apple Silicon | `26.1021.31345 / 21828` | [main 源码安装](docs/guide.zh-CN.md#macos) |

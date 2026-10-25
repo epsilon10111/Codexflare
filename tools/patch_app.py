@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""只为已验证的 Linux 构建生成 ASAR 副本，不写入系统安装目录。"""
+"""按已识别的应用结构生成 ASAR 副本，不写入系统安装目录。"""
 import copy
 import hashlib
 import json
@@ -12,15 +12,20 @@ if __package__:
     from . import animation as animation_config, background
     from .animation import load_settings, video_info, video_path
     from .paths import ROOT
+    from .build_layout import discover_layout
+    from .background_layout import loading_class, patch_background_css
 else:
     import animation as animation_config
     import background
     from animation import load_settings, video_info, video_path
     from paths import ROOT
+    from build_layout import discover_layout
+    from background_layout import loading_class, patch_background_css
 
+# Reference build and resources retained for regression fixtures; not an install allowlist.
 VERSION = '26.1002.52244'
 MAIN = '.vite/build/main-B6ZOwXa3.js'
-# shortcut: 此构建的动态启动依赖；升级时重新核对模块及其样式文件。
+# Historical fixture URLs; patch_archive always uses discover_layout.
 STARTUP_PRELOADS = (
     'rpc-8fbc4c09eb98.js',
     'app-main-11766fcd548a.js',
@@ -107,61 +112,11 @@ def replace_once(text, old, new):
 
 
 def patch_main(text, window_mode='restore', muted=True):
-    if window_mode not in ('restore', 'fullscreen', 'centered'):
-        raise ValueError('无效的启动窗口方式')
-    if type(muted) is not bool:
-        raise ValueError('静音开关必须是布尔值')
-    # Owl 构建需要本地播放手势；固定事件只授权配置为有声的开屏主窗口。
-    sound_bridge = ('' if muted else
-        'n&&!r&&d&&R.webContents.once(`dom-ready`,async()=>{try{'
-        'await R.webContents.executeJavaScript("document.dispatchEvent(new Event(`codex-boot-play`))",!0)'
-        '}catch{}});')
-    # shortcut: 精确匹配此版本的压缩代码，升级后必须重新审查补丁位置。
-    text = replace_once(text,
-        'await R.loadURL(t.o(f,{mcpAppSandboxLocalDevelopment:ee}))',
-        'await R.loadURL((()=>{' + sound_bridge +
-        'let e=new URL(t.o(f,{mcpAppSandboxLocalDevelopment:ee}));'
-        'n&&!r&&d&&e.searchParams.set(`codexBootAnimation`,`1`);return e.toString()})())')
-    # 仅普通启动提前显示，保留截图、预热等调用方的隐藏窗口语义。
-    text = replace_once(text,
-        'B.createPrimaryWindow({title:m.app.getName(),show:e,initialRoute:t===`/`?void 0:t,opener:n})',
-        'B.createPrimaryWindow({title:m.app.getName(),'
-        'show:process.env.CODEX_ELECTRON_START_IN_BACKGROUND===`1`?e:!0,'
-        'initialRoute:t===`/`?void 0:t,opener:n,codexflareStartup:!e&&!B.getPrimaryWindow()})')
-    if window_mode == 'restore':
-        text = replace_once(text,
-            'minWidth:A?.width,minHeight:A?.height,webPreferences:P},R=new m.BrowserWindow(L);',
-            'minWidth:A?.width,minHeight:A?.height,webPreferences:P},R=new m.BrowserWindow(L);'
-            'n&&!r&&d&&e.codexflareStartup&&w&&(R.codexflareWindowMode=`restore`);')
+    if __package__:
+        from .window_patch import patch_main as patch_window
     else:
-        text = replace_once(text,
-            'minWidth:A?.width,minHeight:A?.height,webPreferences:P},R=new m.BrowserWindow(L);',
-            'minWidth:A?.width,minHeight:A?.height,webPreferences:P},'
-            f'codexflareMode=n&&!r&&d&&e.codexflareStartup?`{window_mode}`:null;'
-            'if(codexflareMode){k=!1;'
-            'if(codexflareMode===`centered`){'
-            'let a=(Number.isFinite(L.x)&&Number.isFinite(L.y)?'
-            'm.screen.getDisplayMatching(L):m.screen.getPrimaryDisplay()).workArea,'
-            'w=Math.min(1100,a.width),h=Math.min(760,a.height);'
-            'Object.assign(L,{width:w,height:h,x:a.x+Math.round((a.width-w)/2),'
-            'y:a.y+Math.round((a.height-h)/2),'
-            'minWidth:Math.min(L.minWidth??w,w),minHeight:Math.min(L.minHeight??h,h)})}}'
-            'let R=new m.BrowserWindow(L);'
-            'if(codexflareMode){R.codexflareWindowMode=codexflareMode;'
-            'if(codexflareMode===`fullscreen`){let enter=()=>{R.isDestroyed()||R.setFullScreen(!0)};'
-            'R.isVisible()?enter():R.once(`show`,enter)}}')
-        if window_mode == 'centered':
-            text = replace_once(text,
-                'let t=this.getPrimaryMinimumSize();for(let n of e){if(n.setMinimumSize(t.width,t.height)',
-                'for(let n of e){let t=this.getPrimaryMinimumSize();'
-                'if(n.codexflareWindowMode===`centered`){let a=m.screen.getDisplayMatching(n.getBounds()).workArea;'
-                't={width:Math.min(t.width,a.width),height:Math.min(t.height,a.height)}}'
-                'if(n.setMinimumSize(t.width,t.height)')
-    # 登录界面的尺寸建议不能覆盖启动模式或已恢复的窗口边界。
-    text = replace_once(text,
-        'let i=Cje(t);if((0,W.default)(this.primaryWindowMode,t))',
-        'let i=n.codexflareWindowMode?null:Cje(t);if((0,W.default)(this.primaryWindowMode,t))')
-    return text
+        from window_patch import patch_main as patch_window
+    return patch_window(text, window_mode, muted)
 
 
 def patch_html(text, *, background=False, preloads=STARTUP_PRELOADS):
@@ -182,51 +137,70 @@ def patch_html(text, *, background=False, preloads=STARTUP_PRELOADS):
         '<script src="./assets/codex-boot.js"></script>\n  </head>')
 
 
-def patch_archive(source_asar, target_asar, *, platform='linux', preserve_identity=False):
-    source = Asar(source_asar)
-    package = json.loads(source.read('package.json'))
+def analyze_archive(source, platform, settings, preserve_identity=False):
+    if type(preserve_identity) is not bool or (preserve_identity and platform != 'darwin'):
+        raise ValueError('原入口模式仅支持 macOS')
     if platform == 'win32':
         if __package__:
             from . import patch_windows as build
         else:
             import patch_windows as build
-        version, main, preloads, patcher = build.VERSION, build.MAIN, build.STARTUP_PRELOADS, build.patch_main
+        patcher = build.patch_main
     elif platform == 'darwin':
         if __package__:
             from . import patch_macos as build
         else:
             import patch_macos as build
-        target = build.select_build(package['version'], package.get('codexBuildNumber'))
-        version, main, preloads, patcher = target['version'], target['main'], target['preloads'], build.patch_main
+        patcher = build.patch_main
     elif platform == 'linux':
-        version, main, preloads, patcher = VERSION, MAIN, STARTUP_PRELOADS, patch_main
+        patcher = patch_main
     else:
         raise ValueError(f'不支持的平台: {platform}')
-    if package['name'] != 'openai-codex-electron' or package['version'] != version:
-        raise ValueError(f'仅支持 Codex {version} ({platform})；当前 {package.get("version")}')
+    package = json.loads(source.read('package.json'))
+    if (package.get('name') != 'openai-codex-electron'
+            or not isinstance(package.get('version'), str) or not package['version']):
+        raise ValueError('来源不是具有有效版本信息的 Codex Electron 应用')
     if platform == 'win32':
         build.require_supported(package)
-    for name in preloads:
-        try:
-            if not source.read(f'webview/assets/{name}'):
-                raise ValueError(f'启动预载资源为空: {name}')
-        except KeyError as error:
-            raise ValueError(f'启动预载资源缺失: {name}') from error
+    main, preloads = discover_layout(source)
+    background_settings = background.validate_settings(settings.get('background', {}))
+    enabled = background_settings['enabled'] and not (background_settings['image'] == 'legacy'
+        and not background.image_path('legacy', animation_config.LOCAL).exists())
+    return {
+        'version': package['version'], 'build': package.get('codexBuildNumber'),
+        'main': main, 'preloads': preloads,
+        'main_text': patcher(source.read(main).decode(), settings.get('windowMode', 'restore'),
+                             settings.get('muted', True),
+                             **({'preserve_identity': preserve_identity} if platform == 'darwin' else {})),
+        'html': patch_html(source.read('webview/index.html').decode(), background=enabled, preloads=preloads),
+        'loading_class': loading_class(source),
+        'background_css': patch_background_css((ROOT / 'src/background.css').read_text(encoding='utf-8'), source)
+                          if enabled else None,
+    }
+
+
+def check_archive(source_asar, platform, settings=None, *, preserve_identity=False):
+    result = analyze_archive(Asar(source_asar), platform, load_settings() if settings is None else settings,
+                             preserve_identity)
+    return {key: result[key] for key in ('version', 'build', 'main', 'preloads')}
+
+
+def patch_archive(source_asar, target_asar, *, platform='linux', preserve_identity=False):
+    source = Asar(source_asar)
     settings = load_settings()
+    analysis = analyze_archive(source, platform, settings, preserve_identity)
     animation = settings | {'duration': video_info(settings['video'])['duration']}
     boot_script = replace_once((ROOT / 'src/boot.js').read_text(encoding='utf-8'),
         '/* CODEX_BOOT_SETTINGS */ null',
         json.dumps(animation, separators=(',', ':'), allow_nan=False))
+    boot_script = boot_script.replace('_delayedBlossom_ovcb0_16', analysis['loading_class'])
     background_settings = background.validate_settings(settings.get('background', {}))
     background_data, background_info = background.load_selected(background_settings, animation_config.LOCAL)
     if background_info is not None:
         background_data, background_info = background.prepare_image(background_data, background_info)
     changes = {
-        main: patcher(source.read(main).decode(), settings.get('windowMode', 'restore'),
-                         settings.get('muted', True),
-                         **({'preserve_identity': preserve_identity, 'version': version} if platform == 'darwin' else {})).encode(),
-        'webview/index.html': patch_html(source.read('webview/index.html').decode(),
-                                       background=background_info is not None, preloads=preloads).encode(),
+        analysis['main']: analysis['main_text'].encode(),
+        'webview/index.html': analysis['html'].encode(),
         'webview/assets/codex-boot.js': boot_script.encode(),
         'webview/assets/codex-boot.css': (ROOT / 'src/boot.css').read_bytes(),
         'webview/assets/codex-boot.webm': video_path(settings['video']).read_bytes(),
@@ -236,11 +210,10 @@ def patch_archive(source_asar, target_asar, *, platform='linux', preserve_identi
         variables = (f":root {{ --codex-bg-opacity: {background_settings['opacity']}; "
                      f"--codex-bg-position: {background_settings['position']}%; "
                      f"--codex-bg-scale: {background_settings['scale']}%; }}\n")
-        style = (ROOT / 'src/background.css').read_text(encoding='utf-8')
-        if platform == 'darwin':
-            style = build.patch_background_css(style, source, version=version)
+        style = analysis['background_css']
         changes['webview/assets/codex-background.css'] = (variables + style).encode()
     source.write_changes(target_asar, changes)
     with Path(source_asar).open('rb') as f:
         digest = hashlib.file_digest(f, 'sha256').hexdigest()
-    return {'version': version, 'source_sha256': digest, 'animation': animation, 'background': background_info}
+    return {'version': analysis['version'], 'build': analysis['build'], 'source_sha256': digest,
+            'animation': animation, 'background': background_info}

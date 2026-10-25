@@ -4,15 +4,15 @@
 
 ## 兼容范围
 
-Codexflare 是非官方的本地外观编辑器，不附带 Codex、ChatGPT 或 Electron。请先安装下表中的 Codex；其他构建可以预览和保存设置，但不能应用补丁。
+Codexflare 是非官方的本地外观编辑器，不附带 Codex、ChatGPT 或 Electron。请先安装 Codex。当前源码按应用结构检测兼容性；下表列出已有原生验收记录的构建，不是版本白名单。
 
-| 平台 | Codex 版本 / build | 原应用位置 |
+| 平台 | 原生验收基线 / build | 原应用位置 |
 | --- | --- | --- |
 | Linux x86_64 | `26.1002.52244 / 13536` | `/usr/lib/chatgpt` |
 | macOS arm64 | `26.1021.31345 / 21828`、`26.1013.31256 / 20586` | `/Applications/Codex.app` 或 `/Applications/ChatGPT.app` |
 | Windows x64 | `26.1002.52244 / 13536` | Microsoft Store / MSIX `26.1002.7124.0` |
 
-**v0.1.0 的 RPM / DEB 仅适用于 Linux；v0.1.1 DMG 仅适配 macOS build 20586。** 当前 `main` 源码支持上表两个 macOS 构建及 Windows；已发布的 DMG 不因合入 main 而增加 build 21828 支持。创建副本约需 Linux / macOS 1.6 GB、Windows 2–3 GB，更新还需临时空间；macOS 原入口模式另保留完整官方备份和待安装候选。兼容性以精确构建校验为准。
+**v0.1.0 的 RPM / DEB 仅适用于 Linux；v0.1.1 DMG 仅适配 macOS build 20586。** 当前 `main` 源码支持上表两个 macOS 构建及 Windows；已发布的 DMG 不因合入 main 而增加 build 21828 支持。创建副本约需 Linux / macOS 1.6 GB、Windows 2–3 GB，更新还需临时空间；macOS 原入口模式另保留完整官方备份和待安装候选。已发布安装包仍保留原有版本限制。当前源码可用 `python tools/manage.py check`（macOS 使用 `.venv/bin/python`）只读检查。资源 hash、压缩变量名和 CSS-module hash 可自动识别；窗口流程或背景结构无法唯一匹配时停止。结构检查不替代原生验收。官方应用更新后需重新检查并应用，原入口模式的备份与来源变化保护仍保留。
 
 <a id="linux"></a>
 

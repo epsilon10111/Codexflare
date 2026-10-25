@@ -36,14 +36,19 @@ def main():
     archive_path = runtime / manage_windows.ASAR
     archive = patch_app.Asar(archive_path)
     previous = manage_windows.header_hash(archive_path)
-    early = '.vite/build/early-bootstrap.js'
+    if __package__:
+        from .build_layout import entrypoint
+    else:
+        from build_layout import entrypoint
+    early = entrypoint(archive)
     script = archive.read('webview/assets/codex-boot.js').decode()
     page_probe = PAGE_PROBE.replace('CODEX_PROBE_SAMPLES', str(timing['samples']))
     page_probe = page_probe.replace('CODEX_PROBE_INTERVAL', str(timing['interval']))
     temporary = archive_path.with_suffix('.qa.asar')
     archive.write_changes(temporary, {
         early: b'require("./codex-boot-probe.cjs");\n' + archive.read(early),
-        '.vite/build/codex-boot-probe.cjs': (patch_app.ROOT / 'tests/native_probe.cjs').read_bytes(),
+        str(Path(early).parent / 'codex-boot-probe.cjs').replace('\\', '/'):
+            (patch_app.ROOT / 'tests/native_probe.cjs').read_bytes(),
         'webview/assets/codex-boot.js': (script + page_probe).encode(),
     })
     temporary.replace(archive_path)

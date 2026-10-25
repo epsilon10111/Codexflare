@@ -81,6 +81,7 @@ def main():
         def received(value, error):
             if error: finish(error); return
             state=json.loads(value); state['phase']=phase[0]; samples.append(state)
+            (output/'progress.json').write_text(json.dumps(state,indent=2))
             visible = editor_is_visible(state)
             if time.monotonic()>deadline:
                 finish('Native editor regions are not visible: ' + json.dumps(state.get('regions'))
@@ -132,6 +133,12 @@ def main():
                 'imageName:document.getElementById("background-name")?.textContent,uploadError:!document.getElementById("error-banner")?.hidden,'
                 'backgroundLoaded:!!i&&i.complete&&i.naturalWidth>0}})())',received)
         AppHelper.callLater(0.5,poll)
+        def deadline_check():
+            if time.monotonic() > deadline:
+                finish('Native editor timed out while closing')
+            else:
+                AppHelper.callLater(1, deadline_check)
+        AppHelper.callLater(1, deadline_check)
         try:
             AppHelper.runEventLoop()
             if phase[0]!=6 and not failures:

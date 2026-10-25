@@ -100,7 +100,7 @@ class EditorTests(unittest.TestCase):
         settings = {'background': {'image': image_id, 'opacity': 0.25, 'position': 85, 'scale': 90}}
         self.assertEqual(self.request('POST', '/api/settings', settings)[0], 200)
         with patch.object(editor.manage, 'running_pids', return_value=[]), \
-                patch.object(editor.manage, 'fingerprint', return_value={'version': editor.manage.VERSION, 'build': getattr(editor.manage, 'BUILD', None)}), \
+                patch.object(editor.manage, 'check_compatibility', return_value={'version': '99.1.1'}), \
                 patch.object(editor.manage, 'install') as install:
             self.assertEqual(self.request('POST', '/api/install', settings)[0], 200)
             install.assert_called_once_with()
@@ -173,7 +173,7 @@ class EditorTests(unittest.TestCase):
 
     def test_install_and_uninstall_delegate_to_existing_manager(self):
         with patch.object(editor.manage, 'running_pids', return_value=[]), \
-                patch.object(editor.manage, 'fingerprint', return_value={'version': editor.manage.VERSION, 'build': getattr(editor.manage, 'BUILD', None)}), \
+                patch.object(editor.manage, 'check_compatibility', return_value={'version': '99.1.1'}), \
                 patch.object(editor.manage, 'install') as install, \
                 patch.object(editor.manage, 'uninstall') as uninstall:
             self.assertEqual(self.request('POST', '/api/install', {'speed': 2})[0], 200)
@@ -182,26 +182,26 @@ class EditorTests(unittest.TestCase):
             self.assertEqual(self.request('POST', '/api/uninstall', {})[0], 200)
             uninstall.assert_called_once_with()
 
-    def test_macos_install_accepts_both_builds_but_rejects_mismatched_build(self):
+    def test_macos_install_accepts_compatible_builds_and_rejects_changed_structure(self):
         from tools import manage_macos as mac
         with patch.object(editor, 'manage', mac), \
                 patch.object(editor, 'original_manager', return_value=None), \
                 patch.object(mac, 'running_pids', return_value=[]), \
                 patch.object(mac, 'install') as install:
-            for version, build in (('26.1013.31256', '20586'), ('26.1021.31345', '21828')):
-                with self.subTest(build=build), patch.object(mac, 'fingerprint', return_value={'version': version, 'build': build}):
+            for version, build in (('26.1013.31256', '20586'), ('26.1021.31345', '21828'), ('99.1.1', '99999')):
+                with self.subTest(build=build), patch.object(mac, 'check_compatibility', return_value={'version': version, 'build': build}):
                     status, data, _ = self.request('POST', '/api/install', {'speed': 1})
                     self.assertEqual(status, 200, data)
-            self.assertEqual(install.call_count, 2)
-            with patch.object(mac, 'fingerprint', return_value={'version': '26.1021.31345', 'build': '20586'}):
+            self.assertEqual(install.call_count, 3)
+            with patch.object(mac, 'check_compatibility', side_effect=ValueError('不兼容的窗口结构')):
                 status, data, _ = self.request('POST', '/api/install', {'speed': 1})
                 self.assertEqual(status, 400, data)
-                self.assertIn('21828', data['error'])
-            self.assertEqual(install.call_count, 2)
+                self.assertIn('不兼容的窗口结构', data['error'])
+            self.assertEqual(install.call_count, 3)
 
     def test_install_preserves_platform_launch_hint(self):
         with patch.object(editor.manage, 'running_pids', return_value=[]), \
-                patch.object(editor.manage, 'fingerprint', return_value={'version': editor.manage.VERSION, 'build': getattr(editor.manage, 'BUILD', None)}), \
+                patch.object(editor.manage, 'check_compatibility', return_value={'version': '99.1.1'}), \
                 patch.object(editor.manage, 'install'), \
                 patch.object(editor.manage, 'LAUNCH_HINT', '从开始菜单打开 Codexflare Codex。', create=True):
             status, data, _ = self.request('POST', '/api/install', {'speed': 1})
@@ -281,7 +281,7 @@ class EditorTests(unittest.TestCase):
 
     def test_failed_install_preserves_saved_settings_and_reports_failure(self):
         with patch.object(editor.manage, 'running_pids', return_value=[]), \
-                patch.object(editor.manage, 'fingerprint', return_value={'version': editor.manage.VERSION, 'build': getattr(editor.manage, 'BUILD', None)}), \
+                patch.object(editor.manage, 'check_compatibility', return_value={'version': '99.1.1'}), \
                 patch.object(editor.manage, 'install', side_effect=ValueError('来源改变')):
             status, data, _ = self.request('POST', '/api/install', {'speed': 0.5})
         self.assertEqual(status, 400)

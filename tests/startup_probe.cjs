@@ -82,9 +82,7 @@ app.whenReady().then(async () => {
     const name = decodeURIComponent(url.pathname).slice(1);
     const files = {
       'background-fixture.html': 'text/html',
-      'assets/app-shared-f2d570e85ceb.css': 'text/css',
-      'assets/app-initial-c43288484373.css': 'text/css',
-      'assets/thread-scroll-layout-24b9bd243051.css': 'text/css',
+      ...Object.fromEntries((/* CODEX_BACKGROUND_STYLES */ []).map(name => ['assets/'+name, 'text/css'])),
       'assets/codex-background.css': 'text/css',
       'assets/codex-background.png': 'image/png',
       'assets/codex-boot.css': 'text/css',

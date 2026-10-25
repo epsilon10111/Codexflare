@@ -15,13 +15,13 @@ import tempfile
 import shlex
 
 if __package__:
-    from .patch_app import Asar, patch_archive
-    from .patch_macos import VERSION, BUILD, SUPPORTED, select_build
+    from .patch_app import Asar, patch_archive, check_archive
+    from .patch_macos import VERSION, BUILD
     from .paths import ROOT, LOCAL, command_for
     from .manage import atomic_write, digest
 else:
-    from patch_app import Asar, patch_archive
-    from patch_macos import VERSION, BUILD, SUPPORTED, select_build
+    from patch_app import Asar, patch_archive, check_archive
+    from patch_macos import VERSION, BUILD
     from paths import ROOT, LOCAL, command_for
     from manage import atomic_write, digest
 
@@ -72,16 +72,18 @@ def fingerprint(bundle=None):
 
 
 def supported_source(source):
-    try:
-        select_build(source['version'], source['build'])
-        return source['build'] is not None
-    except (KeyError, ValueError):
-        return False
+    return isinstance(source.get('version'), str) and bool(source['version']) and bool(source.get('build'))
+
+
+def check_compatibility(settings=None, bundle=None, preserve_identity=False):
+    bundle = SOURCE if bundle is None else Path(bundle)
+    require_supported(fingerprint(bundle), bundle=bundle)
+    return check_archive(bundle / ASAR, 'darwin', settings, preserve_identity=preserve_identity)
 
 
 def require_supported(source, bundle=None):
     if not supported_source(source):
-        raise ValueError(f'仅支持 macOS Codex {SUPPORTED}；当前 {source.get("version")} / {source.get("build")}')
+        raise ValueError('macOS 应用缺少版本或构建信息')
     bundle = SOURCE if bundle is None else Path(bundle)
     arch = subprocess.check_output(['/usr/bin/lipo', '-archs', str(executable(bundle))], text=True).strip()
     if arch != 'arm64':
@@ -339,4 +341,4 @@ def launch(arguments):
 def status():
     state = read_state()
     print(f'状态：{runtime_problem(state) or "定制副本可用"}')
-    print(f'目标：macOS arm64 Codex {SUPPORTED}\n原版：{SOURCE}\n副本：{RUNTIME}\n启动器：{DESKTOP}')
+    print(f'目标：macOS arm64 Codex（按结构检测兼容性）\n原版：{SOURCE}\n副本：{RUNTIME}\n启动器：{DESKTOP}')

@@ -10,11 +10,13 @@
 - `src/background.css`：常驻背景融合与输入区样式；仅打包本地选中的图片，保留内容层可读性与交互。
 - `ui/`：Codexflare 动画/背景编辑界面；`tools/desktop.py` 显示 GTK/WebKit 独立窗口，`tools/editor.py` 提供回环服务，`tools/animation.py` 保存配置，`tools/background.py` 验证 PNG 并管理忽略目录中的图片索引。
 - `assets/default.mp4`：默认开屏原片；`assets/default.webm`：约十秒 VP9 / Opus 播放版本。`assets/default1.png` / `assets/default2.png` 为内置背景，默认选中第一张，`assets/boot.webm` 保留为旧光轨示例。
-- macOS 使用 `tools/desktop_macos.py` 的 Cocoa/WKWebView 窗口、`manage_macos.py` 的独立 `.app` 副本、`original_macos.py` 的原入口安装与恢复，以及 `patch_macos.py` 的精确构建锚点；签名时更新 ASAR header 与 framework integrity digest，不关闭完整性检查。
+- macOS 使用 `tools/desktop_macos.py` 的 Cocoa/WKWebView 窗口、`manage_macos.py` 的独立 `.app` 副本、`original_macos.py` 的原入口安装与恢复，以及 `window_patch.py` 的结构匹配和 `patch_macos.py` 的原生验收参考数据；签名时更新 ASAR header 与 framework integrity digest，不关闭完整性检查。
 - `tools/`：`generate_demo.py` 生成素材，`patch_app.py` 修改 ASAR 副本，`manage.py` 管理安装与回退，`native_smoke.py` 验证原生窗口。
 - `tests/`：Python 单元测试、Node 动画测试及原生探针；`VALIDATION.md` 记录验收证据和边界。
 - 源码版 `.local/` 存放运行副本与回退信息，`work/` 存放截图和测试输出；两者均被 Git 忽略。
 - `packaging/` 定义 RPM、DEB、macOS DMG 启动器和安装说明；`tools/build_dmg.py` 生成自包含 DMG。`tools/paths.py` 让安装版使用用户数据目录（默认 `~/.local/share/codexflare`），源码版使用 `.local/`。`dist/` 为忽略的发布产物。
+
+版本号仅记录来源和原生验收基线；当前源码按结构识别兼容性，不把下列已验收构建作为版本白名单。
 
 ## 构建、测试与本地运行
 
@@ -29,6 +31,7 @@
 | `python -m unittest discover -s tests -v` | 检查归档补丁、安装保护及回退 |
 | `node --test tests/test_boot.cjs tests/test_editor_ui.cjs tests/test_window_mode.cjs` | 检查动画生命周期、失败退出与编辑器交互 |
 | `/usr/bin/python3 tools/generate_demo.py` | 重新生成旧光轨示例，不覆盖 default；需要 Pillow、NumPy、FFmpeg/ffprobe、libvpx-vp9 和脚本指定的 DejaVuSans 字体 |
+| `python tools/manage.py check` | 只读检查来源的资源、窗口与背景结构 |
 | `python tools/manage.py install` | 创建定制副本并更新用户菜单入口 |
 | `python tools/manage.py status` | 检查副本及入口状态 |
 | `python tools/manage.py launch` | 启动副本，来源变化时回退到原版 |
@@ -60,13 +63,13 @@ Windows 原生验证：`python tools/windows_editor_smoke.py`；`python tools/wi
 
 提交使用简短类型前缀，沿用 `feat: 添加 Codex 全屏开屏动画 demo` 的风格，例如 `fix: 修复动画超时退出`、`docs: 更新验证说明`。PR 应说明问题、改动、目标构建和实际测试结果；有关联 issue 时附链接，视觉变更附截图或短视频。
 
-每个后续提交（包括合并提交）都必须包含共同作者尾注 `Co-authored-by: Frank Shi <frank20050415@sjtu.edu.cn>`；对应已核实的仓库协作者为 `Frank0415`。不得为补写尾注而改写已发布标签或其他历史提交。
+每个功能使用最小有意义的提交；发现错误后另建修复提交，不 amend 或 squash。每个后续提交（包括合并提交）必须包含 `Co-authored-by: Haoran Zhang <zhr20040823@sjtu.edu.cn>`，并保留共同作者尾注 `Co-authored-by: Frank Shi <frank20050415@sjtu.edu.cn>`；对应已核实的仓库协作者为 `Frank0415`。不得为补写尾注而改写已发布标签或其他历史提交。
 
 `v0.1.1` 最初从 `release/macos-build20586` 独立发布，此后将功能合入 main 并保留其他平台及 build 21828 的适配。保留 `v0.1.0`、`v0.1.1` 标签和已发布资产，不覆盖旧附件；原 macOS 定向 Release 不设为 latest。正式 DMG 使用 `--release` 构建，源码归档与发布提交一致，发布说明包含精确目标构建、依赖、签名限制和验收边界。
 
 ## 安全与配置边界
 
-Linux 与 macOS 独立副本模式仅修改各自数据目录内的应用副本及受保护的用户入口，不改写 `/usr/lib/chatgpt` 或 `/Applications` 中的原应用。macOS 原入口模式遵循下节的备份与退出保护。所有模式均不得改写用户登录数据或聊天目录，不提交官方应用二进制副本、测试 profile 或日志。保留版本检查、唯一匹配校验、CSP、上下文隔离和备份恢复逻辑；升级适配必须重新审查补丁。安装前正常退出定制副本，测试不得终止用户当前会话。
+Linux 与 macOS 独立副本模式仅修改各自数据目录内的应用副本及受保护的用户入口，不改写 `/usr/lib/chatgpt` 或 `/Applications` 中的原应用。macOS 原入口模式遵循下节的备份与退出保护。所有模式均不得改写用户登录数据或聊天目录，不提交官方应用二进制副本、测试 profile 或日志。记录来源版本，按结构检测兼容性；保留唯一匹配、平台身份/架构、CSP、上下文隔离、签名和备份恢复检查。结构检测通过不等于完成原生验收。安装前正常退出定制副本，测试不得终止用户当前会话。
 
 ## macOS 验证与边界
 

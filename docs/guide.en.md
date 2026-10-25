@@ -4,15 +4,15 @@
 
 ## Compatibility
 
-Codexflare is an unofficial local appearance editor. It does not include Codex, ChatGPT, or Electron. Install a supported Codex build first; other builds allow previews and saved settings, but cannot be patched.
+Codexflare is an unofficial local appearance editor. It does not include Codex, ChatGPT, or Electron. Install Codex first. Current source checks application structure; the table lists native validation baselines, not a version allowlist.
 
-| Platform | Codex version / build | Original application |
+| Platform | Native validation baseline / build | Original application |
 | --- | --- | --- |
 | Linux x86_64 | `26.1002.52244 / 13536` | `/usr/lib/chatgpt` |
 | macOS arm64 | `26.1021.31345 / 21828`, `26.1013.31256 / 20586` | `/Applications/Codex.app` or `/Applications/ChatGPT.app` |
 | Windows x64 | `26.1002.52244 / 13536` | Microsoft Store / MSIX `26.1002.7124.0` |
 
-**The v0.1.0 RPM and DEB are Linux packages; the v0.1.1 DMG supports macOS build 20586 only.** Current `main` source supports both macOS builds above and Windows. Integration into main does not add build 21828 support to the published DMG. Allow approximately 1.6 GB for a Linux / macOS copy or 2–3 GB for Windows, plus temporary space during updates. macOS original-entry mode also keeps a full official backup and prepared candidate. Exact build checks determine compatibility.
+**The v0.1.0 RPM and DEB are Linux packages; the v0.1.1 DMG supports macOS build 20586 only.** Current `main` source supports both macOS builds above and Windows. Integration into main does not add build 21828 support to the published DMG. Allow approximately 1.6 GB for a Linux / macOS copy or 2–3 GB for Windows, plus temporary space during updates. macOS original-entry mode also keeps a full official backup and prepared candidate. Published packages retain their original version restrictions. Run `python tools/manage.py check` (use `.venv/bin/python` on macOS) for a read-only check. Resource hashes, minified bindings and CSS-module hashes are discovered automatically; missing or ambiguous window/background structures stop application. Structural checks do not replace native validation. After an official update, check and reapply; original-entry backup and source-change protections remain in place.
 
 <a id="linux"></a>
 

@@ -211,6 +211,7 @@ def _initial_state():
     before = bundle_digest(SOURCE)
     _verify(SOURCE, official=True)
     mac.require_supported(mac.fingerprint(SOURCE), bundle=SOURCE)
+    mac.check_compatibility(bundle=SOURCE, preserve_identity=True)
     if not BACKUP.exists():
         with tempfile.TemporaryDirectory(prefix='original-backup-', dir=LOCAL) as directory:
             staged = Path(directory) / SOURCE.name
@@ -324,6 +325,8 @@ def status():
         pending = bool(state and state.get('pending'))
         active = bool(state and state.get('active'))
         changed = state and not state.get('exchanging') and fingerprint != state['target_fingerprint']
+        if available:
+            mac.check_compatibility(bundle=BACKUP if active and not changed else SOURCE, preserve_identity=True)
         error = state and state.get('error')
         if changed:
             active = False

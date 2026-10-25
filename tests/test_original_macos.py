@@ -44,9 +44,25 @@ class OriginalMacTests(unittest.TestCase):
         self.build = self.enterContext(patch.object(original.mac, 'build_runtime', side_effect=self.build_runtime))
         self.enterContext(patch.object(original.mac, 'swap_directory', side_effect=self.swap))
         self.run = self.enterContext(patch.object(original.subprocess, 'run', side_effect=self.run_command))
+        self.enterContext(patch.object(original.mac, 'check_compatibility', return_value={'version': '99.1.1'}))
         self.pids = []
         self.sequence = 0
         self.before = original.bundle_digest(self.source)
+
+    def test_active_status_checks_official_backup_not_patched_target(self):
+        original.prepare()
+        self.assertTrue(original.activate_pending())
+        with patch.object(original.mac, 'check_compatibility', return_value={}) as check:
+            self.assertTrue(original.status()['active'])
+            check.assert_called_once_with(bundle=original.BACKUP, preserve_identity=True)
+
+    def test_incompatible_structure_stops_before_backup_or_replacement(self):
+        with patch.object(original.mac, 'check_compatibility', side_effect=ValueError('incompatible structure')):
+            with self.assertRaisesRegex(ValueError, 'incompatible structure'):
+                original.prepare()
+        self.assertFalse(original.BACKUP.exists())
+        self.assertFalse(original.STATE.exists())
+        self.assertEqual(original.bundle_digest(self.source), self.before)
 
     def build_runtime(self, destination, source=None, preserve_identity=False):
         self.assertEqual(source, original.BACKUP)
