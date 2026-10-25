@@ -12,11 +12,13 @@ if __package__:
     from . import animation as animation_config, background
     from .animation import load_settings, video_info, video_path
     from .paths import ROOT
+    from .build_layout import discover_layout
 else:
     import animation as animation_config
     import background
     from animation import load_settings, video_info, video_path
     from paths import ROOT
+    from build_layout import discover_layout
 
 VERSION = '26.1002.52244'
 MAIN = '.vite/build/main-B6ZOwXa3.js'
@@ -188,15 +190,15 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
             from . import patch_windows as build
         else:
             import patch_windows as build
-        version, main, preloads, patcher = build.VERSION, build.MAIN, build.STARTUP_PRELOADS, build.patch_main
+        version, patcher = build.VERSION, build.patch_main
     elif platform == 'darwin':
         if __package__:
             from . import patch_macos as build
         else:
             import patch_macos as build
-        version, main, preloads, patcher = build.VERSION, build.MAIN, build.STARTUP_PRELOADS, build.patch_main
+        version, patcher = build.VERSION, build.patch_main
     elif platform == 'linux':
-        version, main, preloads, patcher = VERSION, MAIN, STARTUP_PRELOADS, patch_main
+        version, patcher = VERSION, patch_main
     else:
         raise ValueError(f'不支持的平台: {platform}')
     source = Asar(source_asar)
@@ -205,12 +207,7 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
         raise ValueError(f'仅支持 Codex {version} ({platform})；当前 {package.get("version")}')
     if platform == 'win32':
         build.require_supported(package)
-    for name in preloads:
-        try:
-            if not source.read(f'webview/assets/{name}'):
-                raise ValueError(f'启动预载资源为空: {name}')
-        except KeyError as error:
-            raise ValueError(f'启动预载资源缺失: {name}') from error
+    main, preloads = discover_layout(source)
     settings = load_settings()
     animation = settings | {'duration': video_info(settings['video'])['duration']}
     boot_script = replace_once((ROOT / 'src/boot.js').read_text(encoding='utf-8'),

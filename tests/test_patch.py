@@ -139,7 +139,7 @@ class PatchTests(unittest.TestCase):
         missing = patch_app.STARTUP_PRELOADS[-1]
         original, target = self.prepare_background_archive(missing_asset=missing)
         before = original.read_bytes()
-        with self.assertRaisesRegex(ValueError, '启动预载资源缺失'):
+        with self.assertRaisesRegex(ValueError, '应用资源角色必须唯一'):
             patch_archive(original, target)
         self.assertFalse(target.exists())
         self.assertEqual(original.read_bytes(), before)
