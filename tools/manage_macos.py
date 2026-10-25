@@ -214,10 +214,11 @@ def seal_bundle(bundle, preserve_identity=False):
         info['CFBundleDisplayName'] = 'Codex (Codexflare)'
         install_icon(bundle, info)
     (bundle / PLIST).write_bytes(plistlib.dumps(info))
-    with tempfile.NamedTemporaryFile(suffix='.plist') as file:
-        file.write(plistlib.dumps(entitlements)); file.flush()
+    with tempfile.TemporaryDirectory(prefix='codexflare-sign-') as folder:
+        entitlements_file = Path(folder) / 'entitlements.plist'
+        entitlements_file.write_bytes(plistlib.dumps(entitlements))
         subprocess.run(['/usr/bin/codesign', '--force', '--deep', '--sign', '-', '--options', 'runtime',
-                        '--entitlements', file.name, str(bundle)], check=True, capture_output=True)
+                        '--entitlements', str(entitlements_file), str(bundle)], check=True, capture_output=True)
     subprocess.run(['/usr/bin/codesign', '--verify', '--deep', '--strict', str(bundle)],
                    check=True, capture_output=True)
 

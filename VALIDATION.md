@@ -362,5 +362,7 @@ Branch: `feat/macos-support`. This snapshot is not a completed macOS release.
 - Cocoa/WKWebView 原生编辑器 7 个样本通过：核心控件可见、视频播放、设置保存、背景上传/解码、无效图片提示与正常关闭；已查看截图。
 - 保留 Windows 入口提示、管理分派、DEB 工具和 CI；macOS 原路径管理器延迟导入 POSIX 锁，Windows 仅跳过依赖 POSIX 语义的事务测试。缺少 fcntl 和 Windows 路径分隔符的本机模拟通过；实际 Windows/Ubuntu 结果以 PR 的 CI 为准。
 - 发布标签与附件保持不变。main 的本地 DMG 构建改为记录两组 targets，文件名不再含单一 build；不将其当作已发布的 v0.1.1 DMG。
+- 集成提交 `a4461ff` 的 DMG 已从干净 HEAD 构建，双 targets 与源码提交核对一致；只读挂载、脱离镜像后的签名/资源自检/管理命令、Linux 同源图标和原生编辑器 7 个样本通过，证据为 `work/merge-dmg-verification/`。该包仅用于合入验证，未覆盖已发布附件。
+- 首次远程 Ubuntu CI 通过；Windows 的 6 项签名测试因重开未关闭的临时文件失败。签名逻辑改为先关闭私有临时目录中的权限文件再调用 codesign，保留全部原测试；macOS 23 项相关测试及隔离真实应用副本的深度签名校验通过，远程结果以 PR 最新检查为准。
 
 本地证据在忽略的 `work/merge-python-tests.log`、`work/merge-node-tests.log`、`work/merge-real-asar.json` 和 `work/merge-native-editor/`。build 21828 没有本机真实应用包，本轮未重做该版本原生验收；真实账户及签名相关服务仍未验收。
