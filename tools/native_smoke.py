@@ -42,7 +42,7 @@ if (new URLSearchParams(location.search).get('codexBootAnimation') === '1') {
     const startupPending = !!document.querySelector('#root > .startup-loader')
       || (!shell && !!document.querySelector('#root ._delayedBlossom_ovcb0_16'));
     console.log('CODEX_BOOT_PROBE:' + JSON.stringify({
-      state: document.documentElement.dataset.codexBoot, layer: !!layer,
+      state: document.documentElement.dataset.codexBoot, layer: !!layer, documentHidden: document.hidden,
       timeMs: performance.now(),
       backgroundRequired: !!document.getElementById('codex-background-preload'),
       backgroundState: document.documentElement.dataset.codexBackground,
@@ -112,7 +112,12 @@ def validate_samples(samples, animation, expected_bounds=None):
         assert native['visible'] and native['fullscreen'] == (mode == 'fullscreen'), '启动窗口模式不符合配置'
         bounds = native['bounds']
         if mode == 'fullscreen':
-            assert all(abs(bounds[key] - native['display'][key]) <= 2 for key in bounds), '全屏标志已设置但窗口未铺满显示器'
+            frames = [native['display']]
+            # On macOS the native fullscreen content can retain the display's camera/menu safe area.
+            if native.get('platform') == 'darwin':
+                frames.append(native['workArea'])
+            assert any(all(abs(bounds[key] - frame[key]) <= 2 for key in bounds)
+                       for frame in frames), '全屏标志已设置但窗口未铺满显示器或原生安全区域'
         elif mode == 'centered':
             area = native['workArea']
             width, height = min(1100, area['width']), min(760, area['height'])
@@ -200,7 +205,7 @@ def main():
         env.pop('CODEX_ELECTRON_START_IN_BACKGROUND', None)
         with (output / 'app.log').open('wb') as log:
             process = subprocess.Popen([str(manage_macos.executable(runtime) if macos else runtime / 'ChatGPT'),
-                '--user-data-dir=' + env['CODEX_ELECTRON_USER_DATA_PATH']], env=env,
+                '--user-data-dir=' + env['CODEX_ELECTRON_USER_DATA_PATH'], *(['--use-mock-keychain'] if macos else [])], env=env,
                 stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
             try:
                 returncode = process.wait(timeout=timing['timeout'] / 1000 + 35)

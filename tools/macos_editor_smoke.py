@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the actual Cocoa editor, WebM playback and settings in an isolated directory."""
 import argparse
+import base64
 import contextlib
 import json
 from pathlib import Path
@@ -36,27 +37,39 @@ def main():
         window, view = desktop_macos.create_window(f'http://127.0.0.1:{server.server_port}/', server)
         window.makeKeyAndOrderFront_(None); app.activateIgnoringOtherApps_(True)
         deadline = time.monotonic()+45
-        phase = [0]
+        phase = [-1]
 
         def finish(error=None):
             if error: failures.append(str(error))
             (output/'result.json').write_text(json.dumps({'passed':not failures,'errors':failures,'samples':samples},indent=2))
-            AppHelper.stopEventLoop()
+            app.stop_(None)
+
+        def upload(data, filename):
+            encoded=base64.b64encode(data).decode()
+            script=('let bytes=Uint8Array.from(atob('+json.dumps(encoded)+'),c=>c.charCodeAt(0));'
+                    'let transfer=new DataTransfer();transfer.items.add(new File([bytes],'+json.dumps(filename)+',{type:"image/png"}));'
+                    'let input=document.getElementById("background-file");input.files=transfer.files;'
+                    'input.dispatchEvent(new Event("change",{bubbles:true}));')
+            view.evaluateJavaScript_completionHandler_('(()=>{'+script+'})()',lambda *_:None)
 
         def snapshot_done(image, error):
             if error: finish(error); return
             bitmap = NSBitmapImageRep.imageRepWithData_(image.TIFFRepresentation())
             data = bitmap.representationUsingType_properties_(NSBitmapImageFileTypePNG, {})
             data.writeToFile_atomically_(str(output/'editor.png'),True)
-            # Clean native close must acquire the write lock and stop the window loop.
-            window.performClose_(None)
-            AppHelper.callLater(0.2, finish)
+            png=bytes.fromhex('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489'
+                              '0000000b49444154789c63f80f040009fb03fdfb5e6b2b0000000049454e44ae426082')
+            upload(png,'mac-smoke.png')
+            AppHelper.callLater(0.5,poll)
 
         def received(value, error):
             if error: finish(error); return
             state=json.loads(value); samples.append(state)
             if time.monotonic()>deadline: finish('Native editor timed out'); return
-            if phase[0]==0 and state.get('time',0)>0 and not state.get('paused') and state.get('width')==1920:
+            if phase[0]==-1 and state.get('width')==1920 and state.get('canPlay'):
+                phase[0]=0
+                view.evaluateJavaScript_completionHandler_('document.getElementById("toggle-play").click();',lambda *_:None)
+            elif phase[0]==0 and state.get('time',0)>0 and not state.get('paused') and state.get('width')==1920 and state.get('canPlay'):
                 phase[0]=1
                 view.evaluateJavaScript_completionHandler_(
                     'document.getElementById("brightness").value="0.75";'
@@ -71,18 +84,32 @@ def main():
                 phase[0]=3
                 view.takeSnapshotWithConfiguration_completionHandler_(WKSnapshotConfiguration.alloc().init(),snapshot_done)
                 return
+            elif phase[0]==3 and state.get('imageName')=='mac-smoke.png':
+                phase[0]=4
+                view.evaluateJavaScript_completionHandler_('document.getElementById("save").click();',lambda *_:None)
+            elif phase[0]==4 and animation.load_settings()['background']['image'] not in ('default','default2'):
+                phase[0]=5
+                upload(b'broken PNG','broken.png')
+            elif phase[0]==5 and state.get('uploadError'):
+                phase[0]=6
+                window.performClose_(None)
+                return
             AppHelper.callLater(0.5, poll)
 
         def poll():
             view.evaluateJavaScript_completionHandler_(
                 'JSON.stringify((()=>{let v=document.querySelector("video"),i=document.querySelector("#background-preview img");'
-                'return {time:v?.currentTime,width:v?.videoWidth,paused:v?.paused,error:v?.error?.code??null,'
+                'return {canPlay:!document.getElementById("toggle-play")?.disabled,readyState:v?.readyState,networkState:v?.networkState,time:v?.currentTime,width:v?.videoWidth,paused:v?.paused,error:v?.error?.code??null,'
+                'imageName:document.getElementById("background-name")?.textContent,uploadError:!document.getElementById("error-banner")?.hidden,'
                 'backgroundLoaded:!!i&&i.complete&&i.naturalWidth>0}})())',received)
         AppHelper.callLater(0.5,poll)
         try:
             AppHelper.runEventLoop()
+            if phase[0]!=6 and not failures:
+                failures.append('Window closed before verification completed')
         finally:
             server.shutdown(); worker.join(); server.server_close()
+            (output/'result.json').write_text(json.dumps({'passed':not failures,'errors':failures,'samples':samples},indent=2))
     if failures: raise RuntimeError('; '.join(failures))
     print(json.dumps({'passed':True,'output':str(output),'samples':len(samples)}))
 

@@ -201,3 +201,33 @@ Branch: `feat/macos-support`. This snapshot is not a completed macOS release.
 - The Cocoa smoke test currently fails on a missing PyObjC block-signature helper symbol. Editor playback and close behavior are not yet validated.
 - The last full Python test run had 74 tests, three GTK-only skips, and one fallback-test error. The fallback was subsequently corrected, but the later integrity-digest change also requires updating the mocked bundle fixtures before rerunning the suite.
 - No original application or real account profile was patched. Copies, logs, test profiles and the Python environment remain in ignored directories and are not committed.
+
+## macOS 26.1021.31345 / build 21828 — 2026-10-25
+
+此节替代上面的 macOS WIP 状态；历史 checkpoint 保留供追溯。
+
+环境：macOS 26.5.2（25F84）、Apple Silicon arm64、Python 3.14.5、PyObjC 12.2.2、Node 24.16.0。来源为 `/Applications/ChatGPT.app`，安装管理器同时识别 `/Applications/Codex.app`。不支持的版本、build、架构或非唯一补丁锚点均拒绝安装。
+
+### 已完成
+
+- Cocoa / WKWebView 原生编辑器可启动。修复了无签名 WebKit block 回调，保留原生窗口操作、文件选择回调、同源导航限制、关闭写入保护和未保存确认。
+- `tools/macos_editor_smoke.py` 在临时配置下验证 1920×1080 WebM 实际播放、参数保存、背景解码、浏览器 File 上传到实际 HTTP 服务、无效 PNG 错误提示及正常关闭；8 个样本，结果通过。文件选择器返回选择/取消的回调由单元测试覆盖，原生选择面板未进行人工点击验收。
+- `.app` 副本同时更新 ASAR raw-header hash 和 framework 的 v1 integrity dictionary digest，再进行本地 ad-hoc 签名；`codesign --verify --deep --strict` 通过。没有关闭 ASAR 完整性 fuse 或改写原版。
+- 定制副本使用独立 bundle ID、native product directory、UI profile 和 Codex 数据目录。移除副本的供应商 URL scheme 注册；保留原版入口。
+- 已安装并确认 `manage.py status` 为“定制副本可用”，编辑器安装状态为 active/available。
+- Python：80 个测试，77 通过，3 个 Linux GTK 专用测试跳过。Node：65 个测试通过。当前构建全部 6 种窗口模式/声音组合的主进程补丁唯一匹配并通过 `node --check`。
+
+### 原生应用证据
+
+- 默认恢复/静音动画：44 个样本，其中 40 个实际播放样本、1 个正常结束样本；背景到达 `ready`，遮罩移除，应用有可交互界面。
+- 全屏/有声动画：47 个样本，其中 43 个播放样本、1 个正常结束样本；实际检测到 audible，音量配置生效。此机器原生全屏为屏幕顶部安全区域以下的内容边界，因此 macOS 验证接受 native display 或 work-area 边界，并始终要求原生 fullscreen 标志。
+- 一次按 Esc 的运行正确释放了遮罩；一次重叠运行编辑器/全屏测试导致播放被暂停并超时。最终有声全屏验证独立运行并通过。
+- 居中模式在原生采样中先创建为 1100×760、位置 (305,191)，随后本机 yabai 改为平铺最大化。严格持续窗口几何检查因此失败。未修改用户的 yabai 配置；窗口管理器仍可覆盖居中或恢复尺寸。窗口逻辑及非主窗口/后台启动边界由 Node 回归测试覆盖。
+
+本地证据位于忽略的 `work/macos-editor/`、`work/native-smoke-xygsmaai/`、`work/native-smoke-2gl401y1/`、`work/python-tests.log` 和 `work/node-tests.log`。公开编辑器截图为 `docs/images/editor-macos.png`。应用截图、供应商应用、日志及测试 profile 不提交。
+
+### 保留限制
+
+- ad-hoc 副本不能继承 OpenAI 的 Developer ID / Keychain / app-group 身份；日志中可见签名验证的原生工具拒绝连接。电脑控制、通知、共享账号等签名相关功能不作兼容承诺。
+- 本轮未执行真实账号登录或聊天操作，也未做长期稳定性测试。隔离登录/欢迎界面可交互不等于真实账户冷启动验收。
+- 原版升级后仍须重新审查锚点；现有启动器检测到源应用变化会回退原版。

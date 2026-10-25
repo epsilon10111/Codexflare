@@ -9,7 +9,7 @@ from AppKit import (NSApplication, NSApplicationActivationPolicyRegular, NSWindo
                     NSWindowStyleMaskMiniaturizable, NSWindowStyleMaskResizable,
                     NSBackingStoreBuffered, NSAlert, NSAlertFirstButtonReturn,
                     NSOpenPanel, NSModalResponseOK, NSMenu, NSMenuItem, NSAppearance,
-                    NSAppearanceNameDarkAqua)
+                    NSAppearanceNameDarkAqua, NSTerminateCancel)
 from WebKit import (WKWebView, WKWebViewConfiguration, WKWebsiteDataStore,
                     WKNavigationActionPolicyAllow, WKNavigationActionPolicyCancel)
 
@@ -20,16 +20,26 @@ def local_navigation(uri, origin):
             and target.username is None and target.password is None)
 
 
-def signed_block(handler, signature):
-    # WebKit callbacks can arrive without a block signature on current macOS/PyObjC.
-    # Same narrowly scoped compatibility technique used by pywebview's Cocoa host.
-    if not handler.__block_signature__:
-        library = ctypes.PyDLL(objc._objc.__file__)
-        factory = library.PyObjCMethodSignature_WithMetaData
-        factory.restype = ctypes.py_object
-        factory.argtypes = [ctypes.c_char_p, ctypes.c_void_p, ctypes.c_bool]
-        handler.__block_signature__ = factory(signature, None, False)
-    return handler
+# WKWebView can supply C++-generated blocks without introspection metadata. Invoke
+# these four fixed callback types using Apple's documented Block ABI, rather than
+# relying on removed private PyObjC signature-constructor symbols.
+# https://clang.llvm.org/docs/Block-ABI-Apple.html
+class _Block(ctypes.Structure):
+    _fields_ = [('isa', ctypes.c_void_p), ('flags', ctypes.c_int),
+                ('reserved', ctypes.c_int), ('invoke', ctypes.c_void_p)]
+
+
+def call_block(handler, kind=None, value=None):
+    if handler.__block_signature__ is not None:
+        return handler() if kind is None else handler(value)
+    address = objc.pyobjc_id(handler)
+    invoke = _Block.from_address(address).invoke
+    if kind is None:
+        ctypes.CFUNCTYPE(None, ctypes.c_void_p)(invoke)(address)
+    else:
+        type_ = {'integer': ctypes.c_long, 'bool': ctypes.c_bool, 'object': ctypes.c_void_p}[kind]
+        argument = (None if value is None else objc.pyobjc_id(value)) if kind == 'object' else value
+        ctypes.CFUNCTYPE(None, ctypes.c_void_p, type_)(invoke)(address, argument)
 
 
 class EditorWindow(NSWindow):
@@ -47,36 +57,35 @@ class EditorDelegate(NSObject, protocols=[objc.protocolNamed('WKNavigationDelega
         self.close_pending = False
 
     def webView_decidePolicyForNavigationAction_decisionHandler_(self, view, action, handler):
-        handler = signed_block(handler, b'v@q')
         uri = str(action.request().URL().absoluteString())
         allowed = action.targetFrame() is not None and local_navigation(uri, self.origin)
-        handler(WKNavigationActionPolicyAllow if allowed else WKNavigationActionPolicyCancel)
+        call_block(handler, 'integer', WKNavigationActionPolicyAllow if allowed else WKNavigationActionPolicyCancel)
 
-    def webView_createWebViewWithConfiguration_forNavigationAction_windowFeatures_(self, *args):
+    def webView_createWebViewWithConfiguration_forNavigationAction_windowFeatures_(self, view, config, action, features):
         return None
 
     def webView_runOpenPanelWithParameters_initiatedByFrame_completionHandler_(self, view, parameters, frame, handler):
-        handler = signed_block(handler, b'v@@')
         panel = NSOpenPanel.openPanel()
         panel.setCanChooseFiles_(True)
         panel.setCanChooseDirectories_(False)
         panel.setAllowsMultipleSelection_(parameters.allowsMultipleSelection())
         panel.beginSheetModalForWindow_completionHandler_(self.window,
-            lambda result: handler(panel.URLs() if result == NSModalResponseOK else None))
+            lambda result: call_block(handler, 'object', panel.URLs() if result == NSModalResponseOK else None))
 
     def webView_runJavaScriptAlertPanelWithMessage_initiatedByFrame_completionHandler_(self, view, message, frame, handler):
         alert = NSAlert.alloc().init()
         alert.setMessageText_(message)
         alert.addButtonWithTitle_('确定')
         alert.runModal()
-        signed_block(handler, b'v@')()
+        call_block(handler)
 
     def webView_runJavaScriptConfirmPanelWithMessage_initiatedByFrame_completionHandler_(self, view, message, frame, handler):
         alert = NSAlert.alloc().init()
         alert.setMessageText_(message)
         alert.addButtonWithTitle_('确定'); alert.addButtonWithTitle_('取消')
-        signed_block(handler, b'v@B')(alert.runModal() == NSAlertFirstButtonReturn)
+        call_block(handler, 'bool', alert.runModal() == NSAlertFirstButtonReturn)
 
+    @objc.signature(b'B@:@')
     def windowShouldClose_(self, sender):
         if self.close_approved:
             return True
@@ -109,6 +118,11 @@ class EditorDelegate(NSObject, protocols=[objc.protocolNamed('WKNavigationDelega
     def windowWillClose_(self, notification):
         NSApplication.sharedApplication().stop_(None)
 
+    @objc.signature(b'Q@:@')
+    def applicationShouldTerminate_(self, sender):
+        self.window.performClose_(None)
+        return NSTerminateCancel
+
     def quit_(self, sender):
         self.window.performClose_(None)
 
@@ -132,6 +146,7 @@ def create_window(url, server):
     window.center()
     delegate = EditorDelegate.alloc().init()
     delegate.configure(url, server, window, view)
+    app.setDelegate_(delegate)
     window.setDelegate_(delegate)
     view.setNavigationDelegate_(delegate)
     view.setUIDelegate_(delegate)

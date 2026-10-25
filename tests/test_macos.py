@@ -37,8 +37,15 @@ class MacManagerTests(unittest.TestCase):
         (source / mac.PLIST).write_bytes(plistlib.dumps({'CFBundleExecutable':'ChatGPT',
             'CFBundleVersion':patch_macos.BUILD, 'CFBundleIdentifier':'com.openai.codex',
             'CFBundleURLTypes':[{'CFBundleURLSchemes':['codex']}]}))
-        asar(source / mac.ASAR, {'package.json':json.dumps({
+        raw = asar(source / mac.ASAR, {'package.json':json.dumps({
             'name':'openai-codex-electron', 'version':patch_macos.VERSION}).encode()})
+        info = mac.bundle_info(source)
+        integrity = {'Resources/app.asar': {'algorithm':'SHA256', 'hash':hashlib.sha256(raw).hexdigest()}}
+        info['ElectronAsarIntegrity'] = integrity
+        (source/mac.PLIST).write_bytes(plistlib.dumps(info))
+        framework=source/'Contents/Frameworks/Codex Framework.framework/Codex Framework'
+        framework.parent.mkdir(parents=True)
+        framework.write_bytes(b'fake-macho-prefix' + b'AGbevlPCksUGKNL8TSn7wGmJEuJsXb2A' + b'\x01\x01' + mac.integrity_digest(integrity))
         self.local = self.root / '.local'
         for name, value in {'SOURCE':source, 'LOCAL':self.local, 'RUNTIME':self.local/'Runtime.app',
             'STATE':self.local/'install.json', 'DESKTOP':self.root/'Applications/Launch.app'}.items():
@@ -74,6 +81,7 @@ class MacManagerTests(unittest.TestCase):
         self.assertEqual(before, mac.fingerprint())
         self.assertTrue(mac.DESKTOP.exists())
         self.assertNotIn('CFBundleURLTypes', mac.bundle_info(mac.RUNTIME))
+        self.assertEqual(mac.bundle_info(mac.RUNTIME)['CFBundleIdentifier'],'org.codexflare.runtime')
         mac.uninstall()
         self.assertFalse(mac.DESKTOP.exists())
         self.assertTrue(mac.RUNTIME.exists())
@@ -121,6 +129,13 @@ class MacManagerTests(unittest.TestCase):
         info=mac.bundle_info(target)
         self.assertEqual(info['ElectronAsarIntegrity']['Resources/app.asar']['hash'],hashlib.sha256(raw).hexdigest())
         self.assertIn('--verify',run.call_args_list[-1].args[0])
+
+    def test_framework_digest_mismatch_refuses_to_write(self):
+        framework=mac.SOURCE/'Contents/Frameworks/Codex Framework.framework/Codex Framework'
+        before=framework.read_bytes()
+        with self.assertRaisesRegex(ValueError,'mismatched'):
+            mac.update_framework_integrity(mac.SOURCE,{},mac.bundle_info(mac.SOURCE)['ElectronAsarIntegrity'])
+        self.assertEqual(framework.read_bytes(),before)
 
     def test_source_update_falls_back_without_profile_override(self):
         mac.install()

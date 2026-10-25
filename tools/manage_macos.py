@@ -173,7 +173,10 @@ def seal_bundle(bundle):
     info['ElectronAsarIntegrity'] = {'Resources/app.asar': {
         'algorithm': 'SHA256', 'hash': hashlib.sha256(header).hexdigest()}}
     update_framework_integrity(bundle, previous_integrity, info['ElectronAsarIntegrity'])
-    # Keep the runtime ID for Electron's native helpers; never register its URL schemes.
+    # A distinct native identity prevents sharing NSUserDefaults/account caches with the vendor app.
+    info['CFBundleIdentifier'] = 'org.codexflare.runtime'
+    info['CrProductDirName'] = 'org.codexflare.runtime'
+    # Do not register the vendor URL schemes from the local copy.
     info.pop('CFBundleURLTypes', None)
     info['CFBundleDisplayName'] = 'Codex (Codexflare)'
     (bundle / PLIST).write_bytes(plistlib.dumps(info))
