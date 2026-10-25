@@ -40,6 +40,7 @@ class Element extends Events {
     this.children = [];
     this.dataset = {};
     this.attributes = {};
+    this.style = {};
     this.classList = new Set();
   }
   setAttribute(name, value) { this.attributes[name] = value; }
@@ -60,7 +61,7 @@ class Element extends Events {
   }
 }
 
-function boot({ search = '?codexBootAnimation=1', hidden = false, reduced = false, loading = false, bodyPresent = true, rejectPlay = false, scriptSrc = 'file:///app/webview/assets/codex-boot.js' } = {}) {
+function boot({ search = '?codexBootAnimation=1', hidden = false, reduced = false, loading = false, bodyPresent = true, rejectPlay = false, scriptSrc = 'file:///app/webview/assets/codex-boot.js', settings = null } = {}) {
   const document = new Events();
   document.documentElement = new Element('html');
   const body = new Element('body');
@@ -113,7 +114,7 @@ function boot({ search = '?codexBootAnimation=1', hidden = false, reduced = fals
     },
     clearTimeout: id => timers.delete(id),
   };
-  vm.runInNewContext(source, context, { filename: 'boot.js' });
+  vm.runInNewContext(source.replace('/* CODEX_BOOT_SETTINGS */ null', JSON.stringify(settings)), context, { filename: 'boot.js' });
   return {
     document, root, videos, timers, observers,
     get layer() { return document.body?.children.find(child => child.id === 'codex-boot'); },
@@ -168,6 +169,10 @@ test('主窗口自动静音播放，正常结束后移除遮罩', () => {
   assert.equal(video.muted, true);
   assert.equal(video.playsInline, true);
   assert.equal(video.playCalls, 1);
+  assert.equal(video.playbackRate, 1);
+  assert.equal(video.defaultPlaybackRate, 1);
+  assert.equal(video.style.filter, 'brightness(1) contrast(1) saturate(1)');
+  assert.equal(video.style.objectFit, 'cover');
   assert.equal(app.layer.attributes['aria-label'], 'Codex 启动动画');
   video.emit('ended');
   video.emit('error');
@@ -208,6 +213,20 @@ test('播放超过 8 秒后释放动画', () => {
   assert.equal(app.document.documentElement.dataset.codexBoot, 'loading');
   app.advance(1);
   assertReleased(app, 'timeout');
+});
+
+test('应用视频参数，并为慢速或较长视频延长超时', () => {
+  for (const [duration, speed, timeout] of [[4, 0.5, 12000], [12.25, 1, 17000], [30, 0.5, 64000], [4, 2, 8000]]) {
+    const app = boot({ settings: { duration, speed, brightness: 1.2, contrast: 0.8, saturation: 0, fit: 'contain' } });
+    assert.equal(app.videos[0].playbackRate, speed);
+    assert.equal(app.videos[0].defaultPlaybackRate, speed);
+    assert.equal(app.videos[0].style.filter, 'brightness(1.2) contrast(0.8) saturate(0)');
+    assert.equal(app.videos[0].style.objectFit, 'contain');
+    app.advance(timeout - 1);
+    assert.equal(app.document.documentElement.dataset.codexBoot, 'loading');
+    app.advance(1);
+    assertReleased(app, 'timeout');
+  }
 });
 
 test('隐藏窗口等到可见后播放并开始超时计时', () => {

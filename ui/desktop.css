@@ -1,0 +1,73 @@
+#codex-animation-window {
+  background: #090909;
+  color: #ededed;
+}
+
+#codex-animation-window decoration {
+  border: 1px solid #303030;
+  border-radius: 6px;
+}
+
+#codex-animation-window.maximized decoration {
+  border-width: 0;
+  border-radius: 0;
+}
+
+#codex-animation-titlebar {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-bottom: 1px solid #282828;
+  border-radius: 6px 6px 0 0;
+  background: #090909;
+  box-shadow: none;
+  color: #b8b8b8;
+}
+
+#codex-animation-titlebar .title {
+  font-family: sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  text-shadow: none;
+}
+
+#codex-animation-titlebar button.titlebutton {
+  min-width: 30px;
+  min-height: 28px;
+  margin: 3px 1px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: #d5d5d5;
+  -gtk-icon-shadow: none;
+}
+
+#codex-animation-titlebar button.titlebutton:hover {
+  background: #2b2b2b;
+  color: #fff;
+}
+
+#codex-animation-titlebar button.titlebutton:active {
+  background: #414141;
+}
+
+#codex-animation-titlebar button.titlebutton:focus {
+  outline: 1px solid #eee;
+  outline-offset: -2px;
+}
+
+/* Breeze 隐藏原生图标并改用背景图；自绘按钮恢复 Gtk.Image 的前景色。 */
+#codex-animation-titlebar button.titlebutton image {
+  color: inherit;
+}
+
+#codex-animation-titlebar:backdrop,
+#codex-animation-titlebar button.titlebutton:backdrop {
+  color: #969696;
+}
+
+#codex-animation-window.maximized #codex-animation-titlebar {
+  border-radius: 0;
+}

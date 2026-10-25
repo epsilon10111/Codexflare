@@ -7,6 +7,11 @@ from pathlib import Path
 import shutil
 import struct
 
+if __package__:
+    from .animation import load_settings, video_info, video_path
+else:
+    from animation import load_settings, video_info, video_path
+
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = '26.1002.52244'
 MAIN = '.vite/build/main-B6ZOwXa3.js'
@@ -128,14 +133,19 @@ def patch_archive(source_asar, target_asar):
     package = json.loads(source.read('package.json'))
     if package['name'] != 'openai-codex-electron' or package['version'] != VERSION:
         raise ValueError(f'仅支持 Codex {VERSION}；当前 {package.get("version")}')
+    settings = load_settings()
+    animation = settings | {'duration': video_info(settings['video'])['duration']}
+    boot_script = replace_once((ROOT / 'src/boot.js').read_text(),
+        '/* CODEX_BOOT_SETTINGS */ null',
+        json.dumps(animation, separators=(',', ':'), allow_nan=False))
     changes = {
         MAIN: patch_main(source.read(MAIN).decode()).encode(),
         'webview/index.html': patch_html(source.read('webview/index.html').decode()).encode(),
-        'webview/assets/codex-boot.js': (ROOT / 'src/boot.js').read_bytes(),
+        'webview/assets/codex-boot.js': boot_script.encode(),
         'webview/assets/codex-boot.css': (ROOT / 'src/boot.css').read_bytes(),
-        'webview/assets/codex-boot.webm': (ROOT / 'assets/boot.webm').read_bytes(),
+        'webview/assets/codex-boot.webm': video_path(settings['video']).read_bytes(),
     }
     source.write_changes(target_asar, changes)
     with Path(source_asar).open('rb') as f:
         digest = hashlib.file_digest(f, 'sha256').hexdigest()
-    return {'version': VERSION, 'source_sha256': digest}
+    return {'version': VERSION, 'source_sha256': digest, 'animation': animation}

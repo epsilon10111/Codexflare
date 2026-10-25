@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <title>六瓣交织几何标志</title>
+  <desc>以六瓣交织和正六边形为灵感的原创几何标志。</desc>
+  <defs><path id="petal" d="M60 15C71 9 84 17 84 30V47L64 59 49 50V30C49 24 53 19 60 15Z"/></defs>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <g><use href="#petal" stroke="#090909" stroke-width="8"/><use href="#petal" stroke="#eeeeee" stroke-width="3.5"/></g>
+    <g transform="rotate(60 64 64)"><use href="#petal" stroke="#090909" stroke-width="8"/><use href="#petal" stroke="#eeeeee" stroke-width="3.5"/></g>
+    <g transform="rotate(120 64 64)"><use href="#petal" stroke="#090909" stroke-width="8"/><use href="#petal" stroke="#eeeeee" stroke-width="3.5"/></g>
+    <g transform="rotate(180 64 64)"><use href="#petal" stroke="#090909" stroke-width="8"/><use href="#petal" stroke="#eeeeee" stroke-width="3.5"/></g>
+    <g transform="rotate(240 64 64)"><use href="#petal" stroke="#090909" stroke-width="8"/><use href="#petal" stroke="#eeeeee" stroke-width="3.5"/></g>
+    <g transform="rotate(300 64 64)"><use href="#petal" stroke="#090909" stroke-width="8"/><use href="#petal" stroke="#eeeeee" stroke-width="3.5"/></g>
+  </g>
+  <path d="m64 51 11.26 6.5v13L64 77l-11.26-6.5v-13Z" fill="#090909" stroke="#eeeeee" stroke-width="2.5"/>
+</svg>

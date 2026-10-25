@@ -158,6 +158,7 @@ def install():
         raise ValueError(f'仅支持 Codex {VERSION}；当前 {before["version"]}')
     require_stopped()
     LOCAL.mkdir(parents=True, exist_ok=True)
+    LOCAL.chmod(0o700)
     if RUNTIME.is_symlink():
         raise ValueError('runtime 不能是符号链接')
     staged = Path(tempfile.mkdtemp(prefix='runtime.build-', dir=LOCAL))

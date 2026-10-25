@@ -1,77 +1,111 @@
-# codex-boot-animation
+# Codexflare
 
-Codex Linux 桌面版的本地开屏 demo：打开主窗口时自动全屏，播放 4 秒的 CODEX 视频，随后进入仍保持全屏的应用。视频直接替代启动页里的 OpenAI Logo；不是另开播放器盖在应用上。
+**为 Linux Codex 桌面版定制启动动画。**
 
-当前只适配 **26.1002.52244 / build 13536 / Linux x86_64**，安装位置为 `/usr/lib/chatgpt`。这是非官方修改，只生成本机应用副本，不分发 OpenAI 的程序文件。
+Codexflare 是一个轻量级本地动画编辑器。在独立桌面窗口中选择内置或自定义视频，实时调整播放速度与画面，再应用到可回退的 Codex 副本。
 
-## 使用
+![Codexflare 独立桌面编辑器](docs/images/editor.png)
 
-```bash
-cd /data/Workplace/codex-boot-animation
-python tools/manage.py install
-python tools/manage.py status
-```
+## 功能
 
-安装后，从应用菜单正常打开原来的 ChatGPT / Codex 入口即可。**已经运行的旧进程不会热替换；先从应用菜单完全退出，再重新打开。** 仅关闭窗口可能隐藏到托盘，不能确保结束旧进程。
+- **独立桌面窗口**：使用系统 GTK / WebKit，黑白六瓣几何界面、自绘标题栏和 CSS 交互动效，无需浏览器标签页或额外 Electron 运行时。
+- **自定义视频**：内置四秒「CODEX 光轨」，支持导入 MP4、MOV、WebM 等视频；素材仅在本机处理。
+- **实时预览**：调节播放速度、亮度、对比度、饱和度，选择铺满裁切或完整显示。
+- **可回退安装**：生成本地应用副本并切换用户菜单入口，可随时恢复原入口。
+- **播放保护**：动画静音，支持 Esc / 按钮跳过、播放失败退出和减少动态效果偏好。
 
-也可以通过下面的入口启动，后面的文件路径或 `codex://` 链接会原样转发：
+## 兼容范围与依赖
 
-```bash
-python tools/manage.py launch
-```
+目前仅适配 **Codex 26.1002.52244 / build 13536 / Linux x86_64**，原应用路径为 `/usr/lib/chatgpt`。已在 Fedora KDE / Wayland（通过 XWayland）验证；其他 Codex 构建、Linux 桌面及 Windows / macOS 未验证。
 
-- 动画自动铺满 Codex 所在显示器，视频使用 `object-fit: cover`；非 16:9 屏幕可能裁掉画面边缘。
-- 点击右下角「跳过」或按 Esc 可立即跳过。播放失败或超时 8 秒会退出动画层。
-- 尊重系统的「减少动态效果」偏好：开启时直接进入应用。
-- 动画结束后应用保持全屏；可用应用的全屏切换命令或 KDE 窗口菜单退出全屏。
-- 独立 Page、宠物、弹窗、后台预热和截图使用的隐藏窗口不显示动画。后台启动模式不抢先显示窗口。
-- 已运行的实例被唤起时不重播视频；隐藏后重新显示的主窗口会进入全屏。
+这是非官方工具，不分发 OpenAI 的程序文件。未适配的 Codex 版本仍可使用编辑器预览和保存，不能应用补丁。
 
-## 安装与回退的范围
+| 用途 | 依赖 |
+| --- | --- |
+| 打开编辑器 | Python 3.11+、GTK 3、PyGObject、WebKit2 4.1，以及系统 WebKit 的 VP9 / WebM 解码支持 |
+| 导入自定义视频 | FFmpeg、ffprobe、`libvpx-vp9` 编码器 |
+| 应用动画 | 已安装的目标版本 Codex，约 1.6 GB 本地副本空间 |
+| 开发测试 | Python 标准库 `unittest`、Node.js 内置 `node:test` |
 
-安装器将当前系统应用完整复制到仓库的 `.local/runtime/`（约 1.6 GB），只在副本中修改 `app.asar`。随后写入用户级 `~/.local/share/applications/chatgpt.desktop`，使原菜单入口指向副本。若该文件原先存在，会保存原内容和权限；后续检测到它被其他操作修改时会拒绝覆盖。
+使用发行版提供的 GTK / WebKit 及媒体组件，无 npm 构建步骤。若当前 Python 环境缺少 GI，启动器会尝试使用 `/usr/bin/python3`。
 
-系统 `/usr/lib/chatgpt`、`/usr/bin/chatgpt`、用户登录信息和聊天目录不做修改。直接执行 `/usr/bin/chatgpt` 仍打开原版。副本正常使用原有登录和聊天；在原版进程退出前，两者的单实例机制会转发到现有窗口。
+## 快速开始
 
 ```bash
-python tools/manage.py uninstall
+git clone https://github.com/epsilon10111/Codexflare.git
+cd Codexflare
+python3 tools/editor.py
 ```
 
-回退会恢复安装前的用户菜单入口，保留应用副本与备份，不停止进程、不删除用户数据。回退后同样需要完全退出定制进程，再从菜单打开原版。
+启动后直接打开本地窗口。内部服务仅监听 `127.0.0.1`，关闭窗口后结束；无需手动打开服务地址。
 
-系统应用更新后，启动器会检测到来源变化，**自动打开原版**，避免继续运行陈旧的定制副本。必须重新审查新版补丁后再适配；安装器遇到未知版本或补丁匹配不唯一会停止。重新安装前也必须退出正在运行的定制副本。
+1. 选择内置视频，或点击「上传视频」导入素材。
+2. 调节参数，在预览区检查效果。
+3. 点击「保存设置」保留草稿配置；点击「应用到 Codex」保存并重建定制副本。
+4. 完全退出 Codex 后，从原来的 ChatGPT / Codex 菜单入口重新打开。
 
-## 视频与实现
+**保存设置不会改变已安装的启动动画，需要再次点击「应用到 Codex」。** 定制 Codex 正在运行时会拒绝重新应用，可先保存设置。工具不会关闭你的会话；仅关闭 Codex 窗口可能会留在托盘，请正常退出应用后再操作。
 
-- `assets/boot.webm`：1920×1080、30 fps、4 秒、VP9、无声；蓝紫光轨与 CODEX 字样，完全由本仓库生成。
-- `src/boot.js` / `src/boot.css`：独立于 React 根节点的动画层、跳过与失败退出。
-- `tools/patch_app.py`：只针对已知构建的最小补丁，保留原 CSP、上下文隔离和导航限制，更新 ASAR 文件完整性字段。
-- `tools/manage.py`：用户级安装、启动、版本变化回退和卸载。
+动画全屏播放，结束后应用保持全屏，可通过应用或 KDE 窗口菜单退出全屏。唤起已有实例时不重复播放。
 
-重新生成视频需要系统已安装的 FFmpeg（libvpx-vp9）、Pillow 和 NumPy。安装和运行现成 demo 只需要 Python 3.11+ 及已安装的目标 Codex。
+## 视频与参数
+
+| 参数 | 范围 |
+| --- | --- |
+| 播放速度 | 0.5–2× |
+| 亮度 | 25–200% |
+| 对比度 | 50–200% |
+| 饱和度 | 0–200% |
+| 画面适配 | 铺满裁切 / 完整显示 |
+
+导入文件最大 **100 MiB**，原片最长 **30 秒**。支持的容器和编码取决于本机 FFmpeg；导入后转换为无声 VP9 WebM，30 fps，宽不超过 1920、高不超过 1080，保持比例且不放大。原始文件保持不变。
+
+设置保存在 `.local/animation.json`，导入素材保存在 `.local/media/`。重置参数不会替换所选视频，恢复原版入口也不会删除素材和设置。视频预览保留原片颜色，黑白风格只作用于编辑界面。
+
+## 安装、启动与回退
+
+也可以在仓库根目录使用命令行：
 
 ```bash
-/usr/bin/python3 tools/generate_demo.py
-python tools/manage.py install
+python3 tools/manage.py install    # 使用已保存的配置创建并启用定制副本
+python3 tools/manage.py status     # 查看副本和入口状态
+python3 tools/manage.py launch     # 启动定制副本，异常时回退原版
+python3 tools/manage.py uninstall  # 恢复原菜单入口
 ```
 
-替换 `assets/boot.webm` 后重新安装即可更换素材。demo 的超时为 8 秒，使用更长视频时需同步调整 `src/boot.js`。
+安装器将系统应用复制到 `.local/runtime/`，只修改副本中的 `app.asar`，并更新用户级 `~/.local/share/applications/chatgpt.desktop`。原入口存在时会备份，检测到入口被其他操作修改时拒绝覆盖。
 
-## 验证
+- 不改写系统 `/usr/lib/chatgpt`、`/usr/bin/chatgpt` 或用户登录、聊天数据；直接运行 `/usr/bin/chatgpt` 仍打开原版。
+- 卸载恢复入口，保留副本、备份、设置和素材，不停止运行中的进程。
+- 系统 Codex 更新后，启动器检测来源变化并打开原版；新版本需要重新审查适配。
+- 菜单入口引用仓库的绝对路径。启用期间不要移动或删除仓库；迁移前先恢复原版入口。
+
+## 开发与验证
+
+```text
+ui/                  编辑界面、样式与六瓣标志
+src/                 注入 Codex 的启动动画层
+assets/boot.webm      内置四秒无声视频
+tools/               桌面窗口、视频处理、安装与验证工具
+tests/               Python / Node 回归测试
+.local/              本地配置、素材与运行副本（不提交）
+work/                测试截图与临时产物（不提交）
+```
 
 ```bash
-python -m unittest discover -s tests -v
-node --test tests/test_boot.cjs
-# 会短暂打开一个真正的全屏测试窗口，然后自动关闭。
-python tools/native_smoke.py
+python3 -m unittest discover -s tests -v
+node --test tests/test_boot.cjs tests/test_editor_ui.cjs
+/usr/bin/python3 tools/desktop_smoke.py
 ```
 
-原生测试复制已安装的定制运行时，使用独立的界面目录和 `CODEX_HOME`，禁用测试实例的默认协议注册。它记录原生全屏状态、显示器与窗口边界、视频解码尺寸及播放时间、动画退出和应用挂载情况，并保存播放中/播放后截图到 `work/native-smoke-*/`。测试结束清理测试运行时，不关闭当前真实会话。
+桌面自检在隔离配置下验证真实窗口、播放、导入、保存及关闭，不改变真实 Codex 安装。Python 若缺少 GI，会跳过桌面测试；请使用具备 GTK / WebKit 的系统 Python 补测。
 
-当前验收记录见 [VALIDATION.md](VALIDATION.md)。单元测试不替代原生测试；独立登录页测试也不代表已验证当前真实账户的冷启动。
+已安装副本可用 `python3 tools/native_smoke.py` 验证全屏动画，或用 `--runtime /绝对路径/runtime` 指定预构建副本。该测试会短暂打开隔离的全屏窗口，不退出当前真实会话。
+
+重新生成内置视频可运行 `/usr/bin/python3 tools/generate_demo.py`，额外需要 Pillow、NumPy、FFmpeg / ffprobe、libvpx-vp9 和脚本指定的 DejaVuSans 字体。
+
+贡献规范见 [AGENTS.md](AGENTS.md)，界面设计见 [DESIGN.md](DESIGN.md)，测试证据及未验证项见 [VALIDATION.md](VALIDATION.md)。真实账户冷启动、其他版本和长期运行仍需另行验证。
 
 ## 参考
 
-参考了 [powerofjinbo/claude-](https://github.com/powerofjinbo/claude-/tree/ef3a656e15594f6b8e73e9550ff385bb52813ce8) 的视频开屏、跳过和超时退出思路。该项目以独立置顶窗口播放动画；本 demo 使用 Codex 用户级运行副本，在原启动页内播放，自行生成视频，没有复制其素材或实现代码。
-
-原生窗口行为参照 [Electron BrowserWindow](https://www.electronjs.org/docs/latest/api/browser-window)，归档字段参照 [Electron ASAR Integrity](https://www.electronjs.org/docs/latest/tutorial/asar-integrity)。
+开屏思路参考 [powerofjinbo/claude-](https://github.com/powerofjinbo/claude-/tree/ef3a656e15594f6b8e73e9550ff385bb52813ce8)；本项目自行生成素材，通过 Codex 本地副本的启动页播放，没有复制其素材或实现代码。窗口和归档处理参考 [Electron BrowserWindow](https://www.electronjs.org/docs/latest/api/browser-window) 与 [ASAR Integrity](https://www.electronjs.org/docs/latest/tutorial/asar-integrity)。

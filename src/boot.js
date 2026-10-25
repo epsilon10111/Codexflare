@@ -1,5 +1,8 @@
 (() => {
   if (new URLSearchParams(location.search).get('codexBootAnimation') !== '1') return;
+  const settings = /* CODEX_BOOT_SETTINGS */ null;
+  const options = settings || { speed: 1, brightness: 1, contrast: 1, saturation: 1, fit: 'cover', duration: 4 };
+  const timeoutMs = Math.max(8, Math.ceil(options.duration / options.speed + 4)) * 1000;
   // 位于 React 根节点外，应用提前就绪也不会截断视频。
   document.documentElement.dataset.codexBoot = 'loading';
   const scriptUrl = document.currentScript.src;
@@ -13,6 +16,10 @@
     video.muted = true;
     video.playsInline = true;
     video.preload = 'auto';
+    video.defaultPlaybackRate = options.speed;
+    video.playbackRate = options.speed;
+    video.style.filter = `brightness(${options.brightness}) contrast(${options.contrast}) saturate(${options.saturation})`;
+    video.style.objectFit = options.fit;
     video.setAttribute('aria-hidden', 'true');
     const skip = document.createElement('button');
     skip.type = 'button';
@@ -41,7 +48,7 @@
     };
     const playWhenVisible = () => {
       if (document.hidden || finished) return;
-      timeout ??= setTimeout(() => finish('timeout'), 8000);
+      timeout ??= setTimeout(() => finish('timeout'), timeoutMs);
       video.play().catch(() => finish('playback-error'));
     };
     skip.addEventListener('click', () => finish('skipped'));

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Codex · 启动动画编辑器</title>
+  <link rel="stylesheet" href="/editor.css">
+  <script src="/editor.js" defer></script>
+</head>
+<body>
+  <svg class="depth-lines" viewBox="0 0 720 720" aria-hidden="true"><g><path d="m360 40 277 160v320L360 680 83 520V200Z"/><path d="m360 100 225 130v260L360 620 135 490V230Z"/><path d="m360 160 173 100v200L360 560 187 460V260Z"/><path d="m360 220 121 70v140l-121 70-121-70V290Z"/><path d="m360 280 69 40v80l-69 40-69-40v-80Z"/></g></svg>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="brand"><img class="brand-mark" src="/mark.svg" alt=""><div><h1>启动动画</h1><p class="brand-caption">预览、调整与应用</p></div></div>
+      <div class="header-status"><span class="local-badge"><span class="status-dot"></span>本机工作区</span><span id="save-state" class="save-state" role="status">正在连接…</span></div>
+    </header>
+
+    <main>
+      <div class="workspace">
+        <div class="preview-column">
+          <section class="preview-card" aria-labelledby="preview-heading">
+            <div class="card-heading"><div class="heading-label"><h2 id="preview-heading">实时预览</h2><span class="preview-muted">静音</span></div><span id="playback-state" class="subtle-label">准备中</span></div>
+            <div class="preview-stage">
+              <video id="preview" muted playsinline preload="auto" aria-label="启动动画视频预览"></video>
+              <div id="preview-placeholder" class="preview-placeholder"><img class="preview-symbol" src="/mark.svg" alt=""><span>正在载入视频</span></div>
+            </div>
+            <div id="media-error" class="media-error" role="alert" hidden><span>视频暂时无法预览，请重新加载或选择其他视频。</span><button id="reload-video" type="button">重新加载</button></div>
+            <div class="preview-footer">
+              <div class="video-details"><strong id="video-name">默认启动动画</strong><span id="video-meta">读取视频信息…</span></div>
+              <div class="playback-actions"><button id="toggle-play" class="icon-button" type="button" aria-label="播放预览" disabled><svg aria-hidden="true" viewBox="0 0 24 24"><path id="play-icon" d="m9 5 11 7-11 7Z"/></svg><span id="play-label">播放</span></button><button id="restart" class="icon-button secondary-icon" type="button" aria-label="从头播放预览" disabled><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 .5 6M4 4v6h6"/></svg></button></div>
+            </div>
+          </section>
+
+          <section class="source-card" aria-labelledby="source-heading">
+            <div class="section-heading"><div class="heading-label"><h2 id="source-heading">视频素材</h2></div><span class="subtle-label">本机处理</span></div>
+            <label class="sr-only" for="video-source">当前视频</label>
+            <div class="source-actions"><select id="video-source" data-edit disabled><option value="default">默认启动动画</option></select><button id="upload-button" class="upload-button" type="button" data-edit disabled><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M5 15v5h14v-5"/></svg>上传视频</button><input id="video-file" type="file" accept="video/*,.mp4,.mov,.webm,.mkv,.m4v" hidden></div>
+            <p class="field-hint">最长 30 秒 · 最大 100 MiB · 支持 MP4、MOV、WebM 等</p>
+          </section>
+          <div class="message-stack">
+            <div id="error-banner" class="notice error-notice" role="alert" hidden><span id="error-text"></span><button id="retry-state" type="button" hidden>重新连接</button></div>
+            <div id="notice" class="notice" role="status" hidden></div>
+          </div>
+          <section class="installation-card" aria-labelledby="installation-heading">
+            <div class="installation-status"><span id="installation-indicator" class="installation-indicator" aria-hidden="true"></span><h2 id="installation-heading">正在检查应用状态</h2></div>
+            <p id="installation-message">连接本机编辑器后显示。</p>
+            <div class="installation-actions"><button id="refresh-state" class="text-button" type="button">刷新状态</button><button id="restore" class="text-button" type="button" disabled>恢复原版入口</button></div>
+          </section>
+        </div>
+
+        <section class="settings-card" aria-labelledby="settings-heading">
+          <div class="section-heading"><div class="heading-label"><h2 id="settings-heading">画面与播放</h2></div><button id="reset" class="reset-button" type="button" data-edit disabled>重置参数</button></div>
+          <fieldset id="adjustments" disabled>
+            <legend class="sr-only">视频参数</legend>
+            <div class="slider-field"><div class="control-label"><label for="speed">播放速度</label><output id="speed-value" for="speed">1.0×</output></div><input id="speed" type="range" min="0.5" max="2" step="0.1" value="1"><div class="range-labels"><span>0.5×</span><span>2.0×</span></div></div>
+            <div class="slider-field"><div class="control-label"><label for="brightness">亮度</label><output id="brightness-value" for="brightness">100%</output></div><input id="brightness" type="range" min="0.25" max="2" step="0.05" value="1"><div class="range-labels"><span>暗</span><span>亮</span></div></div>
+            <div class="slider-field"><div class="control-label"><label for="contrast">对比度</label><output id="contrast-value" for="contrast">100%</output></div><input id="contrast" type="range" min="0.5" max="2" step="0.05" value="1"><div class="range-labels"><span>柔和</span><span>鲜明</span></div></div>
+            <div class="slider-field"><div class="control-label"><label for="saturation">饱和度</label><output id="saturation-value" for="saturation">100%</output></div><input id="saturation" type="range" min="0" max="2" step="0.05" value="1"><div class="range-labels"><span>黑白</span><span>浓郁</span></div></div>
+            <div class="fit-field"><span id="fit-label" class="input-label">画面适配</span><div class="segmented-control" role="group" aria-labelledby="fit-label"><label><input type="radio" name="fit" value="cover" checked><span><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="M8 8h8v8H8Z"/></svg>铺满画面</span></label><label><input type="radio" name="fit" value="contain"><span><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="M8 10h8v4H8Z"/></svg>完整显示</span></label></div><p id="fit-hint" class="field-hint">保持比例铺满窗口，超出部分会被裁切。</p></div>
+          </fieldset>
+          <div class="apply-area"><div id="busy-message" class="busy-message" role="status" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-text"></span></div><div class="apply-buttons"><button id="save" class="save-button" type="button" disabled>保存设置</button><button id="install" class="primary-button" type="button" disabled>应用到 Codex <span aria-hidden="true">↗</span></button></div><p class="apply-hint">应用后，完全退出 Codex 并重新打开。</p></div>
+        </section>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
