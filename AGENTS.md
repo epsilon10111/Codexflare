@@ -59,6 +59,12 @@ Windows 原生验证：`python tools/windows_editor_smoke.py`；`python tools/wi
 
 提交使用简短类型前缀，沿用 `feat: 添加 Codex 全屏开屏动画 demo` 的风格，例如 `fix: 修复动画超时退出`、`docs: 更新验证说明`。PR 应说明问题、改动、目标构建和实际测试结果；有关联 issue 时附链接，视觉变更附截图或短视频。
 
+每个独立功能使用最小有意义的提交。提交后发现错误时另建修复提交，不 amend 或 squash。所有新增提交的消息末尾必须包含：
+
+```text
+Co-authored-by: Haoran Zhang <zhr20040823@sjtu.edu.cn>
+```
+
 ## 安全与配置边界
 
 仅修改 `.local/` 内的应用副本及受保护的用户菜单入口，不改写 `/usr/lib/chatgpt`、用户登录数据或聊天目录。不提交应用二进制副本、测试 profile 或日志。保留版本检查、唯一匹配校验、CSP、上下文隔离和备份恢复逻辑；升级适配必须重新审查补丁。安装前正常退出定制副本，测试不得终止用户当前会话。
