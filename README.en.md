@@ -16,28 +16,29 @@
 
 ## A look inside
 
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <strong>Video editor</strong><br>
-      <a href="docs/images/animation-editor.png"><img src="docs/images/animation-editor.png" width="100%" alt="Video editor showing the bundled animation and playback controls"></a><br>Preview speed, brightness, contrast, saturation and sound.
-    </td>
-    <td width="50%" valign="top">
-      <strong>Background editor</strong><br>
-      <a href="docs/images/background-editor.png"><img src="docs/images/background-editor.png" width="100%" alt="Background editor showing image selection and blending controls"></a><br>Choose a built-in image or import a PNG. Set opacity, position and size.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <strong>Startup animation</strong><br>
-      <a href="docs/images/startup-preview.png"><img src="docs/images/startup-preview.png" width="100%" alt="Isolated app launch with a Press Esc to skip hint"></a><br>The workspace loads during playback. Press Esc to skip.
-    </td>
-    <td width="50%" valign="top">
-      <strong>Workspace background</strong><br>
-      <a href="docs/images/workspace-preview.png"><img src="docs/images/workspace-preview.png" width="100%" alt="Simulated main and subagent conversations rendered with the actual app CSS"></a><br>A gentle fade to the left, shared across the conversation and side panel.
-    </td>
-  </tr>
-</table>
+### Video editor
+
+Preview speed, brightness, contrast, saturation and sound.
+
+<a href="docs/images/animation-editor.png"><img src="docs/images/animation-editor.png" width="100%" alt="Video editor showing the bundled animation and playback controls"></a>
+
+### Background editor
+
+Choose a built-in image or import a PNG. Set opacity, position and size.
+
+<a href="docs/images/background-editor.png"><img src="docs/images/background-editor.png" width="100%" alt="Background editor showing image selection and blending controls"></a>
+
+### Startup animation
+
+The workspace loads during playback. Press Esc to skip.
+
+<a href="docs/images/startup-preview.png"><img src="docs/images/startup-preview.png" width="100%" alt="Isolated app launch with a Press Esc to skip hint"></a>
+
+### Workspace background
+
+A gentle fade to the left, shared across the conversation and side panel.
+
+<a href="docs/images/workspace-preview.png"><img src="docs/images/workspace-preview.png" width="100%" alt="Simulated main and subagent conversations rendered with the actual app CSS"></a>
 
 <sub>Click an image for full size. The editor and startup images are actual captures. The workspace example uses real app CSS and simulated conversations, with no private chats.</sub>
 

@@ -16,28 +16,29 @@
 
 ## 功能一览
 
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <strong>视频编辑</strong><br>
-      <a href="docs/images/animation-editor.png"><img src="docs/images/animation-editor.png" width="100%" alt="视频编辑器，展示默认视频和播放参数"></a><br>预览并调节速度、亮度、对比度、饱和度与声音。
-    </td>
-    <td width="50%" valign="top">
-      <strong>背景编辑</strong><br>
-      <a href="docs/images/background-editor.png"><img src="docs/images/background-editor.png" width="100%" alt="背景编辑器，展示图片选择和融合参数"></a><br>选择内置图片或上传 PNG，调整透明度、位置与大小。
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <strong>开场动画</strong><br>
-      <a href="docs/images/startup-preview.png"><img src="docs/images/startup-preview.png" width="100%" alt="隔离应用启动实拍，右下角显示 Press Esc to skip"></a><br>播放时准备工作区，支持静音和 Esc 跳过。
-    </td>
-    <td width="50%" valign="top">
-      <strong>工作区背景</strong><br>
-      <a href="docs/images/workspace-preview.png"><img src="docs/images/workspace-preview.png" width="100%" alt="使用真实应用 CSS 的模拟主对话与子代理工作区"></a><br>图片向左渐隐，主对话与右侧分支共享背景。
-    </td>
-  </tr>
-</table>
+### 视频编辑
+
+预览并调节速度、亮度、对比度、饱和度与声音。
+
+<a href="docs/images/animation-editor.png"><img src="docs/images/animation-editor.png" width="100%" alt="视频编辑器，展示默认视频和播放参数"></a>
+
+### 背景编辑
+
+选择内置图片或上传 PNG，调整透明度、位置与大小。
+
+<a href="docs/images/background-editor.png"><img src="docs/images/background-editor.png" width="100%" alt="背景编辑器，展示图片选择和融合参数"></a>
+
+### 开场动画
+
+播放时准备工作区，支持静音和 Esc 跳过。
+
+<a href="docs/images/startup-preview.png"><img src="docs/images/startup-preview.png" width="100%" alt="隔离应用启动实拍，右下角显示 Press Esc to skip"></a>
+
+### 工作区背景
+
+图片向左渐隐，主对话与右侧分支共享背景。
+
+<a href="docs/images/workspace-preview.png"><img src="docs/images/workspace-preview.png" width="100%" alt="使用真实应用 CSS 的模拟主对话与子代理工作区"></a>
 
 <sub>点击图片查看原图。编辑器与开场均为实拍；工作区示例使用真实应用 CSS 与模拟会话，不含私人聊天。</sub>
 
