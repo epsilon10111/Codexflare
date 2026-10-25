@@ -189,3 +189,15 @@
 未测试其他 Codex 版本、其他 Linux 桌面、Windows/macOS、显示器热插拔或长期运行。仅支持声明的当前构建。真实系统升级未执行；升级回退逻辑通过隔离单元测试验证。
 
 截图、失败日志和独立测试 profile 留在忽略的 `work/` 内；系统应用副本和入口回退信息位于忽略的 `.local/`。两者不进入 Git，也不包含在源码归档中。
+
+## macOS branch checkpoint — 2026-10-25 (WIP)
+
+Branch: `feat/macos-support`. This snapshot is not a completed macOS release.
+
+- Added a Cocoa/WKWebView editor, separate-profile `.app` copy manager, launcher, macOS patch anchors, and regression/smoke tests.
+- Target under development: macOS arm64 Codex `26.1016.61520`, build `21421`. The installed app updated from build `20770` during development; old anchors were replaced rather than bypassing version checks.
+- All six window-mode/audio variants matched the current main bundle and passed `node --check` before the latest signing changes.
+- The initial native launch exposed the Electron framework's additional embedded ASAR integrity digest. Digest updating is now implemented but has not yet passed a fresh-copy native launch test.
+- The Cocoa smoke test currently fails on a missing PyObjC block-signature helper symbol. Editor playback and close behavior are not yet validated.
+- The last full Python test run had 74 tests, three GTK-only skips, and one fallback-test error. The fallback was subsequently corrected, but the later integrity-digest change also requires updating the mocked bundle fixtures before rerunning the suite.
+- No original application or real account profile was patched. Copies, logs, test profiles and the Python environment remain in ignored directories and are not committed.

@@ -147,6 +147,13 @@ def swap_runtime(staged):
     if not RUNTIME.exists():
         os.replace(staged, RUNTIME)
         return
+    if sys.platform == 'darwin':
+        if __package__:
+            from .manage_macos import swap_directory
+        else:
+            from manage_macos import swap_directory
+        swap_directory(staged, RUNTIME)
+        return
     # Linux 原子交换两个目录，避免更新时留下缺失或半复制的 runtime。
     libc = ctypes.CDLL(None, use_errno=True)
     rename = libc.renameat2
@@ -269,6 +276,16 @@ def status():
     print(f'副本路径：{RUNTIME}')
 
 
+def platform_manager():
+    if sys.platform == 'darwin':
+        if __package__:
+            from . import manage_macos
+        else:
+            import manage_macos
+        return manage_macos
+    return sys.modules[__name__]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('command', choices=('install', 'launch', 'uninstall', 'status'))
@@ -276,11 +293,11 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == 'launch':
-            launch(args.arguments)
+            platform_manager().launch(args.arguments)
         elif args.arguments:
             parser.error('只有 launch 接受应用参数')
         else:
-            globals()[args.command]()
+            getattr(platform_manager(), args.command)()
     except (OSError, ValueError, KeyError, struct.error, subprocess.CalledProcessError) as error:
         parser.exit(1, f'错误：{error}\n')
 

@@ -24,6 +24,8 @@ else:
     import background
     import manage
 
+manage = manage.platform_manager()
+
 ROOT = Path(__file__).resolve().parents[1]
 MAX_UPLOAD = 100 * 1024 * 1024
 STATIC = {'/': ('index.html', 'text/html; charset=utf-8'),
@@ -367,11 +369,18 @@ def main():
     args = parser.parse_args()
     if not args.headless:
         try:
-            if __package__:
+            if sys.platform == 'darwin':
+                if __package__:
+                    from .desktop_macos import run
+                else:
+                    from desktop_macos import run
+            elif __package__:
                 from .desktop import run
             else:
                 from desktop import run
         except (ImportError, ValueError):
+            if sys.platform == 'darwin':
+                parser.exit(1, 'macOS 编辑器需要 PyObjC；请用 .venv/bin/python tools/editor.py 启动，依赖见 requirements-macos.txt。\n')
             system_python = Path('/usr/bin/python3')
             if system_python.exists() and Path(sys.executable).resolve() != system_python.resolve():
                 os.execv(str(system_python), [str(system_python), str(Path(__file__).resolve()), *sys.argv[1:]])
