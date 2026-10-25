@@ -73,15 +73,20 @@ def main():
             changes['webview/assets/codex-background.css'] = (ROOT / 'src/background.css').read_bytes()
         names = ('app-shared-f2d570e85ceb.css', 'app-initial-c43288484373.css', 'thread-scroll-layout-24b9bd243051.css')
         if macos:
-            fixture = patch_macos.adapt_background_fixture(fixture)
+            source_info = manage_macos.fingerprint(runtime)
+            build = patch_macos.select_build(source_info['version'], source_info['build'])
+            system_info = manage_macos.fingerprint()
+            if (source_info['version'], source_info['build']) != (system_info['version'], system_info['build']):
+                raise ValueError('背景测试副本与原应用构建不一致，不能混用样式')
+            fixture = patch_macos.adapt_background_fixture(fixture, version=build['version'])
             fixture = fixture.replace('<html ', '<html data-codex-os="darwin" ', 1)
             probe_path = '.vite/build/background-probe.cjs'
-            changes[probe_path] = patch_macos.adapt_background_classes(changes[probe_path].decode()).encode()
+            changes[probe_path] = patch_macos.adapt_background_classes(changes[probe_path].decode(), version=build['version']).encode()
             if not args.startup:
                 changes['webview/assets/codex-background.css'] = patch_macos.patch_background_css(
-                    (ROOT / 'src/background.css').read_text(), system).encode()
+                    (ROOT / 'src/background.css').read_text(), system, version=build['version']).encode()
             # Stable test URLs carry the current build's real shared, composer and workspace styles.
-            for alias, name in zip(names, patch_macos.BACKGROUND_STYLES):
+            for alias, name in zip(names, build['background_styles']):
                 changes['webview/assets/' + alias] = system.read('webview/assets/' + name)
         else:
             for name in names:

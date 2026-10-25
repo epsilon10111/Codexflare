@@ -18,6 +18,7 @@
   let ready = false;
   let needsRepair = false;
   let muted = true;
+  let installationRefresh = null;
 
   const draft = () => ({
     video: source.value,
@@ -48,8 +49,8 @@
     byId('background-adjustments').disabled = !ready || busy;
     backgroundNames.forEach(name => { byId(`background-${name}`).disabled = !byId('background-enabled').checked || !selectedImage(); });
     byId('save').disabled = !ready || busy || !isDirty();
-    byId('install').disabled = !ready || busy || !installation.available || installation.running;
-    byId('restore').disabled = !ready || busy || !installation.active;
+    byId('install').disabled = !ready || busy || !installation.available || (installation.running && installation.mode !== 'original');
+    byId('restore').disabled = !ready || busy || !(installation.active || (installation.mode === 'original' && installation.pending));
     byId('retry-state').disabled = busy;
     byId('refresh-state').disabled = busy;
     byId('save-state').textContent = !ready ? '尚未连接' : isDirty() ? '有未保存的更改' : '设置已保存';
@@ -63,6 +64,7 @@
 
   function setBusy(message) {
     busy = Boolean(message);
+    if (busy) installationRefresh = null;
     byId('busy-message').hidden = !busy;
     byId('busy-text').textContent = message;
     byId('adjustments').setAttribute('aria-busy', String(busy));
@@ -70,10 +72,19 @@
   }
 
   function showInstallation() {
-    const title = !installation.available ? '当前版本暂不支持应用' : installation.running ? '定制版 Codex 正在运行' : installation.active ? '定制启动入口已启用' : '使用原版启动入口';
+    const original = installation.mode === 'original';
+    let title;
+    if (original && installation.phase === 'failed') title = '应用未完成，请重试';
+    else if (original && installation.pending) title = installation.running ? '已准备，等待 ChatGPT 退出' : '已准备，等待应用';
+    else if (!installation.available) title = '当前版本暂不支持应用';
+    else if (original) title = installation.active ? '原 ChatGPT 图标已启用定制效果' : '使用原 ChatGPT 图标';
+    else title = installation.running ? '定制版 Codex 正在运行' : installation.active ? '定制启动入口已启用' : '使用原版启动入口';
     byId('installation-heading').textContent = title;
-    byId('installation-message').textContent = installation.message || (installation.running ? '请先保存工作。退出 Codex 后刷新状态，再点击应用。' : '应用后，通过桌面菜单启动即可使用新的设置。');
-    byId('installation-indicator').className = `installation-indicator${!installation.available || installation.running ? ' warning' : installation.active ? ' active' : ''}`;
+    byId('installation-message').textContent = installation.message || (original ? '点击应用准备设置，退出 ChatGPT 后自动生效，下次仍从原图标启动。' : installation.running ? '请先保存工作。退出定制版 Codex 后刷新状态，再点击应用。' : '应用后，通过桌面菜单启动即可使用新的设置。');
+    byId('installation-indicator').className = `installation-indicator${!installation.available || installation.pending || installation.phase === 'failed' || (installation.running && !original) ? ' warning' : installation.active ? ' active' : ''}`;
+    byId('install-label').textContent = original ? '应用到 ChatGPT' : '应用到 Codex';
+    byId('restore').textContent = original ? '恢复原版 ChatGPT' : '恢复原版入口';
+    byId('apply-hint').textContent = original ? '点击应用准备设置；退出 ChatGPT 后自动生效，下次仍从原图标启动。' : '退出定制版 Codex 后返回本窗口，再点击应用。';
   }
 
   function showMetadata() {
@@ -252,6 +263,26 @@
     } finally { setBusy(''); }
   }
 
+  async function refreshInstallation() {
+    if (!ready || busy || installationRefresh) return;
+    const refresh = {};
+    installationRefresh = refresh;
+    try {
+      const state = await request('/api/state');
+      if (installationRefresh !== refresh) return;
+      installation = state.installation;
+      showInstallation();
+      updateControls();
+    } catch (error) {
+      if (installationRefresh === refresh) {
+        showError(error.message + ' 点击“刷新状态”可重试。');
+        byId('retry-state').hidden = false;
+      }
+    } finally {
+      if (installationRefresh === refresh) installationRefresh = null;
+    }
+  }
+
   async function write(path, body, message, headers) {
     if (busy || !ready) return;
     byId('error-banner').hidden = true;
@@ -282,10 +313,11 @@
         images.push(result.image);
         setSettings({ ...current, background: { ...current.background, image: result.image.id, enabled: true } });
       }
+      const original = installation.mode === 'original';
       const messages = {
-        '/api/settings': '设置已保存。点击“应用到 Codex”后，动画、背景与启动窗口设置才会生效。',
-        '/api/install': '已应用。重新打开 Codex 后，每次启动都会沿用这些设置。',
-        '/api/uninstall': '已恢复原版启动入口。下次从桌面菜单启动时使用原版 Codex。',
+        '/api/settings': original ? '设置已保存。点击“应用到 ChatGPT”准备更新，退出 ChatGPT 后自动生效。' : '设置已保存。点击“应用到 Codex”后，动画、背景与启动窗口设置才会生效。',
+        '/api/install': original ? installation.message || '已准备，退出 ChatGPT 后自动应用；下次从原图标启动生效。' : '已应用。重新打开 Codex 后，每次启动都会沿用这些设置。',
+        '/api/uninstall': original ? installation.message || '已准备恢复原版，退出 ChatGPT 后自动应用。' : '已恢复原版启动入口。下次从桌面菜单启动时使用原版 Codex。',
         '/api/upload': '视频已导入，可继续调整预览。点击“保存设置”保留本次选择。',
         '/api/background/upload': '图片已导入，可继续调整预览。点击“保存设置”保留本次选择。',
       };
@@ -415,6 +447,7 @@
   byId('restore').addEventListener('click', () => write('/api/uninstall', {}, '正在恢复原版启动入口…'));
   byId('retry-state').addEventListener('click', connect);
   byId('refresh-state').addEventListener('click', connect);
+  window.addEventListener('focus', refreshInstallation);
   window.addEventListener('beforeunload', event => {
     if (!isDirty() && !busy) return;
     event.preventDefault();
