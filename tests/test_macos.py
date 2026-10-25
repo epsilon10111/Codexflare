@@ -98,13 +98,19 @@ class MacManagerTests(unittest.TestCase):
             mac.uninstall()
         self.assertEqual(marker.read_text(), 'keep')
 
-    def test_unowned_launcher_and_runtime_symlink_refused(self):
+    def test_unowned_launcher_refused(self):
         mac.DESKTOP.mkdir(parents=True)
         with self.assertRaises(ValueError):
             mac.install()
-        mac.DESKTOP.rmdir()
+
+    def test_runtime_symlink_refused(self):
         self.local.mkdir()
-        mac.RUNTIME.symlink_to(mac.SOURCE, target_is_directory=True)
+        try:
+            mac.RUNTIME.symlink_to(mac.SOURCE, target_is_directory=True)
+        except OSError as error:
+            if getattr(error, 'winerror', None) == 1314:
+                self.skipTest('Windows symlink privilege unavailable')
+            raise
         with self.assertRaises(ValueError):
             mac.install()
 
@@ -164,7 +170,7 @@ class MacPatchTests(unittest.TestCase):
         for name in patch_app.STARTUP_PRELOADS: self.assertNotIn(name,result)
 
     def test_background_targets_current_workspace_and_composer_classes(self):
-        style = (patch_app.ROOT/'src/background.css').read_text()
+        style = (patch_app.ROOT/'src/background.css').read_text(encoding='utf-8')
         class Archive:
             def read(self, name):
                 return '\n'.join('.'+value+'{}' for value in (*patch_macos.BACKGROUND_CLASSES.values(), '_background_106nk_2', '_fade_106nk_2', '_surface_106nk_2')).encode()

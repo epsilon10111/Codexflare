@@ -62,7 +62,8 @@ def atomic_write(path, data, mode=0o600):
             output.write(data)
             output.flush()
             os.fsync(output.fileno())
-            os.fchmod(output.fileno(), mode)
+            if os.name != 'nt':
+                os.fchmod(output.fileno(), mode)
         os.replace(temporary, path)
     finally:
         Path(temporary).unlink(missing_ok=True)
@@ -277,6 +278,12 @@ def status():
 
 
 def platform_manager():
+    if sys.platform == 'win32':
+        if __package__:
+            from . import manage_windows
+        else:
+            import manage_windows
+        return manage_windows
     if sys.platform == 'darwin':
         if __package__:
             from . import manage_macos

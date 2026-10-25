@@ -4,6 +4,8 @@
 
 本仓库为 Linux 和 macOS Codex 桌面版生成可回退的开屏动画副本。Linux 目标为 `26.1002.52244 / build 13536 / x86_64`；macOS 目标为 `26.1021.31345 / build 21828 / arm64`。
 
+`feat/windows-support` 分支增加同版本 Windows x64 Owl 适配（MSIX `26.1002.7124.0`）。`desktop_windows.py` 使用 pywebview/WebView2；`manage_windows.py` 管理复制、完整性哈希、独立开始菜单快捷方式和回退；`patch_windows.py` 验证 Windows 构建并复用经过唯一匹配检查的主窗口补丁。Windows 使用 Python 3.12+（推荐 3.13）；命令及边界见 `WINDOWS.md`。不要改写 WindowsApps、官方可执行文件或真实账户目录。
+
 - `src/boot.js`、`src/boot.css`：动画层、播放退出逻辑和样式；启动窗口模式由 `tools/patch_app.py` 的主进程补丁处理。
 - `src/background.css`：常驻背景融合与输入区样式；仅打包本地选中的图片，保留内容层可读性与交互。
 - `ui/`：Codexflare 动画/背景编辑界面；`tools/desktop.py` 显示 GTK/WebKit 独立窗口，`tools/editor.py` 提供回环服务，`tools/animation.py` 保存配置，`tools/background.py` 验证 PNG 并管理忽略目录中的图片索引。
@@ -44,6 +46,8 @@ Python 使用四空格缩进、`snake_case` 函数和大写常量；JavaScript/C
 Python 使用标准库 `unittest`，文件命名为 `test_*.py`，方法命名为 `test_*`；JavaScript 使用内置 `node:test` 和严格断言。没有覆盖率百分比门槛；行为变更应补充回归测试，覆盖跳过、播放失败、减少动态效果或安装恢复等受影响路径。
 
 窗口或视频变更还需在图形桌面运行原生测试，检查实际窗口边界和播放前后截图。单元测试与隔离登录页均不能证明真实账户冷启动正常；在 `VALIDATION.md` 明确记录未验证项。
+
+Windows 原生验证：`python tools/windows_editor_smoke.py`；`python tools/windows_smoke.py --window-mode centered`，并覆盖 `fullscreen --sound` 和 `restore --seed-bounds 100 100 980 700`。测试仅在 `work/` 中创建副本与独立 profile，不注册菜单或协议；测试进程使用 no-reduced-motion 参数验证播放，实际启动尊重系统无障碍偏好。产物含应用副本，不得提交或分发。
 
 编辑器改动还需在实际 GTK/WebKit 窗口验证上传、预览、保存、关闭与错误提示。HTTP 测试使用临时目录和安装函数替身，不应改动真实菜单入口。遵循 `DESIGN.md` 的黑白六瓣几何风格、字号与减少动态效果规则，视频保留原色；自绘标题栏保留 GTK 的窗口操作和关闭保护。
 

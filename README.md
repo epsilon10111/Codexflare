@@ -1,8 +1,10 @@
 # Codexflare
 
-**为 Linux 与 macOS Codex 桌面版定制开场动画与工作区背景。**
+> **Windows 适配分支：`feat/windows-support`**。支持 Windows x64 Codex `26.1002.52244 / build 13536`（Microsoft Store 包 `26.1002.7124.0`），使用原生 WebView2 编辑窗口及独立开始菜单入口。安装、使用和验证边界见 **[Windows 指南](WINDOWS.md)**。此分支也包含 `main` 的 Linux 与 macOS 支持。
 
-Codexflare 是一个轻量级本地外观编辑器：在独立桌面窗口中选择视频和图片，调整画面，再应用到可回退的 Codex 副本。Linux 使用 GTK / WebKit，macOS 使用 Cocoa / WKWebView；无需浏览器标签页或额外 Electron 运行时。
+**为 Linux、macOS 与 Windows Codex 桌面版定制开场动画与工作区背景。**
+
+Codexflare 是一个轻量级本地外观编辑器：在独立桌面窗口中选择视频和图片，调整画面，再应用到可回退的 Codex 副本。Linux 使用 GTK / WebKit，macOS 使用 Cocoa / WKWebView，Windows 使用 pywebview / WebView2；无需浏览器标签页或额外 Electron 运行时。
 
 [下载 Release](https://github.com/epsilon10111/Codexflare/releases/latest) · [验收记录](VALIDATION.md) · [贡献指南](AGENTS.md) · [代码许可](LICENSE) · [素材许可](assets/LICENSE)
 
@@ -24,6 +26,7 @@ Codexflare 是一个轻量级本地外观编辑器：在独立桌面窗口中选
 | --- | --- | --- |
 | Linux x86_64 | 26.1002.52244 / 13536 | `/usr/lib/chatgpt` |
 | macOS Apple Silicon（arm64） | 26.1021.31345 / 21828 | `/Applications/Codex.app` 或 `/Applications/ChatGPT.app` |
+| Windows x64 | 26.1002.52244 / 13536 | Microsoft Store 包 `26.1002.7124.0`；见 [Windows 指南](WINDOWS.md) |
 
 macOS 动画与编辑器已在 26.5.2 验证；yabai 等平铺窗口管理器可以覆盖居中/恢复模式的窗口尺寸。Intel / 通用二进制、其他 macOS 版本及新 Codex 构建尚未验证。Linux 已在 Fedora KDE / Wayland（XWayland）验证。
 

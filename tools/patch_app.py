@@ -183,7 +183,13 @@ def patch_html(text, *, background=False, preloads=STARTUP_PRELOADS):
 
 
 def patch_archive(source_asar, target_asar, *, platform='linux'):
-    if platform == 'darwin':
+    if platform == 'win32':
+        if __package__:
+            from . import patch_windows as build
+        else:
+            import patch_windows as build
+        version, main, preloads, patcher = build.VERSION, build.MAIN, build.STARTUP_PRELOADS, build.patch_main
+    elif platform == 'darwin':
         if __package__:
             from . import patch_macos as build
         else:
@@ -197,6 +203,8 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
     package = json.loads(source.read('package.json'))
     if package['name'] != 'openai-codex-electron' or package['version'] != version:
         raise ValueError(f'仅支持 Codex {version} ({platform})；当前 {package.get("version")}')
+    if platform == 'win32':
+        build.require_supported(package)
     for name in preloads:
         try:
             if not source.read(f'webview/assets/{name}'):
@@ -205,7 +213,7 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
             raise ValueError(f'启动预载资源缺失: {name}') from error
     settings = load_settings()
     animation = settings | {'duration': video_info(settings['video'])['duration']}
-    boot_script = replace_once((ROOT / 'src/boot.js').read_text(),
+    boot_script = replace_once((ROOT / 'src/boot.js').read_text(encoding='utf-8'),
         '/* CODEX_BOOT_SETTINGS */ null',
         json.dumps(animation, separators=(',', ':'), allow_nan=False))
     background_settings = background.validate_settings(settings.get('background', {}))
@@ -226,7 +234,7 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
         variables = (f":root {{ --codex-bg-opacity: {background_settings['opacity']}; "
                      f"--codex-bg-position: {background_settings['position']}%; "
                      f"--codex-bg-scale: {background_settings['scale']}%; }}\n")
-        style = (ROOT / 'src/background.css').read_text()
+        style = (ROOT / 'src/background.css').read_text(encoding='utf-8')
         if platform == 'darwin':
             style = build.patch_background_css(style, source)
         changes['webview/assets/codex-background.css'] = (variables + style).encode()

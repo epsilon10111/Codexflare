@@ -24,9 +24,10 @@ class PathTests(unittest.TestCase):
             for value in ('', 'relative/data'):
                 with self.subTest(value=value), patch.dict(os.environ, {'XDG_DATA_HOME': value}):
                     self.assertEqual(paths.local_dir(root), Path.home() / '.local/share/codexflare')
-            with patch.dict(os.environ, {'XDG_DATA_HOME': '/custom/data'}):
-                self.assertEqual(paths.local_dir(root), Path('/custom/data/codexflare'))
-                self.assertEqual(paths.local_dir(Path('/usr/share/codexflare')), Path('/custom/data/codexflare'))
+            data = root / 'custom/data'
+            with patch.dict(os.environ, {'XDG_DATA_HOME': str(data)}):
+                self.assertEqual(paths.local_dir(root), data / 'codexflare')
+                self.assertEqual(paths.local_dir(Path('/usr/share/codexflare')), data / 'codexflare')
 
     def test_packaged_modules_share_data_path_and_save_outside_code(self):
         with tempfile.TemporaryDirectory() as folder:

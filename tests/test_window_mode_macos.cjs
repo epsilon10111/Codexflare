@@ -21,7 +21,7 @@ function primary(e,t,n,r=false){return V.createPrimaryWindow({title:O.app.getNam
 async function load(z,n,r,e,p,P){return await z.loadURL(t.o(p,{mcpAppSandboxLocalDevelopment:P}));}
 function protocols(){We.deepLinks.registerProtocolClient();}
 `;
-const result = spawnSync(process.env.PYTHON || 'python3', ['-c',
+const result = spawnSync(process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3'), ['-c',
   'import json,sys; from tools.patch_macos import patch_main; s=sys.stdin.read(); print(json.dumps({m if muted else m+"-audio":patch_main(s,m,muted) for m in ("restore","centered","fullscreen") for muted in (True,False)}))'],
   {cwd:path.resolve(__dirname,'..'),input:fixture,encoding:'utf8'});
 assert.equal(result.status,0,result.stderr);

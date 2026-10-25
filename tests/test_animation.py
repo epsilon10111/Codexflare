@@ -140,8 +140,9 @@ class AnimationTests(unittest.TestCase):
         settings = animation.save_settings({'video': video_id, 'speed': 0.75, 'brightness': 1.25})
         self.assertEqual(animation.load_settings(), settings)
         self.assertEqual(animation.video_info(video_id), info)
-        self.assertEqual(animation.SETTINGS.stat().st_mode & 0o777, 0o600)
-        self.assertEqual(animation.SETTINGS.parent.stat().st_mode & 0o777, 0o700)
+        if sys.platform != 'win32':
+            self.assertEqual(animation.SETTINGS.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(animation.SETTINGS.parent.stat().st_mode & 0o777, 0o700)
         before = animation.SETTINGS.read_bytes()
         animation.video_path(video_id).unlink()
         with self.assertRaises(ValueError):

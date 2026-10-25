@@ -10,6 +10,8 @@ Codexflare 是独立的非官方项目，与 OpenAI 无隶属、赞助或背书�
 
 Python、GTK、PyGObject、WebKitGTK、GStreamer 和可选的 FFmpeg 由操作系统或用户提供，未内嵌于 Codexflare 的 RPM。它们及所使用的编解码器保留各自许可；请参阅对应发行版软件包的许可说明。开发时的 Node.js、Pillow、NumPy 亦由环境提供。
 
+Windows 编辑器使用 [pywebview](https://github.com/r0x0r/pywebview)（BSD-3-Clause）及其 Python.NET 依赖，调用用户安装的 Microsoft Edge WebView2 Runtime。依赖通过 `requirements-windows.txt` 安装，不在仓库中分发 Windows、WebView2 或 Codex 二进制。Windows ASAR 哈希资源遵循上文链接的 Electron ASAR Integrity 格式；只更新本地副本的匹配资源，不关闭完整性校验。
+
 ## 内置媒体与标志
 
 - `assets/default.mp4` 及其 `default.webm` 播放版、`default1.png`、`default2.png` 由项目维护者提供。

@@ -130,7 +130,7 @@ def image_info(image_id, local):
         info = {'id': image_id, 'name': '现有背景.png' if image_id == 'legacy' else path.name, **metadata}
     else:
         try:
-            info = json.loads(path.with_suffix('.json').read_text())
+            info = json.loads(path.with_suffix('.json').read_text(encoding='utf-8'))
         except (FileNotFoundError, json.JSONDecodeError) as error:
             raise ValueError('背景图片信息缺失或损坏，请重新导入') from error
         if not isinstance(info, dict) or info.get('id') != image_id or not isinstance(info.get('name'), str):

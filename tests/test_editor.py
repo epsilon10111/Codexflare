@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import stat
 import subprocess
+import sys
 import tempfile
 import threading
 import unittest
@@ -89,9 +90,10 @@ class EditorTests(unittest.TestCase):
         self.assertEqual(result['image'], expected)
         path = background.image_path(image_id, self.local)
         self.assertEqual(path.read_bytes(), PNG)
-        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
-        self.assertEqual(stat.S_IMODE(path.with_suffix('.json').stat().st_mode), 0o600)
-        self.assertEqual(stat.S_IMODE(path.parent.stat().st_mode), 0o700)
+        if sys.platform != 'win32':
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+            self.assertEqual(stat.S_IMODE(path.with_suffix('.json').stat().st_mode), 0o600)
+            self.assertEqual(stat.S_IMODE(path.parent.stat().st_mode), 0o700)
         self.assertEqual(animation.SETTINGS.read_bytes(), before)
         self.assertEqual(self.request('GET', expected['url'])[1], PNG)
         self.assertEqual(self.request('GET', '/api/state')[1]['images'][2:], [expected])
@@ -215,7 +217,8 @@ class EditorTests(unittest.TestCase):
                                  str(animation.video_path(video['id']))],
                                 capture_output=True, text=True, check=True)
         self.assertEqual(json.loads(tracks.stdout)['streams'], [])
-        self.assertEqual(stat.S_IMODE(animation.video_path(video['id']).stat().st_mode), 0o600)
+        if sys.platform != 'win32':
+            self.assertEqual(stat.S_IMODE(animation.video_path(video['id']).stat().st_mode), 0o600)
         self.assertFalse(animation.SETTINGS.exists())
         self.assertEqual(self.request('POST', '/api/settings', {'video': video['id']})[0], 200)
         _, state, _ = self.request('GET', '/api/state')
