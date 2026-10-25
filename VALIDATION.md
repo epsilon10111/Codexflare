@@ -16,6 +16,16 @@
 
 日期：2026-10-25（Asia/Taipei）。目标：Codex 26.1002.52244 / build 13536，Fedora KDE / Wayland，应用使用 XWayland。
 
+## v0.1.0 DEB 补充发布
+
+- 新增 `packaging/debian/` 与 `tools/build_deb.py`，使用当前打包模板和 `--ref v0.1.0` 指定的已提交应用资源；来源为 `7da816b0cd2abf4d9f01f34e6a944b0e394be368`。不移动原标签，不覆盖原 RPM、源码归档、SRPM 或 `SHA256SUMS`；DEB 提供独立 `.deb.sha256`。
+- `dpkg-deb --root-owner-group -Zxz` 成功构建 `codexflare_0.1.0-1_all.deb`。二次构建 SHA256 一致；包内 20 个运行文件与已发布 RPM 逐字节一致，包含默认 WebM 和两张 PNG。保留代码、素材和第三方许可，所有资源为 0644，入口为 0755，归属 root；不含维护脚本、触发器或系统应用。
+- `work/deb-smoke-goyztio5/`：完整 MD5 清单、路径及权限、desktop 文件、只读资源、临时 HOME/XDG 中的 0600 配置保存和 HTTP 权限验证通过。用户命名空间中的独立 dpkg 根目录完成实际安装、查询和删除，文件哈希一致，用户配置保留。该事务使用 `--force-depends`，不用于证明依赖解析。
+- `work/desktop-smoke-ervzy4n3/`：当前 Fedora 44 桌面从 DEB 的只读解包目录加载真实代码、UI 和素材，完成 GTK 窗口、视频播放/导入/静音、双背景与 PNG 导入、保存、关闭保护及服务退出；已查看默认视频截图。
+- `work/deb-ubuntu24-validation/`：全新官方 Ubuntu 24.04 rootless 容器通过 `apt install` 实际解析、下载并安装依赖（含推荐的 FFmpeg），未跳过依赖检查。容器普通用户加载 Python 3.12.3、GTK 3.24.41、WebKit 2.52.6 / GI 4.1，导入全部 7 个运行模块，读取 3 个默认素材，检查管理入口无副作用及配置 0600/目录 0700。`apt purge` 移除包文件后，用户配置哈希保持不变。容器内 DEB 的 SHA256 与最终产物一致。
+
+本轮没有改变应用行为，因此复用 v0.1.0 的 Python/Node 回归结论，新增检查集中于包内容和安装运行。未向主机安装 DEB，未覆盖当前 Codex 副本、配置或账户会话。Debian/Ubuntu 的真实图形桌面、真实账户冷启动及其他 Codex 构建尚未验收；DEB 未作 GPG 签名。
+
 ## v0.1.0 RPM 与开源发布
 
 - 完善安装、应用、卸载、构建及兼容说明；代码与文档文字采用 MIT，内置视频、背景及其截图内容按独立素材许可允许随 Codexflare 分发。包内保留 `LICENSE`、`MEDIA-LICENSE` 和第三方说明。

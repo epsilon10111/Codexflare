@@ -86,6 +86,20 @@ codexflare
 
 RPM 安装 Python 3.11+、PyGObject、GTK 3、WebKit2 4.1 和 GStreamer 基础媒体组件。默认素材可直接播放；导入视频还需要提供 `ffmpeg`、`ffprobe` 及 `libvpx-vp9`、`libopus` 编码器的 FFmpeg。RPM 推荐安装 `ffmpeg-free`，实际编码支持取决于发行版的软件包。
 
+### Debian / Ubuntu DEB
+
+从 [最新 Release](https://github.com/epsilon10111/Codexflare/releases/latest) 下载 DEB 和同名 `.deb.sha256` 文件，在下载目录执行：
+
+```bash
+sha256sum -c codexflare_0.1.0-1_all.deb.sha256
+sudo apt install ./codexflare_0.1.0-1_all.deb
+codexflare
+```
+
+DEB 面向 **Debian 12+ / Ubuntu 24.04+**，依赖 `python3 (>= 3.11)`、`python3-gi`、`gir1.2-gtk-3.0`、`gir1.2-webkit2-4.1`、`gstreamer1.0-plugins-base`、`gstreamer1.0-plugins-good` 和 `coreutils`，推荐安装 `ffmpeg`。Ubuntu 的 [FFmpeg](https://packages.ubuntu.com/noble/ffmpeg) 来自 `universe` 软件源。
+
+已核对 [Debian 12 的 Python](https://packages.debian.org/bookworm/python3)、[WebKit](https://packages.debian.org/bookworm/gir1.2-webkit2-4.1) 与 [Ubuntu 24.04 的 Python](https://packages.ubuntu.com/noble/python3)、[WebKit](https://packages.ubuntu.com/noble/gir1.2-webkit2-4.1) 依赖基线。Ubuntu 24.04 全新容器的实际 `apt` 安装、卸载、GTK/WebKit 加载与配置读写已通过；各发行版真实桌面及账户启动的验证范围见 [VALIDATION.md](VALIDATION.md)。DEB 的 `all` 与 RPM 的 `noarch` 含义相同，Codex 补丁仍仅支持上文指定的 x86_64 构建和安装路径。菜单、命令及使用步骤与 RPM 相同；安装 DEB 本身不会修改 Codex。
+
 ### 从源码运行
 
 ```bash
@@ -126,7 +140,7 @@ Linux 源码运行需要上述 GTK 桌面依赖；macOS 使用上节的 PyObjC �
 
 | 安装方式 | 配置、导入素材、运行副本与备份 |
 | --- | --- |
-| RPM | `${XDG_DATA_HOME:-~/.local/share}/codexflare/` |
+| RPM / DEB | `${XDG_DATA_HOME:-~/.local/share}/codexflare/` |
 | 源码 | 仓库内 `.local/` |
 
 目录内 `animation.json` 保存设置，`media/` 与 `backgrounds/` 保存导入素材，`runtime/` 保存定制副本。两种安装方式的数据独立；切换方式前先恢复原菜单入口。源码方式启用期间不要移动或删除仓库。
@@ -142,14 +156,15 @@ codexflare-manage uninstall   # 恢复原菜单入口，保留配置、素材和
 
 Linux 工具不改写 `/usr/lib/chatgpt`、`/usr/bin/chatgpt` 或用户登录、聊天数据。仅更新用户级 `chatgpt.desktop`，备份原入口；检测到入口被其他操作改写时拒绝覆盖。系统 Codex 更新后会回退原版，待新版本重新适配。
 
-卸载 RPM 前，先恢复入口：
+卸载安装包前，先恢复入口，再运行对应发行版的卸载命令：
 
 ```bash
 codexflare-manage uninstall
-sudo dnf remove codexflare
+sudo dnf remove codexflare   # Fedora
+# Debian / Ubuntu：sudo apt remove codexflare
 ```
 
-卸载不会删除个人素材、配置和副本，也不停止运行中的进程。若先移除 RPM，保留在用户数据目录中的 `launch.py` 会将原菜单入口回退到系统 Codex。
+卸载不会删除个人素材、配置和副本，也不停止运行中的进程。若先移除安装包，保留在用户数据目录中的 `launch.py` 会将原菜单入口回退到系统 Codex。
 
 ## 开发与验证
 
@@ -159,7 +174,7 @@ src/         注入 Codex 的动画与背景样式
 tools/       配置、素材处理、补丁、安装与验证工具
 tests/       Python / Node 回归测试及原生探针
 assets/      默认视频、背景和素材许可
-packaging/   RPM 打包文件
+packaging/   RPM / DEB 打包文件与桌面入口
 docs/        文档图片
 ```
 
@@ -186,14 +201,23 @@ python3 tools/build_rpm.py
 
 `dist/` 输出 RPM、源码归档、SRPM 与 `SHA256SUMS`。RPM 仅携带运行所需代码、UI、`default.webm` 及两张内置背景；原始 MP4、旧版光轨示例和开发工具保留在源码发行包。构建不包含系统 Codex、用户配置、测试 profile 或 `work/` 产物。
 
-首版 RPM 未作 GPG 签名，`SHA256SUMS` 用于校验下载完整性。可执行 `python3 tools/rpm_smoke.py dist/codexflare-0.1.0-1.noarch.rpm` 在隔离目录检查包内容和配置读写。
+DEB 构建需要 `dpkg-deb`（Debian / Ubuntu 的 `dpkg` 包）与 `desktop-file-utils`：
+
+```bash
+python3 tools/build_deb.py --ref v0.1.0
+python3 tools/deb_smoke.py dist/codexflare_0.1.0-1_all.deb
+```
+
+DEB 使用当前检出的构建脚本和 `packaging/debian/` 模板，从指定的已提交 Git ref 读取应用代码、素材和许可；省略 `--ref` 时使用 `HEAD`，未提交的应用修改不入包。`dist/` 输出 DEB 与同名 `.deb.sha256`，运行资源与 RPM 相同。DEB 工具在 v0.1.0 发布后加入，重建时需使用包含这些工具的后续提交，并通过 `--ref v0.1.0` 选择原版应用；原 v0.1.0 标签和源码归档不包含 DEB 构建工具。
+
+首版 RPM / DEB 未作 GPG 签名，校验文件用于检查下载完整性。DEB 补充发布不替换现有 RPM、源码归档或 `SHA256SUMS`。RPM 可执行 `python3 tools/rpm_smoke.py dist/codexflare-0.1.0-1.noarch.rpm` 在隔离目录检查包内容和配置读写；DEB 使用上面的 `deb_smoke.py`，验证范围见验收记录。
 
 问题反馈请注明 Codex 版本、Linux 发行版、桌面环境和复现步骤，避免附带登录数据或私人聊天。代码贡献规范见 [AGENTS.md](AGENTS.md)。
 
 ## 许可与来源
 
 - **代码与文档文字：MIT**，见 [LICENSE](LICENSE)。
-- **内置媒体：保留权利，按单独许可分发**，见 [assets/LICENSE](assets/LICENSE)。允许随 Codexflare 源码、RPM 及修改版分发，并进行应用所需的转码与缩放；不授予独立销售素材或发布到外部素材库的许可。仓库内的全部内容并非统一采用 MIT。
+- **内置媒体：保留权利，按单独许可分发**，见 [assets/LICENSE](assets/LICENSE)。允许随 Codexflare 源码、RPM、DEB 及修改版分发，并进行应用所需的转码与缩放；不授予独立销售素材或发布到外部素材库的许可。仓库内的全部内容并非统一采用 MIT。
 - 默认视频和两张背景由项目维护者提供；旧光轨示例由项目脚本生成。默认原片为 `assets/default.mp4`，播放版为 `assets/default.webm`。第三方名称、运行依赖与参考来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ### macOS 原生验证
