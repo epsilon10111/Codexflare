@@ -16,12 +16,12 @@ import shlex
 
 if __package__:
     from .patch_app import Asar, patch_archive, check_archive
-    from .patch_macos import VERSION, BUILD, SUPPORTED, select_build
+    from .patch_macos import VERSION, BUILD
     from .paths import ROOT, LOCAL, command_for
     from .manage import atomic_write, digest
 else:
     from patch_app import Asar, patch_archive, check_archive
-    from patch_macos import VERSION, BUILD, SUPPORTED, select_build
+    from patch_macos import VERSION, BUILD
     from paths import ROOT, LOCAL, command_for
     from manage import atomic_write, digest
 
