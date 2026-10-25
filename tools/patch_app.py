@@ -182,7 +182,9 @@ def patch_html(text, *, background=False, preloads=STARTUP_PRELOADS):
         '<script src="./assets/codex-boot.js"></script>\n  </head>')
 
 
-def patch_archive(source_asar, target_asar, *, platform='linux'):
+def patch_archive(source_asar, target_asar, *, platform='linux', preserve_identity=False):
+    source = Asar(source_asar)
+    package = json.loads(source.read('package.json'))
     if platform == 'win32':
         if __package__:
             from . import patch_windows as build
@@ -194,13 +196,12 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
             from . import patch_macos as build
         else:
             import patch_macos as build
-        version, main, preloads, patcher = build.VERSION, build.MAIN, build.STARTUP_PRELOADS, build.patch_main
+        target = build.select_build(package['version'], package.get('codexBuildNumber'))
+        version, main, preloads, patcher = target['version'], target['main'], target['preloads'], build.patch_main
     elif platform == 'linux':
         version, main, preloads, patcher = VERSION, MAIN, STARTUP_PRELOADS, patch_main
     else:
         raise ValueError(f'不支持的平台: {platform}')
-    source = Asar(source_asar)
-    package = json.loads(source.read('package.json'))
     if package['name'] != 'openai-codex-electron' or package['version'] != version:
         raise ValueError(f'仅支持 Codex {version} ({platform})；当前 {package.get("version")}')
     if platform == 'win32':
@@ -222,7 +223,8 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
         background_data, background_info = background.prepare_image(background_data, background_info)
     changes = {
         main: patcher(source.read(main).decode(), settings.get('windowMode', 'restore'),
-                         settings.get('muted', True)).encode(),
+                         settings.get('muted', True),
+                         **({'preserve_identity': preserve_identity, 'version': version} if platform == 'darwin' else {})).encode(),
         'webview/index.html': patch_html(source.read('webview/index.html').decode(),
                                        background=background_info is not None, preloads=preloads).encode(),
         'webview/assets/codex-boot.js': boot_script.encode(),
@@ -236,7 +238,7 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
                      f"--codex-bg-scale: {background_settings['scale']}%; }}\n")
         style = (ROOT / 'src/background.css').read_text(encoding='utf-8')
         if platform == 'darwin':
-            style = build.patch_background_css(style, source)
+            style = build.patch_background_css(style, source, version=version)
         changes['webview/assets/codex-background.css'] = (variables + style).encode()
     source.write_changes(target_asar, changes)
     with Path(source_asar).open('rb') as f:

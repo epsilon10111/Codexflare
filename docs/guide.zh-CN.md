@@ -9,16 +9,16 @@ Codexflare 是非官方的本地外观编辑器，不附带 Codex、ChatGPT 或 
 | 平台 | Codex 版本 / build | 原应用位置 |
 | --- | --- | --- |
 | Linux x86_64 | `26.1002.52244 / 13536` | `/usr/lib/chatgpt` |
-| macOS arm64 | `26.1021.31345 / 21828` | `/Applications/Codex.app` 或 `/Applications/ChatGPT.app` |
+| macOS arm64 | `26.1021.31345 / 21828`、`26.1013.31256 / 20586` | `/Applications/Codex.app` 或 `/Applications/ChatGPT.app` |
 | Windows x64 | `26.1002.52244 / 13536` | Microsoft Store / MSIX `26.1002.7124.0` |
 
-**v0.1.0 的 RPM / DEB 仅适用于 Linux；macOS 与 Windows 请使用当前 `main` 源码。** 创建副本约需 Linux / macOS 1.6 GB、Windows 2–3 GB，更新还需临时空间。兼容性以精确构建校验为准。
+**v0.1.0 的 RPM / DEB 仅适用于 Linux；v0.1.1 DMG 仅适配 macOS build 20586。** 当前 `main` 源码支持上表两个 macOS 构建及 Windows；已发布的 DMG 不因合入 main 而增加 build 21828 支持。创建副本约需 Linux / macOS 1.6 GB、Windows 2–3 GB，更新还需临时空间；macOS 原入口模式另保留完整官方备份和待安装候选。兼容性以精确构建校验为准。
 
 <a id="linux"></a>
 
 ## 安装 Linux 发布包
 
-从 [Release](https://github.com/epsilon10111/Codexflare/releases/latest) 下载安装包及对应校验文件，在下载目录执行。
+从 [Linux v0.1.0 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.0) 下载安装包及对应校验文件，在下载目录执行。
 
 ### Fedora
 
@@ -37,6 +37,20 @@ codexflare
 ```
 
 安装包会安装 Python 3.11+、GTK 3、PyGObject、WebKit2 4.1 和 GStreamer 基础媒体依赖；也可从应用菜单打开 **Codexflare**。安装包本身不会修改 Codex。`noarch` / `all` 表示编辑器没有本机二进制，不扩大补丁兼容范围。首版包未签名，SHA256 仅用于下载完整性校验。
+
+<a id="macos-dmg"></a>
+
+## 安装 macOS DMG（build 20586）
+
+从 [v0.1.1 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.1) 下载 DMG 和同名 `.sha256` 文件，执行：
+
+```bash
+shasum -a 256 -c Codexflare-0.1.1-macOS-arm64-build20586.dmg.sha256
+```
+
+将 `Codexflare.app` 拖到 Applications 后运行。DMG 内嵌 Python / PyObjC，默认使用[原入口模式](#macos-original)；默认视频与已缩图背景无需额外工具，自定义视频导入需另装 FFmpeg / ffprobe。包使用 ad-hoc 签名，未做 Apple 公证，已验证环境为 Apple Silicon / macOS 26.6.2。完整[安装说明](../packaging/macos/安装说明.txt)随 DMG 提供。
+
+若旧源码版已通过原入口模式修改 ChatGPT，先用旧编辑器恢复官方应用、正常退出并等恢复完成，再启用 DMG；不要直接迁移状态文件和官方备份。只用过独立副本的用户无需恢复原应用。
 
 <a id="source"></a>
 
@@ -63,7 +77,7 @@ python3 tools/editor.py
 
 ### macOS
 
-先完成上方的[克隆仓库](#source)步骤。需要 Python 3.11+ 和 Apple Command Line Tools（`codesign` / `lipo`）；系统自带的旧 Python 可能不满足要求。Cocoa / WKWebView 依赖通过 PyObjC 安装：
+先完成上方的[克隆仓库](#source)步骤，建议使用较短路径，如 `~/Applications/Codexflare`，避免 Unix socket 路径超长。需要 Python 3.11+ 和 Apple Command Line Tools（`codesign` / `lipo`）；系统自带的旧 Python 可能不满足要求。Cocoa / WKWebView 依赖通过 PyObjC 安装：
 
 ```bash
 python3 -m venv .venv
@@ -72,6 +86,25 @@ python3 -m venv .venv
 ```
 
 已安装 `uv` 时，可分别用 `uv venv --python python3 .venv` 和 `uv pip install --python .venv/bin/python -r requirements-macos.txt` 创建环境、安装依赖。
+
+源码默认使用独立副本模式，兼容 main 中列出的两个 macOS 构建；DMG 默认使用以下原入口模式。
+
+<a id="macos-original"></a>
+
+#### 原 ChatGPT 入口模式
+
+在 **系统设置 → 隐私与安全性 → App 管理** 中，授权实际执行修改的 App：通过 ChatGPT 任务执行时授权 **ChatGPT**，独立编辑器授权 **Codexflare**，以系统弹窗为准。此权限不同于“自动化”或“完全磁盘访问”，无需关闭系统安全保护。[Apple 说明](https://support.apple.com/zh-cn/guide/mac-help/mchl211c911f/26/mac/26)
+
+源码用户首次启用时，在仓库目录执行：
+
+```bash
+.venv/bin/python tools/original_macos.py prepare
+.venv/bin/python tools/original_macos.py wait-activate --relaunch
+```
+
+第二条命令等待目标应用正常退出。后续在编辑器保存并点击「应用到 ChatGPT」，准备完成后用 **Cmd+Q 完全退出 ChatGPT**，后台安装器才会原子替换原路径；以后仍从原图标启动。DMG 无需手动执行上述启用命令。此模式保留原应用名称、图标、bundle ID、协议和默认配置路径，不复制登录或聊天数据，并复用 Linux 的媒体预处理、背景预加载、并行初始化和片尾就绪衔接。
+
+官方备份与状态保存在相应数据目录中的 `Original ChatGPT.app`、`original-install.json`；每次安装或恢复前检查签名、完整内容摘要和原应用是否被外部更新，发现变化时拒绝覆盖。恢复请点击「恢复原版 ChatGPT」，正常退出并确认完成。修改后使用 ad-hoc 签名，不能保留供应商特权；具体限制见[配置与回退](#uninstall)。
 
 <a id="windows"></a>
 
@@ -91,8 +124,8 @@ pywebview 固定使用 WebView2，不回退到 IE。源码目录与虚拟环境�
 
 1. 在「开场动画」选择视频，在「常驻背景」选择或上传 PNG，调节预览参数与启动窗口模式。
 2. 点击「保存设置」。保存只更新配置，**需再次应用才会更新已安装的副本**。
-3. 正常退出定制 Codex，在仍然打开的 Codexflare 中点击「刷新状态」，再点击「应用到 Codex」。Linux 首次应用前也请完全退出原版；仅关闭窗口可能仍留在托盘。
-4. Linux 从原菜单入口启动；macOS 使用 `~/Applications/Codexflare Codex.app`；Windows 使用开始菜单 **Codex (Codexflare)**。
+3. 独立副本模式：正常退出定制 Codex，在仍然打开的 Codexflare 中点击「刷新状态」，再点击「应用到 Codex」。Linux 首次应用前也请完全退出原版；仅关闭窗口可能仍留在托盘。macOS 原入口模式：先点击「应用到 ChatGPT」，候选准备完成后再用 Cmd+Q 退出并等待安装。
+4. Linux 和 macOS 原入口模式从原入口启动；macOS 独立副本使用 `~/Applications/Codexflare Codex.app`；Windows 使用开始菜单 **Codex (Codexflare)**。
 
 工具不会结束正在运行的会话。开场动画只在冷启动时播放，唤起已有实例不重播，也不重新调整窗口。视频期间并行准备工作区；若片尾仍在初始化，最多保留尾帧 20 秒，Esc、播放失败或超时会释放遮罩。网络或后端较慢时仍可能出现等待。
 
@@ -120,9 +153,10 @@ pywebview 固定使用 WebView2，不回退到 IE。源码目录与虚拟环境�
 | 安装方式 | 数据目录 |
 | --- | --- |
 | Linux RPM / DEB | `$XDG_DATA_HOME/codexflare/`；未设置或非绝对路径时为 `~/.local/share/codexflare/` |
+| macOS DMG | `$XDG_DATA_HOME/codexflare/`；未设置或非绝对路径时为 `~/.local/share/codexflare/` |
 | 所有源码方式 | 仓库内 `.local/` |
 
-`animation.json` 保存配置，`media/` 与 `backgrounds/` 保存导入素材。Linux 副本为 `runtime/`，macOS 为 `Codexflare Runtime.app`，Windows 为 `runtime-windows/`。源码与安装包数据独立，切换方式前先移除旧入口。素材与设置在本地处理，不上传。
+`animation.json` 保存配置，`media/` 与 `backgrounds/` 保存导入素材。Linux 副本为 `runtime/`，macOS 独立副本为 `Codexflare Runtime.app`，Windows 为 `runtime-windows/`。源码与安装包数据独立，独立副本切换方式前先移除旧入口；原入口模式须先用旧编辑器完成官方应用恢复。素材与设置在本地处理，不上传。
 
 ```bash
 codexflare-manage status      # 检查副本与入口
@@ -131,11 +165,13 @@ codexflare-manage launch      # 启动；来源更新时回退原版
 codexflare-manage uninstall   # 恢复 / 移除入口，保留用户数据
 ```
 
-源码方式将 `codexflare-manage` 替换为 `python3 tools/manage.py`；macOS 使用 `.venv/bin/python`，Windows 使用 `.\.venv\Scripts\python.exe`。管理工具拒绝覆盖运行中的副本或被外部修改的入口；卸载不结束进程，不删除配置、素材、备份或副本。
+上述命令管理独立副本；macOS 原入口模式使用编辑器或 `tools/original_macos.py`。源码方式将 `codexflare-manage` 替换为 `python3 tools/manage.py`；macOS 使用 `.venv/bin/python`，Windows 使用 `.\.venv\Scripts\python.exe`。管理工具拒绝覆盖运行中的副本或被外部修改的入口；卸载不结束进程，不删除配置、素材、备份或副本。
 
 Linux 仅修改用户级 `chatgpt.desktop`，保留备份，不改写 `/usr/lib/chatgpt`、系统命令或账户数据。移除 RPM / DEB 前先执行 `codexflare-manage uninstall`，再执行 `sudo dnf remove codexflare` 或 `sudo apt remove codexflare`。若先删包，保留的 `launch.py` 会回退到系统 Codex。
 
-**macOS 使用独立 profile 和本地 ad-hoc 签名。** 数据位于 `.local/profile` / `.local/codex-home`，首次可能需要重新登录。副本不能继承 OpenAI 的 Developer ID、共享 Keychain、通知或原生工具服务身份；检查签名的电脑控制服务可能拒绝连接。卸载只移除本工具创建的 `~/Applications/Codexflare Codex.app`，不修改 `/Applications` 或原版数据。自定义原应用位置可设置 `CODEXFLARE_SOURCE_APP=/完整路径/Codex.app`，后续命令保持同一路径。
+**macOS 独立副本模式使用独立 profile 和本地 ad-hoc 签名。** 数据位于 `.local/profile` / `.local/codex-home`，首次可能需要重新登录。副本不能继承 OpenAI 的 Developer ID、共享 Keychain、通知或原生工具服务身份；检查签名的电脑控制服务可能拒绝连接。卸载只移除本工具创建的 `~/Applications/Codexflare Codex.app`，不修改 `/Applications` 或原版数据。自定义原应用位置可设置 `CODEXFLARE_SOURCE_APP=/完整路径/Codex.app`，后续命令保持同一路径。
+
+**macOS 原入口模式保留默认配置路径，但不能继承供应商签名身份。** 修改后的应用仍使用 ad-hoc 签名，可能需要重新登录，共享 Keychain、通知和电脑控制等签名相关服务可能不可用；真实账户行为尚未验收。卸载前在编辑器恢复原版，正常退出目标应用并确认恢复完成，再删除 Codexflare。不得删除唯一官方备份或使用旧备份覆盖已更新的原应用。源码方式启用期间不要移动或删除仓库。
 
 **Windows 也使用独立账户目录。** 数据位于 `.local/profile-windows` / `.local/codex-home-windows`，需另行登录；原版入口、WindowsApps 和协议注册不变。更新副本 `ChatGPT.exe` 的 ASAR 完整性资源会使副本的厂商签名失效，签名强制策略可能拒绝运行；原版签名不变。自定义来源用 `$env:CODEXFLARE_SOURCE_APP = 'D:\Apps\Codex\app'`，也可指向 MSIX 根目录。卸载仅删除受保护的独立快捷方式；更新中断可能需要重装副本，官方入口仍可使用。
 
@@ -143,7 +179,7 @@ Linux 仅修改用户级 `chatgpt.desktop`，保留备份，不改写 `/usr/lib/
 
 ## 开发与构建
 
-`ui/` 为编辑器界面，`src/` 为注入样式和动画，`tools/` 为平台管理及验证工具，`tests/` 为回归测试，`assets/` 为素材，`packaging/` 为 Linux 打包文件。贡献规范见 [AGENTS.md](../AGENTS.md)，界面原则见 [DESIGN.md](../DESIGN.md)。
+`ui/` 为编辑器界面，`src/` 为注入样式和动画，`tools/` 为平台管理及验证工具，`tests/` 为回归测试，`assets/` 为素材，`packaging/` 为 Linux 与 macOS 打包文件。贡献规范见 [AGENTS.md](../AGENTS.md)，界面原则见 [DESIGN.md](../DESIGN.md)。
 
 ```bash
 python3 -m unittest discover -s tests -v
@@ -169,6 +205,15 @@ python3 tools/deb_smoke.py dist/codexflare_0.1.0-1_all.deb
 `dist/` 中 RPM 产物含二进制包、SRPM、源码归档与 `SHA256SUMS`；DEB 产物含安装包与独立 `.deb.sha256`。运行包含默认 WebM 和两张 PNG；原 MP4、旧示例及开发工具留在源码中，不打包系统 Codex 或用户数据。
 
 RPM 使用指定 ref 的 spec 和资源；DEB 使用当前检出的脚本 / Debian 模板及指定 ref 的应用资源。**DEB、macOS 与 Windows 支持在 v0.1.0 标签之后加入**，重建原 DEB 时保留当前工具并传入 `--ref v0.1.0`，不要检出旧标签后寻找新工具。不要移动原标签或覆盖已发布附件。
+
+macOS DMG 在 Apple Silicon 上构建，需要构建依赖及 PATH 中的 FFmpeg 预缩内置背景：
+
+```bash
+.venv/bin/python -m pip install -r requirements-build-macos.txt
+.venv/bin/python tools/build_dmg.py --release
+```
+
+`--release` 要求干净、已提交的 HEAD，产物与校验文件写入 `dist/`；源码归档仅包含该提交的跟踪文件，构建信息记录提交与依赖版本，不打包官方应用、用户数据或 FFmpeg。发布前检查镜像、深度签名及脱离开发目录的 `--self-check` / `--smoke-test --output /临时验证目录`，并确认实际控件可见。历史 v0.1.1 的 DMG 仍仅支持 build 20586；从 main 构建的产物须以其自身构建信息和测试记录说明范围，不得覆盖已有 Release 附件。
 
 ## 验证范围与许可
 

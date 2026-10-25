@@ -1,5 +1,5 @@
 Name:           codexflare
-Version:        0.1.0
+Version:        0.1.1
 Release:        1
 Summary:        Local startup animation and background editor for Codex
 License:        MIT AND LicenseRef-Codexflare-Media
@@ -70,5 +70,8 @@ python3 -c 'import ast, pathlib; [ast.parse(p.read_text()) for p in pathlib.Path
 %{_mandir}/man1/codexflare-manage.1*
 
 %changelog
+* Sun Oct 25 2026 epsilon10111 - 0.1.1-1
+- macOS build 20586 release; no new RPM published for this version.
+
 * Sun Oct 25 2026 epsilon10111 - 0.1.0-1
 - Initial RPM with per-user settings and reversible Codex customization.

@@ -9,7 +9,7 @@ import sys
 import tempfile
 import threading
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from tools import animation, background, editor
 
@@ -100,7 +100,7 @@ class EditorTests(unittest.TestCase):
         settings = {'background': {'image': image_id, 'opacity': 0.25, 'position': 85, 'scale': 90}}
         self.assertEqual(self.request('POST', '/api/settings', settings)[0], 200)
         with patch.object(editor.manage, 'running_pids', return_value=[]), \
-                patch.object(editor.manage, 'fingerprint', return_value={'version': editor.manage.VERSION}), \
+                patch.object(editor.manage, 'fingerprint', return_value={'version': editor.manage.VERSION, 'build': getattr(editor.manage, 'BUILD', None)}), \
                 patch.object(editor.manage, 'install') as install:
             self.assertEqual(self.request('POST', '/api/install', settings)[0], 200)
             install.assert_called_once_with()
@@ -173,7 +173,7 @@ class EditorTests(unittest.TestCase):
 
     def test_install_and_uninstall_delegate_to_existing_manager(self):
         with patch.object(editor.manage, 'running_pids', return_value=[]), \
-                patch.object(editor.manage, 'fingerprint', return_value={'version': editor.manage.VERSION}), \
+                patch.object(editor.manage, 'fingerprint', return_value={'version': editor.manage.VERSION, 'build': getattr(editor.manage, 'BUILD', None)}), \
                 patch.object(editor.manage, 'install') as install, \
                 patch.object(editor.manage, 'uninstall') as uninstall:
             self.assertEqual(self.request('POST', '/api/install', {'speed': 2})[0], 200)
@@ -181,6 +181,92 @@ class EditorTests(unittest.TestCase):
             self.assertEqual(animation.load_settings()['speed'], 2)
             self.assertEqual(self.request('POST', '/api/uninstall', {})[0], 200)
             uninstall.assert_called_once_with()
+
+    def test_macos_install_accepts_both_builds_but_rejects_mismatched_build(self):
+        from tools import manage_macos as mac
+        with patch.object(editor, 'manage', mac), \
+                patch.object(editor, 'original_manager', return_value=None), \
+                patch.object(mac, 'running_pids', return_value=[]), \
+                patch.object(mac, 'install') as install:
+            for version, build in (('26.1013.31256', '20586'), ('26.1021.31345', '21828')):
+                with self.subTest(build=build), patch.object(mac, 'fingerprint', return_value={'version': version, 'build': build}):
+                    status, data, _ = self.request('POST', '/api/install', {'speed': 1})
+                    self.assertEqual(status, 200, data)
+            self.assertEqual(install.call_count, 2)
+            with patch.object(mac, 'fingerprint', return_value={'version': '26.1021.31345', 'build': '20586'}):
+                status, data, _ = self.request('POST', '/api/install', {'speed': 1})
+                self.assertEqual(status, 400, data)
+                self.assertIn('21828', data['error'])
+            self.assertEqual(install.call_count, 2)
+
+    def test_install_preserves_platform_launch_hint(self):
+        with patch.object(editor.manage, 'running_pids', return_value=[]), \
+                patch.object(editor.manage, 'fingerprint', return_value={'version': editor.manage.VERSION, 'build': getattr(editor.manage, 'BUILD', None)}), \
+                patch.object(editor.manage, 'install'), \
+                patch.object(editor.manage, 'LAUNCH_HINT', '从开始菜单打开 Codexflare Codex。', create=True):
+            status, data, _ = self.request('POST', '/api/install', {'speed': 1})
+        self.assertEqual(status, 200, data)
+        self.assertIn('从开始菜单打开 Codexflare Codex。', data['message'])
+
+    def test_original_mode_prepares_settings_while_chatgpt_is_running(self):
+        original = MagicMock()
+        original.status.return_value = {
+            'mode': 'original', 'phase': 'queued', 'active': False, 'available': True,
+            'running': True, 'pending': True, 'queued': True,
+            'message': '已准备，退出 ChatGPT 后自动应用；下次从原图标启动生效。'}
+        def prepare():
+            self.assertEqual(animation.load_settings()['speed'], 1.6)
+            self.assertEqual(animation.load_settings()['windowMode'], 'fullscreen')
+        original.prepare.side_effect = prepare
+        with patch.object(editor, 'original_manager', return_value=original), \
+                patch.object(editor.manage, 'running_pids', return_value=[123]), \
+                patch.object(editor.manage, 'install') as install:
+            status, data, _ = self.request('POST', '/api/install', {'speed': 1.6, 'windowMode': 'fullscreen'})
+        self.assertEqual(status, 200, data)
+        self.assertEqual(data['settings']['speed'], 1.6)
+        self.assertTrue(data['installation']['pending'])
+        self.assertTrue(data['installation']['running'])
+        self.assertIn('退出 ChatGPT 后自动应用', data['message'])
+        original.prepare.assert_called_once_with()
+        original.launch_worker.assert_called_once_with()
+        original.activate_pending.assert_not_called()
+        install.assert_not_called()
+
+    def test_original_mode_restore_queues_without_changing_saved_settings(self):
+        animation.save_settings({'speed': 1.6})
+        before = animation.SETTINGS.read_bytes()
+        original = MagicMock()
+        original.status.return_value = {
+            'mode': 'original', 'phase': 'queued', 'active': True, 'available': True,
+            'running': True, 'pending': True, 'message': '已准备恢复原版，退出 ChatGPT 后自动应用。'}
+        with patch.object(editor, 'original_manager', return_value=original), \
+                patch.object(editor.manage, 'uninstall') as uninstall:
+            status, data, _ = self.request('POST', '/api/uninstall', {})
+        self.assertEqual(status, 200, data)
+        self.assertTrue(data['installation']['pending'])
+        self.assertIn('恢复原版', data['message'])
+        self.assertEqual(animation.SETTINGS.read_bytes(), before)
+        original.uninstall.assert_called_once_with()
+        original.launch_worker.assert_called_once_with()
+        original.activate_pending.assert_not_called()
+        uninstall.assert_not_called()
+
+    def test_failed_original_preparation_preserves_settings_without_starting_worker(self):
+        original = MagicMock()
+        original.prepare.side_effect = ValueError('来源改变')
+        with patch.object(editor, 'original_manager', return_value=original):
+            status, data, _ = self.request('POST', '/api/install', {'speed': 1.6})
+        self.assertEqual(status, 400)
+        self.assertIn('配置已保存，但尚未应用', data['error'])
+        self.assertEqual(animation.load_settings()['speed'], 1.6)
+        original.launch_worker.assert_not_called()
+
+    def test_saving_original_mode_settings_does_not_prepare_or_activate(self):
+        with patch.object(editor, 'original_manager') as route:
+            status, data, _ = self.request('POST', '/api/settings', {'speed': 1.6})
+        self.assertEqual(status, 200, data)
+        self.assertEqual(animation.load_settings()['speed'], 1.6)
+        route.assert_not_called()
 
     def test_busy_and_broken_settings_are_recoverable(self):
         with self.server.write_lock:
@@ -195,7 +281,7 @@ class EditorTests(unittest.TestCase):
 
     def test_failed_install_preserves_saved_settings_and_reports_failure(self):
         with patch.object(editor.manage, 'running_pids', return_value=[]), \
-                patch.object(editor.manage, 'fingerprint', return_value={'version': editor.manage.VERSION}), \
+                patch.object(editor.manage, 'fingerprint', return_value={'version': editor.manage.VERSION, 'build': getattr(editor.manage, 'BUILD', None)}), \
                 patch.object(editor.manage, 'install', side_effect=ValueError('来源改变')):
             status, data, _ = self.request('POST', '/api/install', {'speed': 0.5})
         self.assertEqual(status, 400)
@@ -256,6 +342,37 @@ class EditorTests(unittest.TestCase):
         self.assertEqual(json.loads(tracks.stdout)['streams'], [{'codec_name': 'opus'}])
         self.assertEqual(self.request('POST', '/api/settings', {'video': video['id'], 'muted': False})[0], 200)
         self.assertFalse(animation.load_settings()['muted'])
+
+
+class EditorRoutingTests(unittest.TestCase):
+    def test_original_mode_requires_macos_and_explicit_marker(self):
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(animation, 'LOCAL', Path(directory)):
+            with patch.object(editor.sys, 'platform', 'darwin'):
+                self.assertIsNone(editor.original_manager())
+            (animation.LOCAL / 'original-install.json').touch()
+            with patch.object(editor.sys, 'platform', 'linux'):
+                self.assertIsNone(editor.original_manager())
+
+    def test_frozen_macos_uses_original_mode_before_the_first_install(self):
+        from tools import original_macos
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(animation, 'LOCAL', Path(directory)), \
+                patch.object(editor.sys, 'frozen', True, create=True):
+            with patch.object(editor.sys, 'platform', 'darwin'):
+                self.assertIs(editor.original_manager(), original_macos)
+            with patch.object(editor.sys, 'platform', 'linux'):
+                self.assertIsNone(editor.original_manager())
+
+    def test_original_status_preserves_pending_and_running_independently(self):
+        original = MagicMock()
+        original.status.return_value = {'mode': 'original', 'active': True, 'available': True,
+                                        'pending': True, 'running': True, 'message': '等待 ChatGPT 退出'}
+        with patch.object(editor, 'original_manager', return_value=original), \
+                patch.object(editor.manage, 'read_state') as read_state:
+            self.assertEqual(editor.installation_status(), original.status.return_value)
+        original.status.assert_called_once_with()
+        read_state.assert_not_called()
 
 
 if __name__ == '__main__':
