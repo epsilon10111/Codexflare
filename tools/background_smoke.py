@@ -78,7 +78,8 @@ def main():
         if macos:
             fixture = fixture.replace('<html ', '<html data-codex-os="darwin" ', 1)
         probe_path = '.vite/build/background-probe.cjs'
-        changes[probe_path] = layout.adapt(changes[probe_path].decode()).encode()
+        changes[probe_path] = replace_once(layout.adapt(changes[probe_path].decode()),
+            '/* CODEX_BACKGROUND_STYLES */ []', json.dumps(layout.styles)).encode()
         if not args.startup:
             changes['webview/assets/codex-background.css'] = layout.adapt(
                 (ROOT / 'src/background.css').read_text()).encode()
