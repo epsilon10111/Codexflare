@@ -62,7 +62,7 @@ def video_info(video_id):
     if video_id == 'default':
         return {'id': 'default', 'name': 'default', 'duration': 10.039, 'width': 1920, 'height': 1080}
     try:
-        info = json.loads((MEDIA / f'{video_id}.json').read_text())
+        info = json.loads((MEDIA / f'{video_id}.json').read_text(encoding='utf-8'))
     except (FileNotFoundError, json.JSONDecodeError) as error:
         raise ValueError('视频信息缺失或损坏，请重新导入') from error
     if not isinstance(info, dict) or info.get('id') != video_id or not isinstance(info.get('name'), str):
@@ -77,7 +77,7 @@ def video_info(video_id):
 
 def load_settings():
     try:
-        data = json.loads(SETTINGS.read_text())
+        data = json.loads(SETTINGS.read_text(encoding='utf-8'))
     except FileNotFoundError:
         return validate_settings({})
     except json.JSONDecodeError as error:
@@ -93,7 +93,7 @@ def save_settings(data):
     SETTINGS.parent.chmod(0o700)
     fd, temporary = tempfile.mkstemp(prefix='.animation.', dir=SETTINGS.parent)
     try:
-        with os.fdopen(fd, 'w') as output:
+        with os.fdopen(fd, 'w', encoding='utf-8') as output:
             json.dump(settings, output, ensure_ascii=False, indent=2)
             output.write('\n')
             output.flush()

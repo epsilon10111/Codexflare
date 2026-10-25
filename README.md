@@ -1,5 +1,7 @@
 # Codexflare
 
+> **Windows 适配分支：`feat/windows-support`**。支持 Windows x64 Codex `26.1002.52244 / build 13536`（Microsoft Store 包 `26.1002.7124.0`），使用原生 WebView2 编辑窗口及独立开始菜单入口。安装、使用和验证边界见 **[Windows 指南](WINDOWS.md)**。下方原有 RPM 说明适用于 Linux；macOS 适配保留在 `feat/macos-support`。
+
 **为 Linux Codex 桌面版定制开场动画与工作区背景。**
 
 Codexflare 是一个轻量级本地外观编辑器：在独立桌面窗口中选择视频和图片，调整画面，再应用到可回退的 Codex 副本。使用系统 GTK / WebKit，无需浏览器标签页或额外 Electron 运行时。

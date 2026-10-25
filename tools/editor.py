@@ -24,6 +24,8 @@ else:
     import background
     import manage
 
+manage = manage.platform_manager()
+
 ROOT = Path(__file__).resolve().parents[1]
 MAX_UPLOAD = 100 * 1024 * 1024
 STATIC = {'/': ('index.html', 'text/html; charset=utf-8'),
@@ -41,12 +43,14 @@ def installation_status():
                       and manage.desktop_snapshot() == state.get('installed_desktop'))
         running = bool(manage.running_pids())
         message = '定制动画已启用' if active else (problem or '菜单入口已被其他操作修改')
+        if active and hasattr(manage, 'LAUNCH_HINT'):
+            message += '；' + manage.LAUNCH_HINT
         if not available:
             message = f'当前应用版本尚未适配，仅支持 {manage.VERSION}；仍可预览和保存'
         elif running:
             message = '定制 Codex 正在运行；退出 Codex 后刷新状态，再点击应用。预览和保存不受影响'
         return {'active': active, 'available': available, 'running': running, 'message': message}
-    except (OSError, ValueError, KeyError, struct.error) as error:
+    except (OSError, ValueError, KeyError, struct.error, subprocess.SubprocessError) as error:
         return {'active': False, 'available': False, 'running': False,
                 'message': f'当前无法应用，仍可预览和保存：{error}'}
 
@@ -341,7 +345,7 @@ class EditorHandler(BaseHTTPRequestHandler):
                     manage.install()
                 except (OSError, ValueError, KeyError, struct.error, subprocess.CalledProcessError) as error:
                     raise ValueError(f'配置已保存，但尚未应用：{error}') from error
-                self.reply(200, {'settings': settings, 'message': '已应用。重新打开 Codex 即可查看新的动画与背景。',
+                self.reply(200, {'settings': settings, 'message': '已应用。' + getattr(manage, 'LAUNCH_HINT', '重新打开 Codex 即可查看新的动画与背景。'),
                                  'installation': installation_status()})
             else:
                 self.reply(200, {'settings': settings})
@@ -367,11 +371,18 @@ def main():
     args = parser.parse_args()
     if not args.headless:
         try:
-            if __package__:
+            if sys.platform == 'win32':
+                if __package__:
+                    from .desktop_windows import run
+                else:
+                    from desktop_windows import run
+            elif __package__:
                 from .desktop import run
             else:
                 from desktop import run
         except (ImportError, ValueError):
+            if sys.platform == 'win32':
+                parser.exit(1, 'Windows 编辑器需要 pywebview 和 Microsoft Edge WebView2；请先安装 requirements-windows.txt。\n')
             system_python = Path('/usr/bin/python3')
             if system_python.exists() and Path(sys.executable).resolve() != system_python.resolve():
                 os.execv(str(system_python), [str(system_python), str(Path(__file__).resolve()), *sys.argv[1:]])

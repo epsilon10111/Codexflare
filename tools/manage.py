@@ -62,7 +62,8 @@ def atomic_write(path, data, mode=0o600):
             output.write(data)
             output.flush()
             os.fsync(output.fileno())
-            os.fchmod(output.fileno(), mode)
+            if os.name != 'nt':
+                os.fchmod(output.fileno(), mode)
         os.replace(temporary, path)
     finally:
         Path(temporary).unlink(missing_ok=True)
@@ -269,6 +270,16 @@ def status():
     print(f'副本路径：{RUNTIME}')
 
 
+def platform_manager():
+    if sys.platform == 'win32':
+        if __package__:
+            from . import manage_windows
+        else:
+            import manage_windows
+        return manage_windows
+    return sys.modules[__name__]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('command', choices=('install', 'launch', 'uninstall', 'status'))
@@ -276,11 +287,11 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == 'launch':
-            launch(args.arguments)
+            platform_manager().launch(args.arguments)
         elif args.arguments:
             parser.error('只有 launch 接受应用参数')
         else:
-            globals()[args.command]()
+            getattr(platform_manager(), args.command)()
     except (OSError, ValueError, KeyError, struct.error, subprocess.CalledProcessError) as error:
         parser.exit(1, f'错误：{error}\n')
 

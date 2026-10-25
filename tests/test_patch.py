@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 from pathlib import Path
 import struct
 import subprocess
@@ -145,7 +146,7 @@ class PatchTests(unittest.TestCase):
 
     def test_startup_window_modes(self):
         result = subprocess.run(['node', '--test', str(Path(__file__).with_name('test_window_mode.cjs'))],
-                                capture_output=True, text=True)
+                                capture_output=True, text=True, env={**os.environ, 'PYTHON': sys.executable})
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         with self.assertRaises(ValueError):
             patch_main('unexpected app build', 'invalid')

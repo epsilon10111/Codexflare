@@ -21,7 +21,7 @@ function onboarding(n,t){let i=Cje(t);if((0,W.default)(this.primaryWindowMode,t)
 function callPrimary(e,t,n){return B.createPrimaryWindow({title:m.app.getName(),show:e,initialRoute:t===\`/\`?void 0:t,opener:n})}
 async function load(R,n,r,d,f,ee){return await R.loadURL(t.o(f,{mcpAppSandboxLocalDevelopment:ee})),R}
 `;
-const result = spawnSync('python', ['-c',
+const result = spawnSync(process.env.PYTHON || 'python', ['-c',
   'import json,sys; from tools.patch_app import patch_main; text=sys.stdin.read(); print(json.dumps({mode if muted else mode+"-audio":patch_main(text,mode,muted) for mode in ("restore","fullscreen","centered") for muted in (True,False)}))'],
 { cwd: path.resolve(__dirname, '..'), input: fixture, encoding: 'utf8' });
 assert.equal(result.status, 0, result.stderr);

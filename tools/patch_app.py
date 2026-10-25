@@ -164,11 +164,11 @@ def patch_main(text, window_mode='restore', muted=True):
     return text
 
 
-def patch_html(text, *, background=False):
+def patch_html(text, *, background=False, preloads=STARTUP_PRELOADS):
     if 'codex-boot.js' in text or 'codex-background.css' in text:
         raise ValueError('启动页已经包含动画补丁')
     startup_links = ''
-    for name in STARTUP_PRELOADS:
+    for name in preloads:
         if re.search(r'<link\b[^>]*\shref\s*=\s*[\"\']\./assets/' + re.escape(name) + r'[\"\']', text, re.I):
             continue
         # 仅预取 CSS；仍由原应用按原顺序挂载，避免改变层叠优先级。
@@ -182,12 +182,24 @@ def patch_html(text, *, background=False):
         '<script src="./assets/codex-boot.js"></script>\n  </head>')
 
 
-def patch_archive(source_asar, target_asar):
+def patch_archive(source_asar, target_asar, *, platform='linux'):
+    if platform == 'win32':
+        if __package__:
+            from . import patch_windows as build
+        else:
+            import patch_windows as build
+        version, main, preloads, patcher = build.VERSION, build.MAIN, build.STARTUP_PRELOADS, build.patch_main
+    elif platform == 'linux':
+        version, main, preloads, patcher = VERSION, MAIN, STARTUP_PRELOADS, patch_main
+    else:
+        raise ValueError(f'不支持的平台: {platform}')
     source = Asar(source_asar)
     package = json.loads(source.read('package.json'))
-    if package['name'] != 'openai-codex-electron' or package['version'] != VERSION:
-        raise ValueError(f'仅支持 Codex {VERSION}；当前 {package.get("version")}')
-    for name in STARTUP_PRELOADS:
+    if package['name'] != 'openai-codex-electron' or package['version'] != version:
+        raise ValueError(f'仅支持 Codex {version} ({platform})；当前 {package.get("version")}')
+    if platform == 'win32':
+        build.require_supported(package)
+    for name in preloads:
         try:
             if not source.read(f'webview/assets/{name}'):
                 raise ValueError(f'启动预载资源为空: {name}')
@@ -195,7 +207,7 @@ def patch_archive(source_asar, target_asar):
             raise ValueError(f'启动预载资源缺失: {name}') from error
     settings = load_settings()
     animation = settings | {'duration': video_info(settings['video'])['duration']}
-    boot_script = replace_once((ROOT / 'src/boot.js').read_text(),
+    boot_script = replace_once((ROOT / 'src/boot.js').read_text(encoding='utf-8'),
         '/* CODEX_BOOT_SETTINGS */ null',
         json.dumps(animation, separators=(',', ':'), allow_nan=False))
     background_settings = background.validate_settings(settings.get('background', {}))
@@ -203,10 +215,10 @@ def patch_archive(source_asar, target_asar):
     if background_info is not None:
         background_data, background_info = background.prepare_image(background_data, background_info)
     changes = {
-        MAIN: patch_main(source.read(MAIN).decode(), settings.get('windowMode', 'restore'),
+        main: patcher(source.read(main).decode(), settings.get('windowMode', 'restore'),
                          settings.get('muted', True)).encode(),
         'webview/index.html': patch_html(source.read('webview/index.html').decode(),
-                                       background=background_info is not None).encode(),
+                                       background=background_info is not None, preloads=preloads).encode(),
         'webview/assets/codex-boot.js': boot_script.encode(),
         'webview/assets/codex-boot.css': (ROOT / 'src/boot.css').read_bytes(),
         'webview/assets/codex-boot.webm': video_path(settings['video']).read_bytes(),
@@ -220,4 +232,4 @@ def patch_archive(source_asar, target_asar):
     source.write_changes(target_asar, changes)
     with Path(source_asar).open('rb') as f:
         digest = hashlib.file_digest(f, 'sha256').hexdigest()
-    return {'version': VERSION, 'source_sha256': digest, 'animation': animation, 'background': background_info}
+    return {'version': version, 'source_sha256': digest, 'animation': animation, 'background': background_info}

@@ -11,6 +11,7 @@ from unittest.mock import patch
 from tools import manage
 
 
+@unittest.skipIf(sys.platform == 'win32', 'Linux desktop entries and POSIX permissions')
 class ManageTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
