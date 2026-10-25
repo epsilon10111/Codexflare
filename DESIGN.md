@@ -1,6 +1,6 @@
 # 界面设计说明
 
-更新：2026-10-25。目标是在 Linux 独立窗口中，形成易读、安静、有深空感的黑白动画工作室。
+更新：2026-10-25。目标是在 Linux 与 macOS 独立窗口中，形成易读、安静、有深空感的黑白动画工作室。
 
 ## 2026 年参考与取舍
 
@@ -26,3 +26,5 @@
 使用 [GTK 自定义标题栏](https://docs.gtk.org/gtk3/method.Window.set_titlebar.html) 与 [Gtk.HeaderBar](https://docs.gtk.org/gtk3/class.HeaderBar.html)，由应用 CSS 统一顶部和边框的颜色。保留 GTK 管理的拖动、缩放、最大化、最小化及关闭行为；关闭仍走未保存提示和写入保护。
 
 原生截图、控件边界、字体与窗口操作的实测结果见 [VALIDATION.md](VALIDATION.md)。
+
+macOS 使用 Cocoa 原生标题栏与 WKWebView，保持系统的关闭、最小化、缩放、键盘编辑菜单及文件选择器。关闭窗口时保留未保存提示与写入锁保护；原生编辑器不使用持久化浏览数据。

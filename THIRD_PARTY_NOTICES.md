@@ -22,3 +22,9 @@ Python、GTK、PyGObject、WebKitGTK、GStreamer 和可选的 FFmpeg 由操作�
 ## 参考来源
 
 开屏思路参考 [powerofjinbo/claude-](https://github.com/powerofjinbo/claude-/tree/ef3a656e15594f6b8e73e9550ff385bb52813ce8)，未复制其素材或实现代码。窗口与归档处理参考 Electron 的 [BrowserWindow](https://www.electronjs.org/docs/latest/api/browser-window) 和 [ASAR Integrity](https://www.electronjs.org/docs/latest/tutorial/asar-integrity) 文档。
+
+## macOS 运行依赖与格式参考
+
+- PyObjC（MIT）仅作为用户安装的 Cocoa / WebKit 绑定；依赖未随仓库分发。https://github.com/ronaldoussoren/pyobjc
+- 无签名回调按 Clang/Apple Block ABI 的公开布局调用固定类型回调，不依赖 PyObjC 私有符号。https://clang.llvm.org/docs/Block-ABI-Apple.html
+- ASAR 头与 framework 摘要遵循 Electron 的完整性格式；本项目更新摘要，不关闭校验。https://www.electronjs.org/docs/latest/tutorial/asar-integrity 和 https://github.com/electron/electron/blob/main/shell/common/asar/integrity_digest.mm

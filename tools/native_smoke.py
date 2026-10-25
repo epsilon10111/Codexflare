@@ -9,6 +9,7 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -41,7 +42,7 @@ if (new URLSearchParams(location.search).get('codexBootAnimation') === '1') {
     const startupPending = !!document.querySelector('#root > .startup-loader')
       || (!shell && !!document.querySelector('#root ._delayedBlossom_ovcb0_16'));
     console.log('CODEX_BOOT_PROBE:' + JSON.stringify({
-      state: document.documentElement.dataset.codexBoot, layer: !!layer,
+      state: document.documentElement.dataset.codexBoot, layer: !!layer, documentHidden: document.hidden,
       timeMs: performance.now(),
       backgroundRequired: !!document.getElementById('codex-background-preload'),
       backgroundState: document.documentElement.dataset.codexBackground,
@@ -111,7 +112,12 @@ def validate_samples(samples, animation, expected_bounds=None):
         assert native['visible'] and native['fullscreen'] == (mode == 'fullscreen'), '启动窗口模式不符合配置'
         bounds = native['bounds']
         if mode == 'fullscreen':
-            assert all(abs(bounds[key] - native['display'][key]) <= 2 for key in bounds), '全屏标志已设置但窗口未铺满显示器'
+            frames = [native['display']]
+            # On macOS the native fullscreen content can retain the display's camera/menu safe area.
+            if native.get('platform') == 'darwin':
+                frames.append(native['workArea'])
+            assert any(all(abs(bounds[key] - frame[key]) <= 2 for key in bounds)
+                       for frame in frames), '全屏标志已设置但窗口未铺满显示器或原生安全区域'
         elif mode == 'centered':
             area = native['workArea']
             width, height = min(1100, area['width']), min(760, area['height'])
@@ -132,7 +138,7 @@ def validate_samples(samples, animation, expected_bounds=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--runtime', type=Path, default=ROOT / '.local/runtime',
+    parser.add_argument('--runtime', type=Path, default=ROOT / ('.local/Codexflare Runtime.app' if sys.platform == 'darwin' else '.local/runtime'),
                         help='待测预构建副本目录；只在 work 内的复制品中注入探针')
     parser.add_argument('--seed-bounds', type=int, nargs=4, metavar=('X', 'Y', 'WIDTH', 'HEIGHT'),
                         help='仅在隔离 profile 中预置上次窗口边界，用于验证恢复或覆盖')
@@ -146,11 +152,19 @@ def main():
         profile.mkdir()
         (profile / '.codex-global-state.json').write_text(json.dumps({
             'electron-main-window-bounds': expected_bounds | {'isMaximized': False}}))
-    runtime = output / 'runtime'
+    macos = sys.platform == 'darwin'
+    runtime = output / ('Runtime.app' if macos else 'runtime')
     source = args.runtime.resolve()
-    subprocess.run(['cp', '-a', '--reflink=auto', str(source), str(runtime)], check=True)
+    if macos:
+        if __package__:
+            from . import manage_macos
+        else:
+            import manage_macos
+        subprocess.run(['/usr/bin/ditto', str(source), str(runtime)], check=True)
+    else:
+        subprocess.run(['cp', '-a', '--reflink=auto', str(source), str(runtime)], check=True)
     try:
-        archive_path = runtime / 'resources/app.asar'
+        archive_path = runtime / ('Contents/Resources/app.asar' if macos else 'resources/app.asar')
         archive = Asar(archive_path)
         script = archive.read('webview/assets/codex-boot.js').decode()
         video = output / 'video.webm'
@@ -164,18 +178,21 @@ def main():
         changes = {
             early: b'require("./codex-boot-probe.cjs");\n' + archive.read(early),
             '.vite/build/codex-boot-probe.cjs': (ROOT / 'tests/native_probe.cjs').read_bytes(),
-            MAIN: replace_once(archive.read(MAIN).decode(),
-                'Ge.deepLinks.registerProtocolClient()', 'void 0').encode(),
             'webview/assets/codex-boot.js': (script + page_probe).encode(),
         }
+        if not macos:
+            changes[MAIN] = replace_once(archive.read(MAIN).decode(),
+                'Ge.deepLinks.registerProtocolClient()', 'void 0').encode()
         temporary = archive_path.with_suffix('.qa.asar')
         archive.write_changes(temporary, changes)
         temporary.replace(archive_path)
+        if macos:
+            manage_macos.seal_bundle(runtime)
         env = {**os.environ, 'CODEX_HOME': str(output / 'codex-home'),
                'CODEX_ELECTRON_USER_DATA_PATH': str(output / 'ui-profile'),
                'CODEX_BOOT_PROBE_OUTPUT': str(output),
                'CODEX_BOOT_PROBE_TIMEOUT_MS': str(timing['timeout'])}
-        if not env.get('DISPLAY'):
+        if not macos and not env.get('DISPLAY'):
             session = {**env, 'XDG_RUNTIME_DIR': f'/run/user/{os.getuid()}',
                        'DBUS_SESSION_BUS_ADDRESS': f'unix:path=/run/user/{os.getuid()}/bus'}
             result = subprocess.run(['systemctl', '--user', 'show-environment'], env=session,
@@ -187,8 +204,8 @@ def main():
                             if line.partition('=')[0] in keys))
         env.pop('CODEX_ELECTRON_START_IN_BACKGROUND', None)
         with (output / 'app.log').open('wb') as log:
-            process = subprocess.Popen([str(runtime / 'ChatGPT'),
-                '--user-data-dir=' + env['CODEX_ELECTRON_USER_DATA_PATH']], env=env,
+            process = subprocess.Popen([str(manage_macos.executable(runtime) if macos else runtime / 'ChatGPT'),
+                '--user-data-dir=' + env['CODEX_ELECTRON_USER_DATA_PATH'], *(['--use-mock-keychain'] if macos else [])], env=env,
                 stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
             try:
                 returncode = process.wait(timeout=timing['timeout'] / 1000 + 35)
