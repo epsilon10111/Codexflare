@@ -101,7 +101,7 @@ codexflare-manage uninstall
 sudo dnf remove codexflare
 ```
 
-卸载不会删除个人素材、配置和副本，也不停止运行中的进程。
+卸载不会删除个人素材、配置和副本，也不停止运行中的进程。若先移除 RPM，保留在用户数据目录中的 `launch.py` 会将原菜单入口回退到系统 Codex。
 
 ## 开发与验证
 
