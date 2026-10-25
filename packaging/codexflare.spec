@@ -40,15 +40,18 @@ install -d %{buildroot}%{_datadir}/%{name}/{tools,src,ui,assets}
 for file in animation background desktop editor manage patch_app paths; do
     install -m 0644 tools/$file.py %{buildroot}%{_datadir}/%{name}/tools/
 done
+sed -i '1{/^#!/d;}' %{buildroot}%{_datadir}/%{name}/tools/*.py
 install -m 0644 src/* %{buildroot}%{_datadir}/%{name}/src/
 install -m 0644 ui/* %{buildroot}%{_datadir}/%{name}/ui/
 install -m 0644 assets/default.webm assets/default1.png assets/default2.png %{buildroot}%{_datadir}/%{name}/assets/
 install -m 0644 VERSION %{buildroot}%{_datadir}/%{name}/
-touch %{buildroot}%{_datadir}/%{name}/.packaged
+echo '%{name} %{version}' > %{buildroot}%{_datadir}/%{name}/.packaged
 install -Dpm 0755 packaging/codexflare %{buildroot}%{_bindir}/codexflare
 install -Dpm 0755 packaging/codexflare-manage %{buildroot}%{_bindir}/codexflare-manage
 install -Dpm 0644 packaging/codexflare.desktop %{buildroot}%{_datadir}/applications/codexflare.desktop
 install -Dpm 0644 ui/mark.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/codexflare.svg
+install -Dpm 0644 packaging/codexflare.1 %{buildroot}%{_mandir}/man1/codexflare.1
+install -Dpm 0644 packaging/codexflare-manage.1 %{buildroot}%{_mandir}/man1/codexflare-manage.1
 
 %check
 desktop-file-validate %{buildroot}%{_datadir}/applications/codexflare.desktop
@@ -63,6 +66,8 @@ python3 -c 'import ast, pathlib; [ast.parse(p.read_text()) for p in pathlib.Path
 %{_datadir}/%{name}/
 %{_datadir}/applications/codexflare.desktop
 %{_datadir}/icons/hicolor/scalable/apps/codexflare.svg
+%{_mandir}/man1/codexflare.1*
+%{_mandir}/man1/codexflare-manage.1*
 
 %changelog
 * Sun Oct 25 2026 epsilon10111 - 0.1.0-1

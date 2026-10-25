@@ -1,0 +1,33 @@
+.TH CODEXFLARE 1 "2026-10-25" "Codexflare 0.1.0" "User Commands"
+.SH NAME
+codexflare \- edit Codex startup animation and workspace background
+.SH SYNOPSIS
+.B codexflare
+.RI [ --port " PORT" ]
+.RI [ --headless ]
+.SH DESCRIPTION
+Opens a native GTK/WebKit editor for local videos, PNG backgrounds,
+playback parameters, and startup window settings.
+Saving settings does not apply them to Codex.
+Quit Codex normally before applying settings in the editor.
+.PP
+Patching supports Linux x86_64 Codex 26.1002.52244, build 13536,
+installed in /usr/lib/chatgpt. Other builds can use preview and save only.
+.SH OPTIONS
+.TP
+.B --port PORT
+Choose the loopback HTTP port. The default selects an available port.
+.TP
+.B --headless
+Run only the local test server without opening a desktop window.
+.TP
+.B --help
+Show command help.
+.SH FILES
+User settings, imported media, backups, and the patched runtime are kept
+under $XDG_DATA_HOME/codexflare, defaulting to ~/.local/share/codexflare.
+The system Codex installation and account data are not modified.
+.SH SEE ALSO
+.BR codexflare-manage (1)
+.PP
+https://github.com/epsilon10111/Codexflare

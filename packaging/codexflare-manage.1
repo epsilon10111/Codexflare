@@ -1,0 +1,31 @@
+.TH CODEXFLARE-MANAGE 1 "2026-10-25" "Codexflare 0.1.0" "User Commands"
+.SH NAME
+codexflare-manage \- manage the per-user customized Codex copy
+.SH SYNOPSIS
+.B codexflare-manage
+.B status | install | uninstall
+.br
+.B codexflare-manage launch
+.RI [ application-arguments ... ]
+.SH COMMANDS
+.TP
+.B status
+Report runtime compatibility and desktop-entry ownership.
+.TP
+.B install
+Create a patched copy from saved settings and update the user menu entry.
+Quit the customized Codex normally first. A running copy is never replaced.
+.TP
+.B launch
+Start the customized copy, or fall back to the system application if the
+source changed or the copy is unavailable. Forward additional arguments.
+.TP
+.B uninstall
+Restore the previous menu entry. Keep settings, media, backups, and runtime.
+No running process is stopped.
+.SH REMOVING THE RPM
+Run codexflare-manage uninstall before removing the codexflare package.
+If the package is removed first, the retained per-user launcher falls back
+to /usr/bin/chatgpt. User data is not deleted by RPM removal.
+.SH SEE ALSO
+.BR codexflare (1)
