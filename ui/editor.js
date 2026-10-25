@@ -76,7 +76,7 @@
     let title;
     if (original && installation.phase === 'failed') title = '应用未完成，请重试';
     else if (original && installation.pending) title = installation.running ? '已准备，等待 ChatGPT 退出' : '已准备，等待应用';
-    else if (!installation.available) title = '当前版本暂不支持应用';
+    else if (!installation.available) title = '当前无法应用';
     else if (original) title = installation.active ? '原 ChatGPT 图标已启用定制效果' : '使用原 ChatGPT 图标';
     else title = installation.running ? '定制版 Codex 正在运行' : installation.active ? '定制启动入口已启用' : '使用原版启动入口';
     byId('installation-heading').textContent = title;
