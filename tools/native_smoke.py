@@ -16,11 +16,15 @@ import time
 if __package__:
     from .animation import DEFAULT_SETTINGS, MAX_ENCODED_DURATION, validate_settings
     from .editor import probe_video
-    from .patch_app import Asar, MAIN, ROOT, replace_once
+    from .patch_app import Asar, ROOT
+    from .build_layout import discover_layout, entrypoint
+    from .window_patch import one, IDENT
 else:
     from animation import DEFAULT_SETTINGS, MAX_ENCODED_DURATION, validate_settings
     from editor import probe_video
-    from patch_app import Asar, MAIN, ROOT, replace_once
+    from patch_app import Asar, ROOT
+    from build_layout import discover_layout, entrypoint
+    from window_patch import one, IDENT
 
 PAGE_PROBE = r'''
 if (new URLSearchParams(location.search).get('codexBootAnimation') === '1') {
@@ -174,15 +178,18 @@ def main():
         page_probe = PAGE_PROBE.replace('CODEX_PROBE_SAMPLES', str(timing['samples']))
         page_probe = page_probe.replace('CODEX_PROBE_INTERVAL', str(timing['interval']))
         (output / 'animation.json').write_text(json.dumps(animation, ensure_ascii=False, indent=2))
-        early = '.vite/build/early-bootstrap.js'
+        early = entrypoint(archive)
+        probe = str(Path(early).parent / 'codex-boot-probe.cjs')
         changes = {
             early: b'require("./codex-boot-probe.cjs");\n' + archive.read(early),
-            '.vite/build/codex-boot-probe.cjs': (ROOT / 'tests/native_probe.cjs').read_bytes(),
+            probe: (ROOT / 'tests/native_probe.cjs').read_bytes(),
             'webview/assets/codex-boot.js': (script + page_probe).encode(),
         }
         if not macos:
-            changes[MAIN] = replace_once(archive.read(MAIN).decode(),
-                'Ge.deepLinks.registerProtocolClient()', 'void 0').encode()
+            main, _ = discover_layout(archive)
+            text = archive.read(main).decode()
+            registration = one(IDENT+r'\.deepLinks.registerProtocolClient\(\)', text, 'protocol registration')
+            changes[main] = (text[:registration.start()] + 'void 0' + text[registration.end():]).encode()
         temporary = archive_path.with_suffix('.qa.asar')
         archive.write_changes(temporary, changes)
         temporary.replace(archive_path)

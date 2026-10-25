@@ -1,4 +1,6 @@
 """Discover reviewed bundle roles without depending on generated filename hashes."""
+import json
+from pathlib import PurePosixPath
 import re
 
 
@@ -29,3 +31,14 @@ def discover_layout(archive):
                          ('app-initial', 'js'), ('app-primary', 'js'),
                          ('app-initial', 'css'), ('app-primary', 'css')))
     return main, preloads
+
+
+def entrypoint(archive):
+    package = json.loads(archive.read('package.json'))
+    name = package.get('main')
+    if not isinstance(name, str) or not name:
+        raise ValueError('应用缺少 main 入口')
+    path = PurePosixPath(name)
+    if path.is_absolute() or '..' in path.parts or not archive.read(str(path)):
+        raise ValueError('无效的应用入口')
+    return str(path)

@@ -15,10 +15,12 @@ if __package__:
     from .patch_app import Asar, ROOT, replace_once
     from .native_smoke import probe_timing
     from .background_layout import BackgroundLayout
+    from .build_layout import entrypoint
 else:
     from patch_app import Asar, ROOT, replace_once
     from native_smoke import probe_timing
     from background_layout import BackgroundLayout
+    from build_layout import entrypoint
 
 
 def main():
@@ -47,9 +49,11 @@ def main():
         fixture = (ROOT / 'tests/background_fixture.html').read_text()
         probe = 'startup_probe.cjs' if args.startup else 'background_probe.cjs'
         timeout_ms = 45000
+        early = entrypoint(archive)
+        probe_path = str(Path(early).parent / 'background-probe.cjs')
         changes = {
-            '.vite/build/early-bootstrap.js': b'require("./background-probe.cjs");\n',
-            '.vite/build/background-probe.cjs': (ROOT / 'tests' / probe).read_bytes(),
+            early: b'require("./background-probe.cjs");\n',
+            probe_path: (ROOT / 'tests' / probe).read_bytes(),
         }
         if args.startup:
             fixture = replace_once(fixture, "font-src 'self'", "font-src 'self'; script-src 'self'; media-src 'self'")
@@ -77,7 +81,6 @@ def main():
         fixture = layout.fixture(fixture)
         if macos:
             fixture = fixture.replace('<html ', '<html data-codex-os="darwin" ', 1)
-        probe_path = '.vite/build/background-probe.cjs'
         changes[probe_path] = replace_once(layout.adapt(changes[probe_path].decode()),
             '/* CODEX_BACKGROUND_STYLES */ []', json.dumps(layout.styles)).encode()
         if not args.startup:

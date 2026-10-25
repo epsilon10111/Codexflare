@@ -1,5 +1,5 @@
 import unittest
-from tools.build_layout import discover_layout
+from tools.build_layout import discover_layout, entrypoint
 
 
 class Archive:
@@ -19,6 +19,13 @@ class Archive:
 
 
 class LayoutTests(unittest.TestCase):
+    def test_probe_entry_comes_from_package_metadata(self):
+        import json
+        class EntryArchive:
+            def read(self, name):
+                return json.dumps({'main': './changed/bootstrap.cjs'}).encode() if name == 'package.json' else b'entry'
+        self.assertEqual(entrypoint(EntryArchive()), 'changed/bootstrap.cjs')
+
     def test_different_hashes_produce_correct_resource_links(self):
         for suffix in ('linux-old', 'windows-new', 'mac20586', 'mac21828', 'future'):
             main, assets = discover_layout(Archive(suffix))
