@@ -173,8 +173,9 @@ class WindowsManagerTests(unittest.TestCase):
                 self.assertIsNotNone(windows.runtime_problem(windows.read_state()))
                 with patch.object(windows.subprocess, 'Popen') as start, contextlib.redirect_stderr(io.StringIO()):
                     windows.launch(['with spaces'])
-                    self.assertEqual(start.call_args.args[0], [str(self.source / 'Codex.exe'), 'with spaces'])
+                    self.assertEqual(start.call_args.args[0], [str(self.source / windows.BINARY), 'with spaces'])
                     self.assertNotIn('env', start.call_args.kwargs)
+                    self.package_launch.assert_called_with(self.source, start.call_args.args[0])
                 path.write_bytes(original)
         self.inject.run.assert_not_called()
 
@@ -279,10 +280,10 @@ class WindowsManagerTests(unittest.TestCase):
                     patch.object(windows.subprocess, 'Popen') as start, \
                     contextlib.redirect_stderr(io.StringIO()) as warnings:
                 windows.launch(['with spaces'])
-                start.assert_called_once_with([str(self.source / 'Codex.exe'), 'with spaces'], cwd=self.source)
+                start.assert_called_once_with([str(self.source / windows.BINARY), 'with spaces'], cwd=self.source)
                 self.assertIn('无法准备已应用的动画或背景', warnings.getvalue())
                 self.inject.run.assert_not_called()
-                self.package_launch.assert_not_called()
+                self.package_launch.assert_called_with(self.source, [str(self.source / windows.BINARY), 'with spaces'])
                 self.assertEqual(windows.STATE.read_bytes(), state)
 
     def test_injection_failure_never_launches_a_second_process(self):
@@ -297,10 +298,47 @@ class WindowsManagerTests(unittest.TestCase):
     def test_launch_without_installation_falls_back_to_original(self):
         with patch.object(windows.subprocess, 'Popen') as start, contextlib.redirect_stderr(io.StringIO()):
             windows.launch(['with spaces'])
-            self.assertEqual(start.call_args.args[0], [str(self.source / 'Codex.exe'), 'with spaces'])
+            self.assertEqual(start.call_args.args[0], [str(self.source / windows.BINARY), 'with spaces'])
             self.assertNotIn('env', start.call_args.kwargs)
+            self.package_launch.assert_called_once_with(self.source, start.call_args.args[0])
         self.inject.run.assert_not_called()
         self.assertFalse(self.local.exists())
+
+    def test_fallback_dispatches_once_in_the_rediscovered_package(self):
+        updated = self.root / 'updated official'
+        updated.mkdir()
+        (updated / windows.BINARY).write_bytes(b'updated app')
+        arguments = ['codex://threads/123', '中文 with spaces', 'quote" and $(never)']
+        self.package_launch.return_value = True
+        with patch.object(windows, 'find_source', return_value=updated), \
+                patch.object(windows.subprocess, 'Popen') as start, contextlib.redirect_stderr(io.StringIO()):
+            windows.launch(arguments)
+        self.package_launch.assert_called_once_with(updated, [str(updated / windows.BINARY), *arguments])
+        start.assert_not_called()
+        self.inject.run.assert_not_called()
+        self.assertFalse(self.local.exists())
+
+    def test_fallback_identity_failure_never_starts_an_unpacked_process(self):
+        for error in (ValueError('包身份检查失败'), OSError('activation denied')):
+            with self.subTest(error=error), \
+                    patch.object(windows.windows_package, 'launch_in_package', side_effect=error) as dispatch, \
+                    patch.object(windows.subprocess, 'Popen') as start, contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(type(error)):
+                    windows.launch(['with spaces'])
+                dispatch.assert_called_once_with(self.source, [str(self.source / windows.BINARY), 'with spaces'])
+                start.assert_not_called()
+        self.inject.run.assert_not_called()
+        self.assertFalse(self.local.exists())
+
+    def test_fallback_cannot_use_an_unverified_legacy_executable_name(self):
+        (self.source / windows.BINARY).unlink()
+        self.assertTrue((self.source / 'Codex.exe').is_file())
+        with patch.object(windows.subprocess, 'Popen') as start:
+            with self.assertRaisesRegex(ValueError, '找不到原版'):
+                windows.launch([])
+        self.package_launch.assert_not_called()
+        start.assert_not_called()
+        self.inject.run.assert_not_called()
 
     def test_legacy_state_requires_reapply_and_never_launches_the_old_copy(self):
         windows.install()
@@ -312,7 +350,7 @@ class WindowsManagerTests(unittest.TestCase):
         self.assertIn('重新应用', windows.runtime_problem(state))
         with patch.object(windows.subprocess, 'Popen') as start, contextlib.redirect_stderr(io.StringIO()):
             windows.launch([])
-            self.assertEqual(start.call_args.args[0], [str(self.source / 'Codex.exe')])
+            self.assertEqual(start.call_args.args[0], [str(self.source / windows.BINARY)])
             self.assertNotIn('env', start.call_args.kwargs)
         self.inject.run.assert_not_called()
         windows.install()

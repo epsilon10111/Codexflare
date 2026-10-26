@@ -314,12 +314,15 @@ def launch(arguments):
             problem = f'无法准备已应用的动画或背景：{error}'
     if problem:
         source = find_source()
-        executable = source / 'Codex.exe'
+        executable = source / BINARY
         if not executable.is_file():
             raise ValueError(f'{problem}；找不到原版 Codex，请从开始菜单打开原版')
         if sys.stderr:
             print(f'{problem}；打开原版应用。', file=sys.stderr, flush=True)
-        return subprocess.Popen([str(executable), *arguments], cwd=source)
+        command = [str(executable), *arguments]
+        if windows_package.launch_in_package(source, command):
+            return
+        return subprocess.Popen(command, cwd=source)
     command = [sys.executable, str(Path(__file__).with_name('manage.py').resolve()), 'launch', *arguments]
     if windows_package.launch_in_package(SOURCE, command):
         return

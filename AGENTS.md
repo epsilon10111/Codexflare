@@ -14,7 +14,7 @@
 - `tools/`：`generate_demo.py` 生成素材，`patch_app.py` 修改 ASAR 副本，`manage.py` 管理安装与回退，`native_smoke.py` 验证原生窗口。
 - `tests/`：Python 单元测试、Node 动画测试及原生探针；`VALIDATION.md` 记录验收证据和边界。
 - `.local/` 存放运行副本与回退信息，`work/` 存放截图和测试输出；两者均被 Git 忽略。
-- `packaging/` 定义 RPM 和桌面入口；`tools/paths.py` 让安装版使用用户数据目录，源码版继续使用 `.local/`。`dist/` 为忽略的发布产物。
+- `packaging/` 定义 RPM、DEB 和桌面入口；`tools/paths.py` 让安装版使用用户数据目录，源码版继续使用 `.local/`。`dist/` 为忽略的发布产物。
 
 ## 构建、测试与本地运行
 
@@ -37,6 +37,10 @@
 | `python tools/windows_smoke.py --window-mode centered` | 从现有签名 Windows EXE 启动隔离测试窗口，检查注入、背景、交互与刷新 |
 | `python tools/build_rpm.py` | 从已提交的 HEAD 构建 RPM、SRPM、源码归档与校验文件 |
 | `python tools/rpm_smoke.py dist/codexflare-0.1.0-1.noarch.rpm` | 检查包内容、只读资源、用户配置及隔离 RPM 安装/卸载 |
+| `python tools/build_deb.py --ref v0.1.0` | 用当前检出的 DEB 模板打包指定已提交版本的应用，输出 DEB 和独立校验文件 |
+| `python tools/deb_smoke.py dist/codexflare_0.1.0-1_all.deb` | 检查 DEB 内容、依赖、只读资源与用户配置 |
+
+DEB 工具在 v0.1.0 发布后加入，重建时保留包含工具的后续提交，通过 `--ref v0.1.0` 选择应用版本；不要移动原标签或覆盖已发布的 RPM、源码归档和校验文件。Debian / Ubuntu 的依赖可用性与实际桌面验收分开记录。
 
 ## 编码风格与命名
 

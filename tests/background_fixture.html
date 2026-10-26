@@ -52,7 +52,7 @@
         <div class="thread-probe group/thread-scroll-layout" data-request-input-activity-root>
           <div class="thread-scroll-container flex-col-reverse"><div class="transcript">
             <section class="conversation probe-content" data-thread-find-target="conversation">
-              <h2>让微光停留在右侧</h2>
+              <h2>工作区背景预览</h2>
               <p>这是一段用于验证可读性的模拟对话。图片位于内容底层，向左逐渐淡出，不接收鼠标事件。</p>
               <p>主对话和右侧分支共享同一张背景。输入框轻微透出背景，文字与按钮保持清晰。</p>
               <pre class="bg-surface" id="code">const background = {<br>  opacity: 0.18,<br>  placement: "right",<br>  interaction: "none"<br>};</pre>
@@ -78,7 +78,7 @@
             <div class="thread-probe group/thread-scroll-layout" data-request-input-activity-root>
               <div class="thread-scroll-container flex-col-reverse"><div class="transcript">
                 <section class="conversation probe-content" data-thread-find-target="conversation">
-                  <h2>分支也保留背景</h2><p>这是模拟子代理对话。</p><p>两侧共享同一张背景。图片按整个工作区定位。</p>
+                  <h2>子代理面板</h2><p>这是模拟子代理对话。</p><p>两侧共享同一张背景。图片按整个工作区定位。</p>
                   <pre id="panel-code" class="bg-surface">background: transparent;<br>pointer-events: none;</pre>
                 </section>
                 <div aria-hidden="true" class="pointer-events-none sticky bottom-0 z-10 mt-auto w-full shrink-0 h-[calc(var(--thread-scroll-padding-bottom)-var(--spacing)*4)]"><div id="panel-footer-fade" aria-hidden="true" class="pointer-events-none absolute inset-x-0 -top-8 z-0 h-8 bg-gradient-to-t from-surface"></div></div>

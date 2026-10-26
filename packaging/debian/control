@@ -1,0 +1,17 @@
+Package: codexflare
+Version: @VERSION@-1
+Section: utils
+Priority: optional
+Architecture: all
+Maintainer: epsilon10111 <zhr20040823@sjtu.edu.cn>
+Installed-Size: @SIZE@
+Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-3.0, gir1.2-webkit2-4.1, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, coreutils
+Recommends: ffmpeg
+Homepage: https://github.com/epsilon10111/Codexflare
+X-Codexflare-Source-Commit: @COMMIT@
+Description: Local startup animation and background editor for Codex
+ Codexflare is a local GTK/WebKit editor for custom startup videos and PNG
+ workspace backgrounds. It creates a reversible per-user copy of an existing
+ Linux Codex installation, without modifying the system application.
+ Patching supports Codex 26.1002.52244, build 13536, on x86_64 only.
+ The editor can preview and save settings without a compatible Codex install.

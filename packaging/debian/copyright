@@ -1,0 +1,22 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Codexflare
+Source: https://github.com/epsilon10111/Codexflare
+
+Files: *
+Copyright: 2026 epsilon10111
+License: MIT
+ The complete code license is installed in
+ /usr/share/doc/codexflare/LICENSE.
+
+Files: assets/*
+Copyright: 2026 epsilon10111
+License: Codexflare-Media
+ Bundled media are not covered by the MIT license. Redistribution with
+ Codexflare is allowed under the separate bundled media license installed in
+ /usr/share/doc/codexflare/MEDIA-LICENSE.
+
+Files: assets/LICENSE
+Copyright: 2026 epsilon10111
+License: MIT
+ The complete code license is installed in
+ /usr/share/doc/codexflare/LICENSE.

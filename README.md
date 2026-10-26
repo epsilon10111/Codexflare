@@ -1,210 +1,96 @@
-# Codexflare
+<p align="center">
+  <img src="ui/mark.svg" width="72" alt="Codexflare 标志">
+</p>
 
-> **Windows 适配分支：`feat/windows-support`**。已加入当前 Windows x64 ChatGPT/Codex `26.1021.31345 / build 21828`（Microsoft Store 包 `26.1021.3705.0`）适配。Windows 启动器直接运行已安装的标准版，不复制整套应用；使用方式与验证边界见 **[Windows 指南](WINDOWS.md)**。
+<h1 align="center">Codexflare</h1>
 
-**为 Linux、macOS 与 Windows Codex 桌面版定制开场动画与工作区背景。**
+<p align="center">自定义 Codex 的开场动画、工作区背景与启动窗口。<br>Linux · macOS · Windows</p>
 
-Codexflare 是一个本地外观编辑器：在独立桌面窗口中选择视频和图片，调整画面。Windows 通过本地私有管道向现有标准版加入外观效果，Linux/macOS 使用可回退的应用副本。Linux 使用 GTK / WebKit，macOS 使用 Cocoa / WKWebView，Windows 使用 pywebview / WebView2；无需额外 Electron 运行时。
+<p align="center"><strong>简体中文</strong> · <a href="README.en.md">English</a></p>
 
-[下载 Release](https://github.com/epsilon10111/Codexflare/releases/latest) · [验收记录](VALIDATION.md) · [贡献指南](AGENTS.md) · [代码许可](LICENSE) · [素材许可](assets/LICENSE)
+<p align="center">
+  <a href="https://github.com/epsilon10111/Codexflare/releases/latest">下载</a> ·
+  <a href="docs/guide.zh-CN.md">使用指南</a> ·
+  <a href="AGENTS.md">参与贡献</a>
+</p>
 
-![Codexflare 独立桌面编辑器](docs/images/editor.png)
+## 功能一览
 
-## 功能
+### 视频编辑
 
-- **开场视频**：内置约十秒动画，支持导入视频；调节速度、亮度、对比度、饱和度和画面适配，切换静音或声音开启。
-- **常驻背景**：两张内置背景，也可上传 PNG；调整不透明度、水平位置和大小，向左渐隐，主对话与右侧分支共享背景。
-- **启动窗口**：保存全屏、恢复上次窗口，或居中小窗口三种启动方式。
-- **启动衔接**：视频播放期间并行准备工作区与背景；支持 Esc 跳过、播放失败退出和减少动态效果偏好。
-- **本地与可回退**：素材在本机处理，配置和素材不上传；Windows 不修改原版程序或登录目录，移除启动器即可停止后续注入。Linux/macOS 仅修改应用副本及用户菜单入口。
+预览并调节速度、亮度、对比度、饱和度与声音。
 
-## 兼容范围
+<a href="docs/images/animation-editor.png"><img src="docs/images/animation-editor.png" width="100%" alt="视频编辑器，展示默认视频和播放参数"></a>
 
-当前补丁严格限定以下构建，其他版本可预览、保存，但不能应用：
+### 背景编辑
 
-| 平台 | Codex 版本 / build | 原应用 |
+选择内置图片或上传 PNG，调整透明度、位置与大小。
+
+<a href="docs/images/background-editor.png"><img src="docs/images/background-editor.png" width="100%" alt="背景编辑器，展示图片选择和融合参数"></a>
+
+### 开场动画
+
+播放时准备工作区，支持静音和 Esc 跳过。
+
+<a href="docs/images/startup-preview.png"><img src="docs/images/startup-preview.png" width="100%" alt="隔离应用启动实拍，右下角显示 Press Esc to skip"></a>
+
+### 工作区背景
+
+图片向左渐隐，主对话与右侧分支共享背景。
+
+<a href="docs/images/workspace-preview.png"><img src="docs/images/workspace-preview.png" width="100%" alt="使用真实应用 CSS 的模拟主对话与子代理工作区"></a>
+
+<sub>点击图片查看原图。编辑器与开场均为实拍；工作区示例使用真实应用 CSS 与模拟会话，不含私人聊天。</sub>
+
+支持**全屏、恢复上次窗口、居中小窗口**三种启动方式。内置一段视频与两张背景，素材只在本地处理，应用改动可回退。
+
+## 下载与安装
+
+补丁仅适配下表中的 Codex 构建；其他版本可预览和保存，不能应用。请先安装对应的 Codex。
+
+| 平台 | Codex 版本 / build | 安装方式 |
 | --- | --- | --- |
-| Linux x86_64 | 26.1002.52244 / 13536 | `/usr/lib/chatgpt` |
-| macOS Apple Silicon（arm64） | 26.1021.31345 / 21828 | `/Applications/Codex.app` 或 `/Applications/ChatGPT.app` |
-| Windows x64 | 26.1021.31345 / 21828；保留 26.1002.52244 / 13536 构建校验 | Microsoft Store 包 `26.1021.3705.0` / `26.1002.7124.0`；见 [Windows 指南](WINDOWS.md) |
+| Linux x86_64 | `26.1002.52244 / 13536` | [RPM](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.0/codexflare-0.1.0-1.noarch.rpm) · [DEB](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.0/codexflare_0.1.0-1_all.deb) |
+| macOS Apple Silicon | `26.1021.31345 / 21828` | [源码安装](docs/guide.zh-CN.md#macos) |
+| Windows x64 | `26.1021.31345 / 21828` | [源码安装](docs/guide.zh-CN.md#windows) |
 
-macOS 动画与编辑器已在 26.5.2 验证；yabai 等平铺窗口管理器可以覆盖居中/恢复模式的窗口尺寸。Intel / 通用二进制、其他 macOS 版本及新 Codex 构建尚未验证。Linux 已在 Fedora KDE / Wayland（XWayland）验证。
+Linux 要求原应用位于 `/usr/lib/chatgpt`；Windows 当前目标为 MSIX `26.1021.3705.0`，保留旧 `26.1002.52244 / 13536` 的构建校验，但未重新原生验证旧构建。RPM 面向 Fedora，DEB 面向 Debian 12+ / Ubuntu 24.04+。
 
-这是独立的非官方项目，与 OpenAI 无隶属或背书关系。发布包不包含 Codex、ChatGPT 或 Electron 的程序文件，需要已安装兼容应用。Linux/macOS 的本地副本需要额外空间；Windows 默认启动器不创建应用副本。
+<details>
+<summary><strong>Linux 快速安装</strong></summary>
 
-## 安装与使用
-
-### macOS（源码运行）
-
-需要 Python 3.11+、Apple Command Line Tools（`codesign` / `lipo`）和 PyObjC；导入视频还需 FFmpeg。已安装 `uv` 时：
+下载对应安装包后，选择一组命令：
 
 ```bash
-git clone --branch feat/macos-support https://github.com/epsilon10111/Codexflare.git
-cd Codexflare
-uv venv --python python3 .venv
-uv pip install --python .venv/bin/python -r requirements-macos.txt
-.venv/bin/python tools/editor.py
-```
-
-没有 `uv` 时可使用 `python3 -m venv .venv` 和 `.venv/bin/python -m pip install -r requirements-macos.txt`。系统自带的旧版 `/usr/bin/python3` 不满足 Python 3.11 要求。
-
-![macOS 原生编辑器](docs/images/editor-macos.png)
-
-![macOS 背景效果（真实应用样式、模拟会话）](docs/images/background-macos.png)
-
-在原生编辑器保存设置并点击「应用到 Codex」，或直接运行：
-
-```bash
-.venv/bin/python tools/manage.py install
-open "$HOME/Applications/Codexflare Codex.app"
-```
-
-**macOS 使用单独的启动入口及应用配置。** 定制副本位于 `.local/Codexflare Runtime.app`；普通 `/Applications/ChatGPT.app` 或 `Codex.app` 保持原样。动画只在从新入口冷启动副本时播放，唤起已运行窗口不重播。用 Cmd+Q 正常退出副本后，可再次启动观看。
-
-副本使用本地 ad-hoc 签名、独立 bundle ID，以及 `.local/profile` / `.local/codex-home`，首次可能需要重新登录。它不能继承 OpenAI 的 Developer ID、共享 Keychain、通知或原生工具服务身份；例如检查签名的电脑控制服务可能拒绝连接。**开屏和编辑器验证不代表这些签名相关功能完整兼容，也不代表真实账户会话已验收。**
-
-默认自动寻找 `/Applications/Codex.app` 或 `/Applications/ChatGPT.app`。自定义位置时，在编辑或管理命令前设置 `CODEXFLARE_SOURCE_APP=/完整路径/Codex.app`，后续保持同一路径。原版更新后，旧副本的启动入口会回退到原版，等待重新适配。
-
-```bash
-.venv/bin/python tools/manage.py status
-.venv/bin/python tools/manage.py uninstall
-```
-
-卸载只移除本工具创建的 `~/Applications/Codexflare Codex.app` 入口，保留副本和设置，不停止进程，也不修改原版或其登录数据。源码目录移动后应重新安装入口。
-
-### Fedora RPM
-
-从 [最新 Release](https://github.com/epsilon10111/Codexflare/releases/latest) 下载 RPM 和 `SHA256SUMS`，在下载目录执行：
-
-```bash
-sha256sum --ignore-missing -c SHA256SUMS
+# Fedora
 sudo dnf install ./codexflare-0.1.0-1.noarch.rpm
 codexflare
 ```
 
-也可从应用菜单打开 **Codexflare**。RPM 标为 `noarch`，表示编辑器代码不含本机二进制；可应用补丁的 Codex 仍仅限上述 x86_64 构建。安装 RPM 本身不会修改 Codex。
-
-RPM 安装 Python 3.11+、PyGObject、GTK 3、WebKit2 4.1 和 GStreamer 基础媒体组件。默认素材可直接播放；导入视频还需要提供 `ffmpeg`、`ffprobe` 及 `libvpx-vp9`、`libopus` 编码器的 FFmpeg。RPM 推荐安装 `ffmpeg-free`，实际编码支持取决于发行版的软件包。
-
-### 从源码运行
-
 ```bash
-git clone https://github.com/epsilon10111/Codexflare.git
-cd Codexflare
-python3 tools/editor.py
+# Debian / Ubuntu
+sudo apt install ./codexflare_0.1.0-1_all.deb
+codexflare
 ```
 
-Linux 源码运行需要上述 GTK 桌面依赖；macOS 使用上节的 PyObjC 环境。两者均无 npm 构建步骤。若当前 Python 缺少 GI，启动器会尝试 `/usr/bin/python3`。编辑器在本地窗口运行，内部服务仅监听 `127.0.0.1`，关闭窗口后结束。
+也可从应用菜单打开 Codexflare。首版包未签名；校验文件、依赖和卸载步骤见[安装指南](docs/guide.zh-CN.md#linux)。
 
-### 应用设置
+</details>
 
-1. 在「开场动画」选择视频，或在「常驻背景」选择、上传图片。
-2. 调节预览参数与「Codex 启动窗口」，点击「保存设置」。
-3. 点击「应用到 Codex」。Linux/macOS 需先正常退出定制副本并刷新状态；Windows 可以在原版运行时应用设置。
-4. 正常退出当前应用后重新启动：Windows 从开始菜单 **Codex (Codexflare)**，Linux 从原来的菜单入口，macOS 从 `~/Applications/Codexflare Codex.app` 启动。仅关闭窗口可能仍留在托盘。
+## 三步开始
 
-保存后还需应用，下一次从上述入口冷启动时才会使用新的设置。工具不会关闭当前会话；Windows 原 Store 图标始终直接打开标准版，不加载 Codexflare 效果。
+1. **选择素材**：使用内置视频、背景，或导入自己的文件。
+2. **调节并保存**：预览画面，选择启动窗口模式，点击「保存设置」。
+3. **应用到 Codex**：Linux / macOS 先退出定制应用并刷新状态；Windows 可直接应用设置。正常退出当前应用后，Linux 使用原菜单入口，macOS 使用 Codexflare 入口，Windows 使用开始菜单 **Codex (Codexflare)**。
 
-## 参数与素材
+保存后需要重新应用，下次冷启动才会使用新设置。Windows 原 Store / 固定图标仍按普通方式启动。开场视频不能保证覆盖所有网络与初始化等待。
 
-| 类别 | 可调内容 |
-| --- | --- |
-| 视频 | 速度 0.5–2×，亮度 25–200%，对比度 50–200%，饱和度 0–200% |
-| 播放 | 铺满裁切 / 完整显示；静音（默认）/ 声音开启 |
-| 背景 | 不透明度 0–50%（默认 18%），水平位置 50–100%（默认 80%），宽度 40–140%（默认 70%） |
-| 启动窗口 | 恢复上次大小、位置及最大化状态（默认）；全屏；居中 1100×760 逻辑像素，小屏自动缩小 |
+**Windows 直接增强现有标准版，不安装第二份应用。** 启动器保留原 MSIX 包身份、默认数据路径及官方文件签名；源码与 Python 环境需保留，启动器随应用运行。真实账户冷启动及麦克风、摄像头、通知仍需另验，见 [Windows 指南](WINDOWS.md)。macOS 仍使用独立登录数据与 ad-hoc 签名，可能需要重新登录，部分原生服务可能受限；详见[平台说明](docs/guide.zh-CN.md)。
 
-视频导入上限 **100 MiB / 30 秒**，支持的输入格式取决于 FFmpeg。导入后转换为不超过 1920×1080、30 fps 的 VP9 WebM，有音轨时保留为 Opus；原片不变。没有音轨的视频无法发声。
+## 文档与许可
 
-背景支持 **PNG，最大 40 MiB，单边不超过 8192 像素、总计不超过 6400 万像素**。内置 `default1.png` 和 `default2.png`，默认选中第一张。用于显示的大图会缩至 3840×2160 范围，保留原图与透明度；缺少 FFmpeg 时使用原尺寸。
+[参数与素材](docs/guide.zh-CN.md#settings) · [配置与卸载](docs/guide.zh-CN.md#uninstall) · [开发与构建](docs/guide.zh-CN.md#development) · [验证范围](VALIDATION.md)
 
-背景样式适合黑底线条素材：深色主题使用滤色融合，浅色主题反相后混合，普通照片可能改变观感。窄窗口进一步淡化，高对比度或减少透明效果偏好会隐藏背景。关闭「启用图片背景」并重新应用即可单独撤回背景。
+代码采用 [MIT](LICENSE)；默认视频、图片及截图中的素材按[独立素材许可](assets/LICENSE)随 Codexflare 分发。
 
-开场结束时，已准备好的工作区直接淡入；若仍在初始化，最多保留尾帧等待 20 秒。Esc、播放失败或超时均释放遮罩。网络和后端初始化仍可能慢于视频，不能保证任意视频长度都能覆盖实际加载时间。
-
-## 配置、管理与卸载
-
-| 安装方式 | 配置与安装数据 |
-| --- | --- |
-| RPM | `${XDG_DATA_HOME:-~/.local/share}/codexflare/` |
-| 源码 | 仓库内 `.local/` |
-
-目录内 `animation.json` 保存编辑设置，`media/` 与 `backgrounds/` 保存导入素材。Windows 的 `install-windows.json` 保存启用时设置与启动器状态，不创建应用副本；Linux 的 `runtime/`、macOS 的 `Codexflare Runtime.app` 保存定制副本。RPM 与源码方式的数据独立，切换前先停用增强入口。源码方式启用期间不要移动或删除仓库。
-
-```bash
-codexflare-manage status      # 检查应用来源与增强入口
-codexflare-manage install     # 使用已保存设置启用增强入口
-codexflare-manage launch      # 通过增强入口启动，来源变化时回退原版
-codexflare-manage uninstall   # 停用增强入口，保留配置、素材和已有副本
-```
-
-源码方式将 `codexflare-manage` 替换为 `python3 tools/manage.py`。
-
-Linux 工具不改写 `/usr/lib/chatgpt`、`/usr/bin/chatgpt` 或用户登录、聊天数据。仅更新用户级 `chatgpt.desktop`，备份原入口；检测到入口被其他操作改写时拒绝覆盖。系统 Codex 更新后会回退原版，待新版本重新适配。
-
-卸载 RPM 前，先恢复入口：
-
-```bash
-codexflare-manage uninstall
-sudo dnf remove codexflare
-```
-
-卸载不会删除个人素材、配置和副本，也不停止运行中的进程。若先移除 RPM，保留在用户数据目录中的 `launch.py` 会将原菜单入口回退到系统 Codex。
-
-## 开发与验证
-
-```text
-ui/          GTK/WebKit 编辑器的页面、样式与标志
-src/         注入 Codex 的动画与背景样式
-tools/       配置、素材处理、补丁、安装与验证工具
-tests/       Python / Node 回归测试及原生探针
-assets/      默认视频、背景和素材许可
-packaging/   RPM 打包文件
-docs/        文档图片
-```
-
-```bash
-python3 -m unittest discover -s tests -v
-node --test tests/test_*.cjs
-/usr/bin/python3 tools/desktop_smoke.py
-python3 tools/background_smoke.py --startup
-python3 tools/native_smoke.py
-```
-
-原生测试会短暂打开隔离窗口，不读取真实账户或退出当前会话。桌面测试需要具备 GTK / WebKit 的系统 Python；背景与完整应用测试需要已安装副本，也可用 `--runtime /绝对路径/runtime` 指定候选副本。测试输出留在忽略的 `work/` 目录。
-
-当前已验证编辑器、视频播放、背景融合、窗口模式及模拟工作区片尾衔接。**隔离登录页和模拟工作区不代表真实账户冷启动验收**；真实账户恢复、其他构建和长期运行仍需验证。详细证据与失败边界见 [VALIDATION.md](VALIDATION.md)，界面原则见 [DESIGN.md](DESIGN.md)。
-
-### 构建 Release
-
-安装 `rpm-build` 和 `desktop-file-utils` 后，在源码目录执行（默认打包已提交的 `HEAD`，不包含未提交修改）：
-
-```bash
-python3 tools/build_rpm.py
-# 或重建指定版本：python3 tools/build_rpm.py --ref v0.1.0
-```
-
-`dist/` 输出 RPM、源码归档、SRPM 与 `SHA256SUMS`。RPM 仅携带运行所需代码、UI、`default.webm` 及两张内置背景；原始 MP4、旧版光轨示例和开发工具保留在源码发行包。构建不包含系统 Codex、用户配置、测试 profile 或 `work/` 产物。
-
-首版 RPM 未作 GPG 签名，`SHA256SUMS` 用于校验下载完整性。可执行 `python3 tools/rpm_smoke.py dist/codexflare-0.1.0-1.noarch.rpm` 在隔离目录检查包内容和配置读写。
-
-问题反馈请注明 Codex 版本、Linux 发行版、桌面环境和复现步骤，避免附带登录数据或私人聊天。代码贡献规范见 [AGENTS.md](AGENTS.md)。
-
-## 许可与来源
-
-- **代码与文档文字：MIT**，见 [LICENSE](LICENSE)。
-- **内置媒体：保留权利，按单独许可分发**，见 [assets/LICENSE](assets/LICENSE)。允许随 Codexflare 源码、RPM 及修改版分发，并进行应用所需的转码与缩放；不授予独立销售素材或发布到外部素材库的许可。仓库内的全部内容并非统一采用 MIT。
-- 默认视频和两张背景由项目维护者提供；旧光轨示例由项目脚本生成。默认原片为 `assets/default.mp4`，播放版为 `assets/default.webm`。第三方名称、运行依赖与参考来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
-
-### macOS 原生验证
-
-```bash
-.venv/bin/python -m unittest discover -s tests -v
-node --test tests/test_*.cjs
-.venv/bin/python tools/macos_editor_smoke.py
-.venv/bin/python tools/background_smoke.py
-.venv/bin/python tools/background_smoke.py --startup
-.venv/bin/python tools/native_smoke.py --runtime ".local/Codexflare Runtime.app"
-```
-
-测试会短暂显示窗口并自动退出；请不要对测试窗口按 Esc。输出保存在忽略的 `work/` 中。原生应用探针使用独立的 profile、Codex 数据目录和测试 Keychain，不读取或终止正在运行的原版会话。
+非官方项目，与 OpenAI 无隶属或背书关系。发行包不包含 Codex、ChatGPT 或 Electron 程序文件。
