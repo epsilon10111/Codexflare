@@ -56,11 +56,11 @@
 | Linux x86_64 | `26.1002.52244 / 13536` | [RPM](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.0/codexflare-0.1.0-1.noarch.rpm) · [DEB](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.0/codexflare_0.1.0-1_all.deb) |
 | macOS Apple Silicon | `26.1021.31345 / 21828` | [main 源码安装](docs/guide.zh-CN.md#macos) |
 | macOS Apple Silicon | `26.1013.31256 / 20586` | [v0.1.1 DMG](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.1/Codexflare-0.1.1-macOS-arm64-build20586.dmg) · [main 源码安装](docs/guide.zh-CN.md#macos) |
-| Windows x64 | `26.1002.52244 / 13536` | [源码安装](docs/guide.zh-CN.md#windows) |
+| Windows x64 | `26.1021.31345 / 21828` | [源码安装](docs/guide.zh-CN.md#windows) |
 
 **已发布的 v0.1.1 DMG 仅支持 build 20586**，已在 macOS 26.6.2 验证；main 源码保留 build 21828 并增加 20586。合入 main 不改变该 DMG 的兼容范围，已发布标签和附件保持不变。macOS 原应用通常位于 `/Applications/ChatGPT.app` 或 `/Applications/Codex.app`。
 
-Linux 要求原应用位于 `/usr/lib/chatgpt`；Windows 对应 MSIX `26.1002.7124.0`。RPM 面向 Fedora，DEB 面向 Debian 12+ / Ubuntu 24.04+。
+Linux 要求原应用位于 `/usr/lib/chatgpt`；Windows 本轮验收对应 MSIX `26.1021.3705.0`。旧 `26.1002.52244 / 13536` 为历史参考，新启动方式未重新验证该构建。RPM 面向 Fedora，DEB 面向 Debian 12+ / Ubuntu 24.04+。
 
 <details>
 <summary><strong>Linux 快速安装</strong></summary>
@@ -117,11 +117,11 @@ shasum -a 256 -c Codexflare-0.1.1-macOS-arm64-build20586.dmg.sha256
 
 1. **选择素材**：使用内置视频、背景，或导入自己的文件。
 2. **调节并保存**：预览画面，选择启动窗口模式，点击「保存设置」。
-3. **应用设置**：独立副本模式先退出 Codex，刷新状态并应用；Linux 使用原菜单入口，macOS / Windows 独立副本使用新建的 Codexflare 入口。macOS 原入口模式先应用，再用 Cmd+Q 完全退出并等待安装，之后从原图标启动。
+3. **应用设置**：Linux / macOS 独立副本模式先退出 Codex，刷新状态并应用；Linux 使用原菜单入口，macOS 独立副本使用新建的 Codexflare 入口。macOS 原入口模式先应用，再用 Cmd+Q 完全退出并等待安装，之后从原图标启动。Windows 可在原版运行时应用设置，正常退出应用后从开始菜单 **Codex (Codexflare)** 启动。
 
-保存后需要重新应用，才能更新启动副本。开场视频不能保证覆盖所有网络与初始化等待。
+保存后需要重新应用，下次冷启动才会使用新设置。Windows 原 Store / 固定图标仍按普通方式启动。开场视频不能保证覆盖所有网络与初始化等待。
 
-**macOS / Windows 的独立副本使用独立登录数据，可能需要重新登录。** macOS 原入口模式保留默认配置路径。macOS 修改后的应用采用 ad-hoc 签名，Windows 副本的厂商签名失效，部分原生服务或签名策略可能限制使用；独立副本说明见[平台指南](docs/guide.zh-CN.md)，原入口说明见上文。
+**Windows 直接增强现有标准版，不安装第二份应用。** 启动器保留原 MSIX 包身份、默认数据路径及官方文件签名；源码与 Python 环境需保留，启动器随应用运行。真实账户冷启动及麦克风、摄像头、通知仍需另验，见 [Windows 指南](WINDOWS.md)。macOS 独立副本使用独立登录数据，原入口模式保留默认配置路径；两种模式修改后的应用均使用 ad-hoc 签名，仍可能需要重新登录，部分原生服务可能受限。详见[平台指南](docs/guide.zh-CN.md)及上文原入口说明。
 
 ## 文档与许可
 

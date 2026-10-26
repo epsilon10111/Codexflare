@@ -11,6 +11,21 @@ from unittest.mock import patch
 from tools import manage
 
 
+class ManageCommandTests(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == 'win32', 'Windows windowless launcher')
+    def test_pythonw_launch_error_is_visible(self):
+        import ctypes
+        with patch.object(sys, 'argv', ['manage.py', 'launch']), \
+                patch.object(sys, 'stderr', None), \
+                patch.object(manage, 'platform_manager') as manager, \
+                patch.object(ctypes.windll.user32, 'MessageBoxW') as message:
+            manager.return_value.launch.side_effect = RuntimeError('请正常退出原版')
+            with self.assertRaises(SystemExit) as error:
+                manage.main()
+            self.assertEqual(error.exception.code, 1)
+            message.assert_called_once_with(None, '请正常退出原版', 'Codexflare', 0x10)
+
+
 @unittest.skipIf(sys.platform == 'win32', 'Linux desktop entries and POSIX permissions')
 class ManageTests(unittest.TestCase):
     def setUp(self):

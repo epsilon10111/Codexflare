@@ -38,6 +38,45 @@ def validate_settings(data):
     return settings
 
 
+def validate_pixels(compressed, width, height, depth, color, interlace):
+    # shortcut: palette indices and ancillary/APNG payloads are not decoded; use a full decoder if required.
+    channels = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}[color]
+    passes = ((0, 0, 1, 1),) if not interlace else (
+        (0, 0, 8, 8), (4, 0, 8, 8), (0, 4, 4, 8), (2, 0, 4, 4),
+        (0, 2, 2, 4), (1, 0, 2, 2), (0, 1, 1, 2))
+    rows = []
+    for x, y, dx, dy in passes:
+        columns, lines = (width - x + dx - 1) // dx, (height - y + dy - 1) // dy
+        if columns > 0 and lines > 0:
+            rows.extend([1 + (columns * channels * depth + 7) // 8] * lines)
+    rows = iter(rows)
+    decoder, remaining = zlib.decompressobj(), 0
+    try:
+        for start in range(0, len(compressed), 65536):
+            pending = compressed[start:start + 65536]
+            while True:
+                # Bound both compressed input and output even for highly compressible images.
+                raw = decoder.decompress(pending, 65536)
+                if decoder.unused_data:
+                    raise ValueError('背景 PNG 像素流包含多余数据')
+                offset = 0
+                while offset < len(raw):
+                    if not remaining:
+                        remaining = next(rows, 0)
+                        if not remaining or raw[offset] > 4:
+                            raise ValueError('背景 PNG 像素长度或过滤器无效')
+                    consumed = min(remaining, len(raw) - offset)
+                    remaining -= consumed
+                    offset += consumed
+                pending = decoder.unconsumed_tail
+                if not pending and len(raw) < 65536:
+                    break
+    except zlib.error as error:
+        raise ValueError('背景 PNG 像素数据无法解压') from error
+    if not decoder.eof or remaining or next(rows, None) is not None:
+        raise ValueError('背景 PNG 像素数据不完整')
+
+
 def validate_png(data):
     if len(data) > MAX_UPLOAD:
         raise ValueError('背景 PNG 不能超过 40 MiB')
@@ -49,7 +88,9 @@ def validate_png(data):
         raise ValueError('背景 PNG 每边不能超过 8192 像素，总计不能超过 6400 万像素')
     if depth not in depths.get(color, ()) or compression or filtering or interlace not in (0, 1):
         raise ValueError('背景 PNG 的 IHDR 无效')
-    offset, has_data = 8, False
+    offset, has_palette, has_data, data_ended = 8, False, False, False
+    compressed = bytearray()
+    view = memoryview(data)
     while offset + 12 <= len(data):
         size = struct.unpack_from('>I', data, offset)[0]
         end = offset + 12 + size
@@ -58,10 +99,22 @@ def validate_png(data):
             raise ValueError('背景 PNG 数据损坏或被截断')
         if kind == b'IHDR' and offset != 8:
             raise ValueError('背景 PNG 包含重复 IHDR')
-        has_data |= kind == b'IDAT' and size > 0
+        if kind == b'PLTE':
+            if (has_palette or has_data or color in (0, 4) or not 0 < size <= 768
+                    or size % 3 or (color == 3 and size // 3 > 2 ** depth)):
+                raise ValueError('背景 PNG 调色板无效')
+            has_palette = True
+        if kind == b'IDAT':
+            if data_ended or (color == 3 and not has_palette):
+                raise ValueError('背景 PNG 图片数据顺序或调色板无效')
+            has_data = True
+            compressed.extend(view[offset + 8:end - 4])
+        elif has_data:
+            data_ended = True
         if kind == b'IEND':
             if size or not has_data or end != len(data):
                 raise ValueError('背景 PNG 结尾无效')
+            validate_pixels(compressed, width, height, depth, color, interlace)
             return {'width': width, 'height': height, 'size': len(data),
                     'sha256': hashlib.sha256(data).hexdigest()}
         offset = end

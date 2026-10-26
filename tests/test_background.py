@@ -11,9 +11,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 import background
 
 
+def chunk(kind, data):
+    return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
+
+
 def png(width, height, *, depth=8):
-    def chunk(kind, data):
-        return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
     pixel = bytes((100, 150, 200, 73)) if depth == 8 else struct.pack('>4H', 10000, 20000, 30000, 16384)
     return (b'\x89PNG\r\n\x1a\n'
             + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, depth, 6, 0, 0, 0))
@@ -22,6 +24,61 @@ def png(width, height, *, depth=8):
 
 
 class BackgroundPreparationTests(unittest.TestCase):
+    def test_corrupt_pixel_streams_fail_even_with_valid_chunk_crcs(self):
+        header = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 1, 1, 8, 6, 0, 0, 0))
+        valid = zlib.compress(b'\0\xff\xff\xff\xff')
+        streams = [b'not-a-zlib-stream', valid[:-1], valid + b'extra', valid + valid,
+                   zlib.compress(b'\0\xff\xff\xff'), zlib.compress(b'\0' + b'\xff' * 5),
+                   zlib.compress(b'\x05\xff\xff\xff\xff'), zlib.compress(b'\0' * 1_000_000)]
+        for compressed in streams:
+            with self.subTest(compressed=compressed[:20]), self.assertRaisesRegex(ValueError, '像素'):
+                background.validate_png(header + chunk(b'IDAT', compressed) + chunk(b'IEND', b''))
+
+    def test_color_depths_and_adam7_scanlines_accept_valid_streams(self):
+        for color, depths, channels in ((0, (1, 2, 4, 8, 16), 1), (2, (8, 16), 3),
+                                        (3, (1, 2, 4, 8), 1), (4, (8, 16), 2), (6, (8, 16), 4)):
+            for depth in depths:
+                for interlace in (0, 1):
+                    # Explicit Adam7 pass dimensions for a 9x9 image.
+                    passes = ((9, 9),) if not interlace else ((2, 2), (1, 2), (3, 1), (2, 3),
+                                                            (5, 2), (4, 5), (9, 4))
+                    rows = b''.join((bytes((line % 5,)) + bytes((width * channels * depth + 7) // 8))
+                                    for width, height in passes for line in range(height))
+                    data = (b'\x89PNG\r\n\x1a\n'
+                            + chunk(b'IHDR', struct.pack('>IIBBBBB', 9, 9, depth, color, 0, 0, interlace)))
+                    if color == 3:
+                        data += chunk(b'PLTE', b'\0\0\0') + chunk(b'tRNS', b'\xff')
+                    compressed = zlib.compress(rows)
+                    # Chunk boundaries may split zlib headers, scanlines and checksums.
+                    data += chunk(b'IDAT', b'') + b''.join(chunk(b'IDAT', bytes((byte,))) for byte in compressed)
+                    data += chunk(b'IEND', b'')
+                    with self.subTest(color=color, depth=depth, interlace=interlace):
+                        info = background.validate_png(data)
+                        self.assertEqual((info['width'], info['height']), (9, 9))
+
+    def test_small_adam7_images_skip_empty_passes(self):
+        for width, height, raw in ((1, 1, b'\0\0'), (1, 2, b'\0\0\0\0'), (2, 1, b'\0\0\0\0')):
+            data = (b'\x89PNG\r\n\x1a\n'
+                    + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 1, 0, 0, 0, 1))
+                    + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b''))
+            with self.subTest(size=(width, height)):
+                self.assertEqual(background.validate_png(data)['width'], width)
+
+    def test_indexed_images_require_valid_palette_before_image_data(self):
+        header = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 1, 1, 1, 3, 0, 0, 0))
+        image = chunk(b'IDAT', zlib.compress(b'\0\0'))
+        palette = chunk(b'PLTE', b'\0\0\0')
+        for body in (image, image + palette, palette * 2 + image,
+                     chunk(b'PLTE', b'\0') + image, chunk(b'PLTE', b'\0' * 9) + image,
+                     palette + image + chunk(b'tEXt', b'key\0value') + chunk(b'IDAT', b'')):
+            with self.subTest(body=body[:20]), self.assertRaises(ValueError):
+                background.validate_png(header + body + chunk(b'IEND', b''))
+
+    def test_pixel_decompression_is_bounded_and_crosses_block_boundaries(self):
+        real_decoder = zlib.decompressobj()
+        with patch.object(background.zlib, 'decompressobj', return_value=MockDecoder(real_decoder)):
+            self.assertEqual(background.validate_png(png(8192, 5, depth=16))['height'], 5)
+
     def test_small_images_and_exact_bounds_remain_unchanged(self):
         for width, height in ((1, 1), (3840, 2160), (3840, 1), (1, 2160)):
             data = png(width, height)
@@ -89,6 +146,19 @@ class BackgroundPreparationTests(unittest.TestCase):
                 ], input=prepared, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, timeout=30)
                 values = result.stdout if depth == 8 else struct.unpack(f'>{len(result.stdout) // 2}H', result.stdout)
                 self.assertEqual(set(values[3::4]), {alpha})
+
+
+class MockDecoder:
+    def __init__(self, decoder):
+        self.decoder = decoder
+
+    def decompress(self, data, max_length):
+        assert len(data) <= 65536
+        assert 0 < max_length <= 65536
+        return self.decoder.decompress(data, max_length)
+
+    def __getattr__(self, name):
+        return getattr(self.decoder, name)
 
 
 if __name__ == '__main__':

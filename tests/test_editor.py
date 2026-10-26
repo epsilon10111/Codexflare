@@ -4,11 +4,13 @@ import json
 from pathlib import Path
 import shutil
 import stat
+import struct
 import subprocess
 import sys
 import tempfile
 import threading
 import unittest
+import zlib
 from unittest.mock import patch, MagicMock
 
 from tools import animation, background, editor
@@ -78,6 +80,18 @@ class EditorTests(unittest.TestCase):
         self.assertFalse(state['settings']['muted'])
         self.assertEqual(state['settings']['background']['image'], 'default2')
 
+    def test_install_accepts_compatible_structure_and_rejects_changed_structure_before_saving(self):
+        with patch.object(editor.manage, 'running_pids', return_value=[]), \
+                patch.object(editor.manage, 'check_compatibility', return_value={'version': 'future'}) as compatibility, \
+                patch.object(editor.manage, 'install') as install:
+            self.assertEqual(self.request('POST', '/api/install', {'speed': 1.5})[0], 200)
+            install.assert_called_once_with()
+            before = animation.SETTINGS.read_bytes()
+            compatibility.side_effect = ValueError('不兼容的窗口结构')
+            self.assertEqual(self.request('POST', '/api/install', {'speed': 2})[0], 400)
+            self.assertEqual(animation.SETTINGS.read_bytes(), before)
+            install.assert_called_once_with()
+
     def test_background_upload_preview_save_and_install(self):
         animation.save_settings({'speed': 0.75})
         before = animation.SETTINGS.read_bytes()
@@ -121,6 +135,11 @@ class EditorTests(unittest.TestCase):
         self.assertEqual(self.request('GET', '/background/../../README.md')[0], 400)
         self.assertEqual(self.request('POST', '/api/settings', {'background': {'image': 'a' * 64}})[0], 400)
         self.assertEqual(animation.SETTINGS.read_bytes(), before)
+        self.assertFalse((self.local / 'backgrounds').exists())
+        compressed = b'not-a-zlib-stream'
+        chunk = b'IDAT' + compressed
+        invalid_pixels = PNG[:33] + struct.pack('>I', len(compressed)) + chunk + struct.pack('>I', zlib.crc32(chunk)) + PNG[-12:]
+        self.assertEqual(self.request('POST', '/api/background/upload', invalid_pixels)[0], 400)
         self.assertFalse((self.local / 'backgrounds').exists())
         (self.local / 'background.png').write_bytes(b'broken')
         _, state, _ = self.request('GET', '/api/state')
@@ -345,6 +364,26 @@ class EditorTests(unittest.TestCase):
 
 
 class EditorRoutingTests(unittest.TestCase):
+    def test_windows_status_distinguishes_its_launcher_from_macos_original_entry(self):
+        manager = MagicMock()
+        manager.read_state.return_value = {'active': True, 'installed_desktop': {'sha256': 'shortcut'}}
+        manager.runtime_problem.return_value = None
+        manager.desktop_snapshot.return_value = {'sha256': 'shortcut'}
+        manager.running_pids.return_value = []
+        manager.LAUNCH_HINT = '从开始菜单 Codex (Codexflare) 启动'
+        with patch.object(editor.sys, 'platform', 'win32'), patch.object(editor, 'manage', manager):
+            status = editor.installation_status()
+            self.assertEqual(status['mode'], 'windows-original')
+            self.assertTrue(status['active'])
+            self.assertTrue(status['available'])
+            self.assertIn(manager.LAUNCH_HINT, status['message'])
+            manager.check_compatibility.assert_called_once_with()
+            manager.check_compatibility.side_effect = ValueError('结构不兼容')
+            status = editor.installation_status()
+            self.assertEqual(status['mode'], 'windows-original')
+            self.assertFalse(status['available'])
+            self.assertIn('结构不兼容', status['message'])
+
     def test_original_mode_requires_macos_and_explicit_marker(self):
         with tempfile.TemporaryDirectory() as directory, \
                 patch.object(animation, 'LOCAL', Path(directory)):

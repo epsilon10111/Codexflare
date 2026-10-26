@@ -56,11 +56,11 @@ Run `python tools/manage.py check` for a read-only compatibility check. Publishe
 | Linux x86_64 | `26.1002.52244 / 13536` | [RPM](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.0/codexflare-0.1.0-1.noarch.rpm) · [DEB](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.0/codexflare_0.1.0-1_all.deb) |
 | macOS Apple Silicon | `26.1021.31345 / 21828` | [Run from main source](docs/guide.en.md#macos) |
 | macOS Apple Silicon | `26.1013.31256 / 20586` | [v0.1.1 DMG](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.1/Codexflare-0.1.1-macOS-arm64-build20586.dmg) · [Run from main source](docs/guide.en.md#macos) |
-| Windows x64 | `26.1002.52244 / 13536` | [Run from source](docs/guide.en.md#windows) |
+| Windows x64 | `26.1021.31345 / 21828` | [Run from source](docs/guide.en.md#windows) |
 
 **The published v0.1.1 DMG supports build 20586 only** and was validated on macOS 26.6.2. The main source retains build 21828 and adds 20586. Integration into main does not expand the compatibility of that DMG; published tags and assets remain unchanged. The macOS source app is usually `/Applications/ChatGPT.app` or `/Applications/Codex.app`.
 
-Linux expects Codex at `/usr/lib/chatgpt`; Windows targets MSIX `26.1002.7124.0`. The RPM targets Fedora, and the DEB targets Debian 12+ / Ubuntu 24.04+.
+Linux expects Codex at `/usr/lib/chatgpt`; this Windows validation used MSIX `26.1021.3705.0`. The older `26.1002.52244 / 13536` is a historical reference and has not been retested with the new launcher. The RPM targets Fedora, and the DEB targets Debian 12+ / Ubuntu 24.04+.
 
 <details>
 <summary><strong>Quick install on Linux</strong></summary>
@@ -117,11 +117,11 @@ The second command waits for the target app to quit normally. Later saves, appli
 
 1. **Choose your media.** Pick a bundled video and background, or import your own files.
 2. **Adjust and save.** Preview the result, choose a window mode, then click Save settings (保存设置).
-3. **Apply your settings.** For an independent copy, quit Codex, refresh its status and apply. On Linux, use the original menu entry; for macOS and Windows independent copies, use the new Codexflare entry. In macOS original-entry mode, apply first, fully quit with Cmd+Q and wait for installation, then launch from the original icon.
+3. **Apply your settings.** For a Linux or macOS independent copy, quit Codex, refresh its status and apply. On Linux, use the original menu entry; for a macOS independent copy, use the new Codexflare entry. In macOS original-entry mode, apply first, fully quit with Cmd+Q and wait for installation, then launch from the original icon. Windows can apply settings while the original app is running; quit normally, then launch **Codex (Codexflare)** from the Start menu.
 
-Reapply after saving to update the customized copy. A startup video cannot guarantee that all network and initialization delays are hidden.
+Reapply after saving; new settings take effect on the next cold start. The original Windows Store or pinned icon still starts the ordinary app. A startup video cannot guarantee that all network and initialization delays are hidden.
 
-**Independent copies on macOS and Windows use separate login data, so you may need to sign in again.** macOS original-entry mode retains the default configuration path. Modified macOS apps use ad-hoc signatures; the Windows copy loses its vendor signature. Some native services or signature policies may restrict use. See the [platform guide](docs/guide.en.md) for independent copies, and the section above for original-entry mode.
+**Windows enhances the existing standard app without a second installation.** The launcher preserves its MSIX package identity, default data paths and signed application files. Keep the source and Python environment in place, and keep the helper running with the app. Real-account cold starts, microphone, camera and notifications still need separate validation; see the [Windows guide (Chinese)](WINDOWS.md). macOS independent copies use separate login data; original-entry mode retains the default configuration path. Both macOS modes use ad-hoc signatures for the modified app, so another login may be needed and some native services may be restricted. See the [platform guide](docs/guide.en.md) and original-entry section above.
 
 ## Documentation and licensing
 

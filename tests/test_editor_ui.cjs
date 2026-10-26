@@ -375,6 +375,30 @@ test('焦点刷新失败可重试且保留当前可用界面和草稿', async ()
   assert.equal(nodes.speed.value, '1.8');
 });
 
+test('Windows 原版增强使用独立入口提示，不冒充 macOS 原图标模式', async () => {
+  const installation = { mode: 'windows-original', active: true, available: true, running: false };
+  const { nodes, requests } = await setup({
+    state: { installation },
+    write: (url, request) => url === '/api/uninstall'
+      ? { installation: { ...installation, active: false } }
+      : { settings: JSON.parse(request.body), installation },
+  });
+  assert.equal(nodes['installation-heading'].textContent, '增强启动入口已启用');
+  assert.equal(nodes['install-label'].textContent, '应用到 Codex');
+  assert.equal(nodes.restore.textContent, '停用增强入口');
+  assert.match(nodes['apply-hint'].textContent, /Codex \(Codexflare\)/);
+  assert.doesNotMatch(nodes['apply-hint'].textContent, /原图标/);
+  nodes.install.click();
+  await flush();
+  assert.equal(requests.at(-1).url, '/api/install');
+  assert.match(nodes.notice.textContent, /下次从增强入口/);
+  nodes.restore.click();
+  await flush();
+  assert.equal(requests.at(-1).url, '/api/uninstall');
+  assert.equal(nodes['installation-heading'].textContent, '使用原版启动入口');
+  assert.match(nodes.notice.textContent, /正常退出后结束/);
+});
+
 test('原图标模式允许运行中的 ChatGPT 准备更新，待退出状态不冒充已应用', async () => {
   const pending = {
     mode: 'original', phase: 'queued', active: false, available: true, running: true,

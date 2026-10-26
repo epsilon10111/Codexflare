@@ -46,6 +46,7 @@ def original_manager():
 
 
 def installation_status():
+    mode = 'windows-original' if sys.platform == 'win32' else 'copy'
     try:
         original = original_manager()
         if original is not None:
@@ -61,9 +62,9 @@ def installation_status():
             message += '；' + manage.LAUNCH_HINT
         if running:
             message = '定制版 Codex 正在运行；退出定制版后返回本窗口，再点击应用。预览和保存不受影响'
-        return {'active': active, 'available': True, 'running': running, 'message': message}
+        return {'mode': mode, 'active': active, 'available': True, 'running': running, 'message': message}
     except (OSError, ValueError, KeyError, struct.error, subprocess.SubprocessError) as error:
-        return {'active': False, 'available': False, 'running': False,
+        return {'mode': mode, 'active': False, 'available': False, 'running': False,
                 'message': f'当前无法应用，仍可预览和保存：{error}'}
 
 
@@ -348,7 +349,8 @@ class EditorHandler(BaseHTTPRequestHandler):
                 else:
                     manage.uninstall()
                     status = installation_status()
-                    message = '已恢复原版入口；未停止当前会话'
+                    message = ('已停用增强入口；未停止当前会话。当前窗口效果会在正常退出后结束'
+                               if sys.platform == 'win32' else '已恢复原版入口；未停止当前会话')
                 self.reply(200, {'message': message, 'installation': status})
                 return
             settings = animation.validate_settings(data)

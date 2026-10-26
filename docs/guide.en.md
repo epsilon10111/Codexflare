@@ -10,9 +10,9 @@ Codexflare is an unofficial local appearance editor. It does not include Codex, 
 | --- | --- | --- |
 | Linux x86_64 | `26.1002.52244 / 13536` | `/usr/lib/chatgpt` |
 | macOS arm64 | `26.1021.31345 / 21828`, `26.1013.31256 / 20586` | `/Applications/Codex.app` or `/Applications/ChatGPT.app` |
-| Windows x64 | `26.1002.52244 / 13536` | Microsoft Store / MSIX `26.1002.7124.0` |
+| Windows x64 | `26.1021.31345 / 21828` | Microsoft Store / MSIX `26.1021.3705.0` |
 
-**The v0.1.0 RPM and DEB are Linux packages; the v0.1.1 DMG supports macOS build 20586 only.** Current `main` source supports both macOS builds above and Windows. Integration into main does not add build 21828 support to the published DMG. Allow approximately 1.6 GB for a Linux / macOS copy or 2–3 GB for Windows, plus temporary space during updates. macOS original-entry mode also keeps a full official backup and prepared candidate. Published packages retain their original version restrictions. Run `python tools/manage.py check` (use `.venv/bin/python` on macOS) for a read-only check. Resource hashes, minified bindings and CSS-module hashes are discovered automatically; missing or ambiguous window/background structures stop application. Structural checks do not replace native validation. After an official update, check and reapply; original-entry backup and source-change protections remain in place.
+**The v0.1.0 RPM and DEB are Linux packages; the v0.1.1 DMG supports macOS build 20586 only.** Current `main` source supports both macOS builds above and Windows. Integration into main does not add build 21828 support to the published DMG. Allow approximately 1.6 GB for a Linux / macOS copy, plus temporary space during updates. macOS original-entry mode also keeps a full official backup and prepared candidate. Windows creates only a shortcut to launch the installed standard app, without copying it. The older `26.1002.52244 / 13536` (MSIX `26.1002.7124.0`) is a historical reference and has not been retested natively with the new launcher. Published packages retain their original version restrictions. Run `python tools/manage.py check` (use `.venv/bin/python` on macOS) for a read-only check. Resource hashes, minified bindings and CSS-module hashes are discovered automatically; missing or ambiguous window/background structures stop application. Structural checks do not replace native validation. After an official update, check and reapply; original-entry backup and source-change protections remain in place.
 
 <a id="linux"></a>
 
@@ -123,11 +123,11 @@ pywebview uses WebView2 exclusively, without an IE fallback. Keep the source dir
 ## Select, save, and apply
 
 1. Choose a video under **开场动画** (Startup animation), select or upload a PNG under **常驻背景** (Background), then adjust the preview and startup window mode.
-2. Click **保存设置** (Save settings). Saving updates configuration; **apply again to rebuild an installed copy**.
-3. For an independent copy, quit the customized Codex normally, then click **刷新状态** (Refresh status) and **应用到 Codex** (Apply to Codex) in Codexflare. On Linux, fully quit the original app before the first application too; closing its window may leave a tray process running. In macOS original-entry mode, click Apply to ChatGPT first, wait for preparation, then fully quit with Cmd+Q and wait for installation.
-4. Use the original entry on Linux or in macOS original-entry mode, `~/Applications/Codexflare Codex.app` for a macOS independent copy, or **Codex (Codexflare)** in the Windows Start menu.
+2. Click **保存设置** (Save settings). Saving updates configuration; **apply again so the next cold start uses the new settings**.
+3. For a Linux or macOS independent copy, quit the customized Codex normally, then click **刷新状态** (Refresh status) and **应用到 Codex** (Apply to Codex) in Codexflare. On Linux, fully quit the original app before the first application too. In macOS original-entry mode, click Apply to ChatGPT first, wait for preparation, then fully quit with Cmd+Q and wait for installation. Windows can apply settings while the original app is running.
+4. Quit the current app normally, including any remaining tray process, then use the original entry on Linux or in macOS original-entry mode, `~/Applications/Codexflare Codex.app` for a macOS independent copy, or **Codex (Codexflare)** in the Windows Start menu. The original Windows Store or pinned icon still opens the standard app without enhancements.
 
-The tool does not terminate active sessions. The animation runs on a cold start; activating an existing instance neither replays it nor changes its window mode. The workspace loads during playback. If initialization continues after the video, the last frame remains for up to 20 seconds. Esc, playback failure, or timeout releases the overlay. Slow network or backend startup can still cause a wait.
+The tool does not terminate active sessions. The Windows enhancement launcher refuses a duplicate launch while the original app is running. The animation runs on a cold start; activating an existing instance neither replays it nor changes its window mode. The workspace loads during playback. If initialization continues after the video, the last frame remains for up to 20 seconds. Esc, playback failure, or timeout releases the overlay. Slow network or backend startup can still cause a wait.
 
 <a id="settings"></a>
 
@@ -142,9 +142,11 @@ The tool does not terminate active sessions. The animation runs on a cold start;
 
 Video imports are limited to **100 MiB / 30 seconds**. Importing requires `ffmpeg`, `ffprobe`, and the `libvpx-vp9` / `libopus` encoders on PATH. Recommended packages are `ffmpeg-free` on Fedora and `ffmpeg` on Debian / Ubuntu; available codecs depend on the distribution. Ubuntu provides FFmpeg in the `universe` repository. Imports become VP9 WebM at up to 1920×1080 and 30 fps, with Opus audio when present. Originals are unchanged; silent source files remain silent. Bundled video plays without transcoding.
 
-Backgrounds accept **PNG only: up to 40 MiB, 8192 pixels per side, and 64 million pixels total**. Both `default1.png` and `default2.png` are bundled; the first is selected by default. When applying, FFmpeg can fit large images within 3840×2160 in the runtime copy, preserving the original and transparency. Without FFmpeg, the original dimensions are used.
+Backgrounds accept **PNG only: up to 40 MiB, 8192 pixels per side, and 64 million pixels total**. Both `default1.png` and `default2.png` are bundled; the first is selected by default. When applying, FFmpeg can fit a display copy of large images within 3840×2160, preserving the original and transparency. Without FFmpeg, the original dimensions are used.
 
 Background blending suits line art on black: dark themes use screen blending, while light themes invert and blend the image. Ordinary photographs may look different. Narrow windows fade the background further. Reduced transparency or high contrast hides it; reduced motion skips the animation. Disable the background and apply again to remove it. Tiling window managers may override centered or restored dimensions.
+
+On Windows, restore mode leaves window management to the original app; the current isolated login page sets its own dimensions. Fullscreen starts after the workspace is ready, and reloading exits HTML fullscreen. Enhancements apply only to a cold start at the main window's root route, excluding deep links and auxiliary windows. See the [Windows guide (Chinese)](../WINDOWS.md) for the full limits.
 
 <a id="uninstall"></a>
 
@@ -156,16 +158,16 @@ Background blending suits line art on black: dark themes use screen blending, wh
 | macOS DMG | `$XDG_DATA_HOME/codexflare/`; defaults to `~/.local/share/codexflare/` if unset or not absolute |
 | Source on any platform | `.local/` inside the repository |
 
-`animation.json` stores settings; `media/` and `backgrounds/` store imports. Runtime copies use `runtime/` on Linux, `Codexflare Runtime.app` for macOS independent copies, and `runtime-windows/` on Windows. Source and package installations have separate data; remove an old independent launcher before switching, or restore the official app with the old editor when using original-entry mode. Settings and media are processed locally, without uploads.
+`animation.json` stores settings; `media/` and `backgrounds/` store imports. Runtime copies use `runtime/` on Linux and `Codexflare Runtime.app` for macOS independent copies. Windows stores applied settings, source and shortcut state in `install-windows.json`, without an application copy. Source and package installations have separate data; remove an old independent launcher before switching, or restore the official app with the old editor when using original-entry mode. Settings and media are processed locally, without uploads.
 
 ```bash
-codexflare-manage status      # Check the runtime and launcher
-codexflare-manage install     # Build a copy from saved settings and create its entry
+codexflare-manage status      # Check the source application and enhancement launcher
+codexflare-manage install     # Enable saved settings; Linux/macOS build a copy
 codexflare-manage launch      # Launch; fall back after the source application changes
 codexflare-manage uninstall   # Restore / remove the entry; keep user data
 ```
 
-These commands manage independent copies; macOS original-entry mode uses the editor or `tools/original_macos.py`. For source installations, replace `codexflare-manage` with `python3 tools/manage.py`; use `.venv/bin/python` on macOS or `.\.venv\Scripts\python.exe` on Windows. Management refuses to overwrite a running runtime or externally modified launcher. Uninstalling does not stop processes or delete settings, media, backups, or runtime copies.
+These commands manage Linux / macOS independent copies and the Windows enhancement launcher; macOS original-entry mode uses the editor or `tools/original_macos.py`. For source installations, replace `codexflare-manage` with `python3 tools/manage.py`; use `.venv/bin/python` on macOS or `.\.venv\Scripts\python.exe` on Windows. Management refuses to overwrite a running runtime or externally modified launcher. Uninstalling does not stop processes or delete settings, media, backups, or runtime copies.
 
 Linux changes only the user-level `chatgpt.desktop`, with a backup. It does not modify `/usr/lib/chatgpt`, system commands, or account data. Before removing a package, run `codexflare-manage uninstall`, followed by `sudo dnf remove codexflare` or `sudo apt remove codexflare`. If the package is removed first, the retained `launch.py` falls back to system Codex.
 
@@ -173,7 +175,9 @@ Linux changes only the user-level `chatgpt.desktop`, with a backup. It does not 
 
 **macOS original-entry mode retains the default configuration path, but not vendor signing identity.** Modified apps still use ad-hoc signatures and may require another login. Shared Keychain, notifications, computer control and other signature-dependent services may be unavailable; real-account behavior has not been validated. Before removal, restore the official app in the editor, quit the target normally and confirm completion, then delete Codexflare. Do not delete the only official backup or overwrite an updated source app with an old backup. Keep the source checkout in place while enabled.
 
-**Windows also uses separate account directories.** Data lives in `.local/profile-windows` / `.local/codex-home-windows` and requires a separate login. The original entry, WindowsApps, and protocol registration stay unchanged. Updating the copy's ASAR integrity resource in `ChatGPT.exe` invalidates its vendor signature; signature-enforcement policies may block the copy. The original signature remains intact. Override the source with `$env:CODEXFLARE_SOURCE_APP = 'D:\Apps\Codex\app'` or an MSIX root directory. Uninstalling removes only the protected separate shortcut. An interrupted update may require reinstalling the copy; the official entry remains usable.
+**Windows uses the installed standard app's package identity and original default data paths, without a second ChatGPT installation.** The original EXE, ASAR, vendor signature, WindowsApps and protocol registration stay unchanged. Appearance code uses private anonymous pipes, without a network debugging port. The default path creates no `runtime-windows/`, `profile-windows/` or `codex-home-windows/`. Keep the helper running with the app; do not terminate its Python process. Override the source with `$env:CODEXFLARE_SOURCE_APP = 'D:\Apps\Codex\app'` or an MSIX root directory belonging to a registered standard package. Uninstalling removes only the protected shortcut; current effects end when the app quits normally. Old copies and their separate data are not deleted automatically. After a source update, the launcher falls back to the unenhanced standard app until validation and application are repeated.
+
+Package-context launch retains identity, but its token is not guaranteed to match ordinary activation. Real-account cold starts, microphone, camera, notifications and related functions still need separate validation; see the [Windows guide (Chinese)](../WINDOWS.md).
 
 <a id="development"></a>
 

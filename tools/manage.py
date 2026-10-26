@@ -310,7 +310,10 @@ def main():
             print(json.dumps(platform_manager().check_compatibility(), ensure_ascii=False, indent=2))
         else:
             getattr(platform_manager(), args.command)()
-    except (OSError, ValueError, KeyError, struct.error, subprocess.CalledProcessError) as error:
+    except (OSError, ValueError, RuntimeError, KeyError, struct.error, subprocess.SubprocessError) as error:
+        if sys.platform == 'win32' and sys.stderr is None and args.command == 'launch':
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, str(error), 'Codexflare', 0x10)
         parser.exit(1, f'错误：{error}\n')
 
 
