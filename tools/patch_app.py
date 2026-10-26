@@ -183,28 +183,30 @@ def patch_html(text, *, background=False, preloads=STARTUP_PRELOADS):
 
 
 def patch_archive(source_asar, target_asar, *, platform='linux'):
+    if platform not in ('win32', 'darwin', 'linux'):
+        raise ValueError(f'不支持的平台: {platform}')
+    source = Asar(source_asar)
+    package = json.loads(source.read('package.json'))
+    background_patcher = None
     if platform == 'win32':
         if __package__:
             from . import patch_windows as build
         else:
             import patch_windows as build
+        build = build.select_build(package)
         version, main, preloads, patcher = build.VERSION, build.MAIN, build.STARTUP_PRELOADS, build.patch_main
+        background_patcher = build.patch_background_css
     elif platform == 'darwin':
         if __package__:
             from . import patch_macos as build
         else:
             import patch_macos as build
         version, main, preloads, patcher = build.VERSION, build.MAIN, build.STARTUP_PRELOADS, build.patch_main
+        background_patcher = build.patch_background_css
     elif platform == 'linux':
         version, main, preloads, patcher = VERSION, MAIN, STARTUP_PRELOADS, patch_main
-    else:
-        raise ValueError(f'不支持的平台: {platform}')
-    source = Asar(source_asar)
-    package = json.loads(source.read('package.json'))
     if package['name'] != 'openai-codex-electron' or package['version'] != version:
         raise ValueError(f'仅支持 Codex {version} ({platform})；当前 {package.get("version")}')
-    if platform == 'win32':
-        build.require_supported(package)
     for name in preloads:
         try:
             if not source.read(f'webview/assets/{name}'):
@@ -235,8 +237,8 @@ def patch_archive(source_asar, target_asar, *, platform='linux'):
                      f"--codex-bg-position: {background_settings['position']}%; "
                      f"--codex-bg-scale: {background_settings['scale']}%; }}\n")
         style = (ROOT / 'src/background.css').read_text(encoding='utf-8')
-        if platform == 'darwin':
-            style = build.patch_background_css(style, source)
+        if background_patcher is not None:
+            style = background_patcher(style, source)
         changes['webview/assets/codex-background.css'] = (variables + style).encode()
     source.write_changes(target_asar, changes)
     with Path(source_asar).open('rb') as f:

@@ -1,5 +1,4 @@
-"""Reversible Windows copy and separate Start Menu entry; never edits the MSIX app."""
-import base64
+"""Launch the installed Windows app with in-memory visuals; never copy or edit it."""
 import hashlib
 import json
 import os
@@ -11,34 +10,33 @@ import sys
 import tempfile
 
 if __package__:
+    from . import animation, windows_package
     from .manage import atomic_write, digest
     from .patch_app import Asar, patch_archive
-    from .patch_windows import VERSION, BUILD, require_supported
+    from .patch_windows import VERSION, BUILD, SUPPORTED_BUILDS, require_supported
     from .paths import LOCAL
 else:
+    import animation, windows_package
     from manage import atomic_write, digest
     from patch_app import Asar, patch_archive
-    from patch_windows import VERSION, BUILD, require_supported
+    from patch_windows import VERSION, BUILD, SUPPORTED_BUILDS, require_supported
     from paths import LOCAL
 
 
-def powershell(script, **values):
-    # Values travel as environment variables, never interpolated PowerShell source.
-    script = ("$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[Text.UTF8Encoding]::new(); try { "
-              + script + " } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }")
-    encoded = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
-    try:
-        return subprocess.check_output(
-            ['powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded],
-            env={**os.environ, **{key: str(value) for key, value in values.items()}},
-            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), stderr=subprocess.PIPE,
-            encoding='utf-8', timeout=30).strip()
-    except subprocess.CalledProcessError as error:
-        raise ValueError(f'Windows shell 操作失败：{error.stderr.strip()}') from error
+powershell = windows_package.powershell
 
 
 def find_source():
     override = os.environ.get('CODEXFLARE_SOURCE_APP')
+    if not override:
+        try:
+            state = read_state()
+            if state and state.get('custom_source') is True:
+                saved = state['source']['source']
+                if isinstance(saved, str) and Path(saved).is_absolute():
+                    override = saved
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
     if override:
         path = Path(override).expanduser().absolute()
         return path / 'app' if (path / 'app/resources/app.asar').is_file() else path
@@ -50,13 +48,14 @@ def find_source():
     return Path.home() / 'AppData/Local/Programs/Codex'
 
 
-SOURCE = find_source()
 RUNTIME = LOCAL / 'runtime-windows'
 STATE = LOCAL / 'install-windows.json'
 DESKTOP = Path(os.environ.get('APPDATA', Path.home() / 'AppData/Roaming')) / 'Microsoft/Windows/Start Menu/Programs/Codex (Codexflare).lnk'
 ASAR = Path('resources/app.asar')
 BINARY = 'ChatGPT.exe'
-LAUNCH_HINT = '请从开始菜单 Codex (Codexflare) 启动；原版 Codex 入口保持不变。'
+RUNTIME_FILES = (ASAR, Path(BINARY), Path('chrome.dll'), Path('owl-shell-runtime.json'))
+SUPPORTED_VERSIONS = tuple(version for version, _build in SUPPORTED_BUILDS)
+LAUNCH_HINT = '正常退出原版后，从开始菜单 Codex (Codexflare) 启动同一原版应用；原 Store 图标保持不变。'
 
 
 def fingerprint():
@@ -64,9 +63,12 @@ def fingerprint():
     if package.get('name') != 'openai-codex-electron':
         raise ValueError('来源不是 Codex 应用')
     require_supported(package)
+    runtime = json.loads((SOURCE / 'owl-shell-runtime.json').read_text(encoding='utf-8'))
+    if runtime.get('platform') != 'win32' or runtime.get('arch') != 'x64':
+        raise ValueError('仅支持 Windows x64 Owl 运行时')
     result = {'version': package['version'], 'build': package.get('codexBuildNumber'),
               'source': str(SOURCE.resolve())}
-    for relative in (ASAR, Path(BINARY), Path('chrome.dll'), Path('owl-shell-runtime.json')):
+    for relative in RUNTIME_FILES:
         info = (SOURCE / relative).stat()
         result[str(relative)] = [info.st_size, info.st_mtime_ns, info.st_ctime_ns]
     return result
@@ -80,6 +82,9 @@ def read_state():
             or state.get('desktop') != str(DESKTOP)):
         raise ValueError('无效的 Windows 安装状态或启动器路径')
     return state
+
+
+SOURCE = find_source()
 
 
 def save_state(state):
@@ -110,14 +115,19 @@ def require_stopped():
         raise ValueError(f'定制副本仍在运行（PID {pids}）；请先正常退出')
 
 
+def source_running_pids():
+    output = powershell(
+        "Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and "
+        "[String]::Equals($_.ExecutablePath, $env:CODEXFLARE_SOURCE_EXE, [StringComparison]::OrdinalIgnoreCase) } | "
+        "Select-Object -ExpandProperty ProcessId", CODEXFLARE_SOURCE_EXE=str((SOURCE / BINARY).resolve()))
+    return [int(line) for line in output.splitlines() if line.strip()]
+
+
 def build_runtime(destination):
     destination = Path(destination)
     if destination.exists() or SOURCE.resolve() in destination.resolve().parents:
         raise ValueError('构建目标已存在或位于原版应用内')
     before = fingerprint()
-    runtime = json.loads((SOURCE / 'owl-shell-runtime.json').read_text(encoding='utf-8'))
-    if runtime.get('platform') != 'win32' or runtime.get('arch') != 'x64':
-        raise ValueError('仅支持 Windows x64 Owl 运行时')
     shutil.copytree(SOURCE, destination)
     patched = destination / 'resources/app.patched.asar'
     metadata = patch_archive(SOURCE / ASAR, patched, platform='win32')
@@ -147,21 +157,6 @@ def update_integrity(binary, previous, current):
     if len(replacement) != len(record):
         raise ValueError('Windows ASAR integrity 长度不匹配')
     Path(binary).write_bytes(data.replace(record, replacement, 1))
-
-
-def swap_runtime(staged):
-    if RUNTIME.is_symlink() or RUNTIME.is_junction():
-        raise ValueError('运行副本不能是链接或目录联接')
-    previous = staged.parent / 'previous'
-    if RUNTIME.exists():
-        os.replace(RUNTIME, previous)
-    try:
-        os.replace(staged, RUNTIME)
-    except OSError:
-        if previous.exists():
-            os.replace(previous, RUNTIME)
-        raise
-    # shortcut: Windows cannot atomically exchange directories; interruption falls back to the official app.
 
 
 def make_launcher(path):
@@ -196,7 +191,7 @@ def make_launcher(path):
         for index, value in ((20, str(python)), (11, arguments), (9, str(LOCAL.parent)),
                              (7, 'Codex with Codexflare')):
             method(link, index, ctypes.HRESULT, ctypes.c_wchar_p)(link, value)
-        method(link, 17, ctypes.HRESULT, ctypes.c_wchar_p, ctypes.c_int)(link, str(RUNTIME / BINARY), 0)
+        method(link, 17, ctypes.HRESULT, ctypes.c_wchar_p, ctypes.c_int)(link, str(SOURCE / BINARY), 0)
         method(link, 0, ctypes.HRESULT, ctypes.c_void_p, ctypes.POINTER(ctypes.c_void_p))(
             link, guid('0000010b-0000-0000-c000-000000000046'), ctypes.byref(persist))
         method(persist, 6, ctypes.HRESULT, ctypes.c_wchar_p, ctypes.c_int)(persist, str(path), 1)
@@ -208,26 +203,61 @@ def make_launcher(path):
 
 
 def install():
+    if __package__:
+        from . import windows_inject
+    else:
+        import windows_inject
+
     state, current = read_state(), desktop_snapshot()
     if current is not None and (not state or not state.get('active') or current != state.get('installed_desktop')):
         raise ValueError('启动器已存在或已被其他操作修改；拒绝覆盖')
     require_stopped()
+    before = fingerprint()
+    windows_package.registered_package(SOURCE)
+    settings = animation.load_settings()
+    windows_inject.prepare_script(SOURCE, settings, LOCAL)
     LOCAL.mkdir(parents=True, exist_ok=True)
     DESKTOP.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix='windows-build-', dir=LOCAL) as directory:
-        staged = Path(directory) / 'runtime'
-        before, metadata = build_runtime(staged)
-        launcher = Path(directory) / 'launcher.lnk'
+    directory = Path(tempfile.mkdtemp(prefix='windows-launcher-', dir=LOCAL))
+    cleanup = True
+    try:
+        launcher = directory / 'launcher.lnk'
         make_launcher(launcher)
         content = launcher.read_bytes()
         require_stopped()
+        if fingerprint() != before:
+            raise ValueError('准备期间原版应用发生变化，未启用启动器')
         if desktop_snapshot() != current:
-            raise ValueError('构建期间启动器发生变化，拒绝覆盖')
-        swap_runtime(staged)
-        save_state({'schema': 1, 'platform': 'win32', 'desktop': str(DESKTOP), 'active': True,
-                    'source': before, 'patch': metadata, 'installed_desktop': {'sha256': digest(content)}})
-        atomic_write(DESKTOP, content)
-    print(f'已安装定制副本：{RUNTIME}\n请从开始菜单 Codex (Codexflare) 启动。')
+            raise ValueError('准备期间启动器发生变化，拒绝覆盖')
+        previous_desktop = DESKTOP.read_bytes() if current is not None else None
+        if previous_desktop is not None:
+            (directory / 'previous.lnk').write_bytes(previous_desktop)
+        installed_desktop = {'sha256': digest(content)}
+        cleanup = False  # Keep the prior shortcut if rollback fails or the process is interrupted.
+        try:
+            atomic_write(DESKTOP, content)
+            save_state({'schema': 1, 'platform': 'win32', 'desktop': str(DESKTOP), 'active': True,
+                        'mode': 'original', 'settings': settings,
+                        'source': before, 'custom_source': bool(os.environ.get('CODEXFLARE_SOURCE_APP')
+                            or (state and state.get('custom_source'))),
+                        'installed_desktop': installed_desktop})
+        except Exception:
+            try:
+                if desktop_snapshot() == installed_desktop:
+                    if previous_desktop is None:
+                        DESKTOP.unlink()
+                    elif previous_desktop != content:
+                        atomic_write(DESKTOP, previous_desktop)
+            except Exception as error:
+                error.add_note(f'安装恢复目录：{directory}')
+                raise
+            cleanup = True
+            raise
+        cleanup = True
+    finally:
+        if cleanup:
+            shutil.rmtree(directory)
+    print(f'已启用原版应用启动器：{DESKTOP}\n未创建应用副本或独立账户目录。\n{LAUNCH_HINT}')
 
 
 def uninstall():
@@ -242,17 +272,23 @@ def uninstall():
         DESKTOP.unlink()
     state['active'] = False
     save_state(state)
-    print('已移除 Codexflare 启动器；保留配置、素材和副本，未停止任何进程。')
+    print('已移除 Codexflare 启动器；保留配置和素材，未修改原版或停止任何进程。')
 
 
 def runtime_problem(state):
     if not state or not state.get('active'):
         return '尚未安装或已回退'
-    if not all((RUNTIME / path).is_file() for path in (ASAR, BINARY, 'chrome.dll')):
-        return '定制副本缺失'
+    if state.get('mode') != 'original':
+        return '旧版副本安装状态；请重新应用以启用原版应用模式'
+    try:
+        if not state.get('installed_desktop') or desktop_snapshot() != state['installed_desktop']:
+            return '启动器缺失或已被修改'
+        animation.validate_settings(state['settings'])
+    except (OSError, ValueError, KeyError) as error:
+        return f'无法验证启动器或已应用设置：{error}'
     try:
         if fingerprint() != state['source']:
-            return '原版 Codex 已更新，旧补丁尚未重新验证'
+            return '原版 Codex 已更新；请重新应用以验证动画和背景'
     except (OSError, ValueError, KeyError, struct.error) as error:
         return f'无法验证原版应用：{error}'
     return None
@@ -260,9 +296,22 @@ def runtime_problem(state):
 
 def launch(arguments):
     try:
-        problem = runtime_problem(read_state())
+        state = read_state()
+        problem = runtime_problem(state)
     except (OSError, ValueError, KeyError) as error:
         problem = f'安装状态无法读取：{error}'
+    if not problem:
+        pids = source_running_pids()
+        if pids:
+            raise ValueError(f'原版应用仍在运行（PID {pids}）；请正常退出后再使用 Codexflare 启动器，不会自动终止会话')
+        if __package__:
+            from . import windows_inject
+        else:
+            import windows_inject
+        try:
+            script = windows_inject.prepare_script(SOURCE, state['settings'], LOCAL)
+        except (OSError, ValueError, KeyError, struct.error) as error:
+            problem = f'无法准备已应用的动画或背景：{error}'
     if problem:
         source = find_source()
         executable = source / 'Codex.exe'
@@ -271,14 +320,13 @@ def launch(arguments):
         if sys.stderr:
             print(f'{problem}；打开原版应用。', file=sys.stderr, flush=True)
         return subprocess.Popen([str(executable), *arguments], cwd=source)
-    # Keep the customized runtime and its backend separate from the official session.
-    env = {**os.environ, 'CODEX_HOME': str(LOCAL / 'codex-home-windows'),
-           'CODEX_ELECTRON_USER_DATA_PATH': str(LOCAL / 'profile-windows')}
-    return subprocess.Popen([str(RUNTIME / BINARY),
-                             '--user-data-dir=' + env['CODEX_ELECTRON_USER_DATA_PATH'], *arguments],
-                            cwd=RUNTIME, env=env)
+    command = [sys.executable, str(Path(__file__).with_name('manage.py').resolve()), 'launch', *arguments]
+    if windows_package.launch_in_package(SOURCE, command):
+        return
+    return windows_inject.run(SOURCE, state['settings'], LOCAL, arguments=arguments, prepared_script=script)
 
 
 def status():
-    print(f'状态：{runtime_problem(read_state()) or "定制副本可用"}')
-    print(f'目标：Windows x64 Codex {VERSION} / build {BUILD}\n原版：{SOURCE}\n副本：{RUNTIME}\n启动器：{DESKTOP}')
+    print(f'状态：{runtime_problem(read_state()) or "原版应用增强启动器可用"}')
+    versions = '、'.join(f'{version} / build {build}' for version, build in SUPPORTED_BUILDS)
+    print(f'目标：Windows x64 Codex {versions}\n原版：{SOURCE}\n启动器：{DESKTOP}\n不创建第二份应用或独立账户目录。')

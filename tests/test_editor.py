@@ -10,6 +10,8 @@ import tempfile
 import threading
 import unittest
 from unittest.mock import patch
+import struct
+import zlib
 
 from tools import animation, background, editor
 
@@ -78,6 +80,19 @@ class EditorTests(unittest.TestCase):
         self.assertFalse(state['settings']['muted'])
         self.assertEqual(state['settings']['background']['image'], 'default2')
 
+    def test_install_accepts_another_supported_version_and_rejects_unknown(self):
+        with patch.object(editor, 'SUPPORTED_VERSIONS', ('old', 'current')), \
+                patch.object(editor.manage, 'running_pids', return_value=[]), \
+                patch.object(editor.manage, 'fingerprint', return_value={'version': 'current'}) as fingerprint, \
+                patch.object(editor.manage, 'install') as install:
+            self.assertEqual(self.request('POST', '/api/install', {'speed': 1.5})[0], 200)
+            install.assert_called_once_with()
+            before = animation.SETTINGS.read_bytes()
+            fingerprint.return_value = {'version': 'future'}
+            self.assertEqual(self.request('POST', '/api/install', {'speed': 2})[0], 400)
+            self.assertEqual(animation.SETTINGS.read_bytes(), before)
+            install.assert_called_once_with()
+
     def test_background_upload_preview_save_and_install(self):
         animation.save_settings({'speed': 0.75})
         before = animation.SETTINGS.read_bytes()
@@ -121,6 +136,11 @@ class EditorTests(unittest.TestCase):
         self.assertEqual(self.request('GET', '/background/../../README.md')[0], 400)
         self.assertEqual(self.request('POST', '/api/settings', {'background': {'image': 'a' * 64}})[0], 400)
         self.assertEqual(animation.SETTINGS.read_bytes(), before)
+        self.assertFalse((self.local / 'backgrounds').exists())
+        compressed = b'not-a-zlib-stream'
+        chunk = b'IDAT' + compressed
+        invalid_pixels = PNG[:33] + struct.pack('>I', len(compressed)) + chunk + struct.pack('>I', zlib.crc32(chunk)) + PNG[-12:]
+        self.assertEqual(self.request('POST', '/api/background/upload', invalid_pixels)[0], 400)
         self.assertFalse((self.local / 'backgrounds').exists())
         (self.local / 'background.png').write_bytes(b'broken')
         _, state, _ = self.request('GET', '/api/state')

@@ -70,7 +70,7 @@
   }
 
   function showInstallation() {
-    const title = !installation.available ? '当前版本暂不支持应用' : installation.running ? '定制版 Codex 正在运行' : installation.active ? '定制启动入口已启用' : '使用原版启动入口';
+    const title = !installation.available ? '当前版本暂不支持应用' : installation.running ? '定制版 Codex 正在运行' : installation.active ? '增强启动入口已启用' : '使用原版启动入口';
     byId('installation-heading').textContent = title;
     byId('installation-message').textContent = installation.message || (installation.running ? '请先保存工作。退出 Codex 后刷新状态，再点击应用。' : '应用后，通过桌面菜单启动即可使用新的设置。');
     byId('installation-indicator').className = `installation-indicator${!installation.available || installation.running ? ' warning' : installation.active ? ' active' : ''}`;
@@ -284,8 +284,8 @@
       }
       const messages = {
         '/api/settings': '设置已保存。点击“应用到 Codex”后，动画、背景与启动窗口设置才会生效。',
-        '/api/install': '已应用。重新打开 Codex 后，每次启动都会沿用这些设置。',
-        '/api/uninstall': '已恢复原版启动入口。下次从桌面菜单启动时使用原版 Codex。',
+        '/api/install': '已应用。下次从增强入口启动时使用这些设置。',
+        '/api/uninstall': '已停用增强入口。当前窗口效果会在正常退出后结束。',
         '/api/upload': '视频已导入，可继续调整预览。点击“保存设置”保留本次选择。',
         '/api/background/upload': '图片已导入，可继续调整预览。点击“保存设置”保留本次选择。',
       };
@@ -412,7 +412,7 @@
   });
   byId('save').addEventListener('click', () => write('/api/settings', draft(), '正在保存设置…'));
   byId('install').addEventListener('click', () => write('/api/install', draft(), '正在生成并应用设置，请保持窗口打开…'));
-  byId('restore').addEventListener('click', () => write('/api/uninstall', {}, '正在恢复原版启动入口…'));
+  byId('restore').addEventListener('click', () => write('/api/uninstall', {}, '正在停用增强入口…'));
   byId('retry-state').addEventListener('click', connect);
   byId('refresh-state').addEventListener('click', connect);
   window.addEventListener('beforeunload', event => {

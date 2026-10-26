@@ -1,6 +1,38 @@
 # 验收记录
 
-## Windows 适配分支（2026-10-25，Asia/Shanghai）
+## 当前 Windows 原版增强修复（2026-10-26，Asia/Shanghai）
+
+本轮基于 Windows 分支 `feat/windows-support` 的 `e18abeb`，已对照 `origin/main`（`3f780e8`）和 macOS 分支；以下记录修复后的本地验证结果。
+
+目标是本机既有 `OpenAI.Codex 26.1021.3705.0 x64`（显示名 ChatGPT，内部 `26.1021.31345 / build 21828`）。默认安装现在只创建增强快捷方式，使用该包的原 EXE、原包身份和原默认数据路径；不创建应用副本或独立账户目录。源码目录和虚拟环境需保留。旧 Store 图标继续普通启动。
+
+修复了当前构建识别与 CSS 映射、Windows 原版启动及 MSIX 身份保留、快捷方式/状态原子提交、来源与素材错误回退、PNG 解压校验、窗口初始化竞态及 DPI/全屏尺寸处理。私有匿名管道不监听网络调试端口，不修改官方文件、CSP、签名、Node 开关或单实例保护。
+
+额外定位了大背景卡顿：25,237,663 字节 PNG 生成约 32 MiB 的 preload.href，官方 Vite 模块加载器 f_ 遍历 link 时反复解析它。无背景三次完整播放通过；带图无截图对照在 9.682 秒复现，Debugger 栈指向该循环。图片现转换为内存 Blob，CSS、preload 与 Image 共用 49 字符 URL；视频地址保持原逻辑。新增 CI 测试实际执行生成脚本，验证解码两路径、完整字节、共用地址与关闭背景。
+
+- Python **151 项：127 通过，24 跳过**；跳过为 FFmpeg 4 项、其他平台及权限 20 项。Node **65/65**；`compileall` 与 `git diff --check` 通过。
+- 真实 WebView2 编辑器通过视频播放、1.5×参数保存、中文 PNG 上传、预览、坏 PNG 拒绝、外部导航限制与关闭保护；截图已查看。上传走 File/DataTransfer，不冒充原生文件选择器人工测试。
+- 以下六项均通过正式包上下文启动器打开同一签名 EXE，使用临时 profile。启动及窗口就绪时都验证原 MSIX 包身份；所有测试前后官方文件哈希一致。
+- 各项还检查 Blob 短地址、实际输入/鼠标点击、右侧面板透明度、浅色模式、减少透明度/高对比/强制颜色以及刷新不重播。背景为实际应用 CSS 加模拟会话，不能代表真实账户界面已验收。
+
+| 场景 | 结果 | 原生窗口物理像素（DPI 144） | 视频前进样本 | 证据目录 |
+| --- | --- | --- | --- | --- |
+| centered / ended | 通过 | 1650×1140 | 33 | `windows-original-smoke-qhqgc1k7` |
+| fullscreen / ended / 有声 | 通过 | 3840×2160 | 33 | `windows-original-smoke-my1_h6yd` |
+| restore / ended | 通过 | 1964×1372 | 31 | `windows-original-smoke-maqwstse` |
+| centered / skipped | 通过 | 1650×1140 | 5 | `windows-original-smoke-m9cz1q9z` |
+| centered / media-error | 通过 | 1650×1140 | 5 | `windows-original-smoke-eoi5idt4` |
+| centered / reduced-motion | 通过 | 1650×1140 | 0 | `windows-original-smoke-a6fgjfch` |
+
+居中 1650×1140 对应 1100×760 DIP；全屏为 3840×2160 显示器。恢复模式不修改窗口，1964×1372、位置 938,394 与未注入原版基线一致。原版登录页不采用预置 100,100,980,700，种子文件未变化，因此不宣称指定历史尺寸恢复通过。全屏在工作区就绪后进入，刷新退出 HTML 全屏。
+
+本机已启用开始菜单 `Codex (Codexflare)`；真实应用正在运行时，增强入口会拒绝重复启动，并已验证不会终止会话。当前窗口未重启，未读取真实账户目录或凭据。下次正常退出应用后，通过增强入口使用。默认是内置动画、第一张背景、静音、恢复窗口。
+
+未检查：真实账户冷启动/登录/会话恢复、长期稳定性、声卡实际输出、FFmpeg 转码、旧 Windows 构建的原生启动和未来应用升级。只验证音轨未静音与视频推进，不称为声学验收。MSIX 包上下文命令的 token 不保证与普通激活完全相同，麦克风、摄像头、通知及相关隐私功能需另验；详见 [Windows 指南](WINDOWS.md)。深链接冷启动不增强；私有管道 helper 需随应用常驻。
+
+下面保留旧方案与其他平台的历史记录，不作为当前原版启动方案的通过证据。
+
+## 历史 Windows 副本方案（2026-10-25，Asia/Shanghai）
 
 目标：Windows 11 专业版 x64，Codex `26.1002.52244 / build 13536`，MSIX `OpenAI.Codex_26.1002.7124.0_x64`。Python 3.13.14、pywebview 6.2.1、系统 WebView2，200% 显示缩放。分支为 `feat/windows-support`，使用指南见 [WINDOWS.md](WINDOWS.md)。
 

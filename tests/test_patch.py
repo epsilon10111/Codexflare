@@ -30,7 +30,7 @@ def png_chunk(kind, data):
 
 def make_png(width=1, height=1, depth=8, color=6):
     return (b'\x89PNG\r\n\x1a\n' + png_chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, depth, color, 0, 0, 0))
-            + png_chunk(b'IDAT', zlib.compress(b'\x00\xff\xff\xff\xff')) + png_chunk(b'IEND', b''))
+            + png_chunk(b'IDAT', zlib.compress((b'\0' + b'\xff' * (width * 4)) * height)) + png_chunk(b'IEND', b''))
 
 
 class PatchTests(unittest.TestCase):
@@ -146,7 +146,7 @@ class PatchTests(unittest.TestCase):
 
     def test_startup_window_modes(self):
         result = subprocess.run(['node', '--test', str(Path(__file__).with_name('test_window_mode.cjs'))],
-                                capture_output=True, text=True, env={**os.environ, 'PYTHON': sys.executable})
+                                capture_output=True, encoding='utf-8', env={**os.environ, 'PYTHON': sys.executable})
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         with self.assertRaises(ValueError):
             patch_main('unexpected app build', 'invalid')

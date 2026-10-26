@@ -88,7 +88,7 @@ def patch_background_css(text, archive):
     styles = '\n'.join(archive.read('webview/assets/' + name).decode() for name in BACKGROUND_STYLES)
     for current in (*BACKGROUND_CLASSES.values(), '_background_106nk_2', '_fade_106nk_2', '_surface_106nk_2'):
         if '.' + current not in styles:
-            raise ValueError(f'Background selector missing from the supported macOS build: {current}')
+            raise ValueError(f'Background selector missing from the supported build: {current}')
     return adapt_background_classes(text)
 
 

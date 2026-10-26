@@ -1,10 +1,10 @@
 # Codexflare
 
-> **Windows 适配分支：`feat/windows-support`**。支持 Windows x64 Codex `26.1002.52244 / build 13536`（Microsoft Store 包 `26.1002.7124.0`），使用原生 WebView2 编辑窗口及独立开始菜单入口。安装、使用和验证边界见 **[Windows 指南](WINDOWS.md)**。此分支也包含 `main` 的 Linux 与 macOS 支持。
+> **Windows 适配分支：`feat/windows-support`**。已加入当前 Windows x64 ChatGPT/Codex `26.1021.31345 / build 21828`（Microsoft Store 包 `26.1021.3705.0`）适配。Windows 启动器直接运行已安装的标准版，不复制整套应用；使用方式与验证边界见 **[Windows 指南](WINDOWS.md)**。
 
 **为 Linux、macOS 与 Windows Codex 桌面版定制开场动画与工作区背景。**
 
-Codexflare 是一个轻量级本地外观编辑器：在独立桌面窗口中选择视频和图片，调整画面，再应用到可回退的 Codex 副本。Linux 使用 GTK / WebKit，macOS 使用 Cocoa / WKWebView，Windows 使用 pywebview / WebView2；无需浏览器标签页或额外 Electron 运行时。
+Codexflare 是一个本地外观编辑器：在独立桌面窗口中选择视频和图片，调整画面。Windows 通过本地私有管道向现有标准版加入外观效果，Linux/macOS 使用可回退的应用副本。Linux 使用 GTK / WebKit，macOS 使用 Cocoa / WKWebView，Windows 使用 pywebview / WebView2；无需额外 Electron 运行时。
 
 [下载 Release](https://github.com/epsilon10111/Codexflare/releases/latest) · [验收记录](VALIDATION.md) · [贡献指南](AGENTS.md) · [代码许可](LICENSE) · [素材许可](assets/LICENSE)
 
@@ -16,7 +16,7 @@ Codexflare 是一个轻量级本地外观编辑器：在独立桌面窗口中选
 - **常驻背景**：两张内置背景，也可上传 PNG；调整不透明度、水平位置和大小，向左渐隐，主对话与右侧分支共享背景。
 - **启动窗口**：保存全屏、恢复上次窗口，或居中小窗口三种启动方式。
 - **启动衔接**：视频播放期间并行准备工作区与背景；支持 Esc 跳过、播放失败退出和减少动态效果偏好。
-- **本地与可回退**：素材在本机处理，配置和素材不上传；仅修改本地应用副本及用户菜单入口，可恢复原入口。
+- **本地与可回退**：素材在本机处理，配置和素材不上传；Windows 不修改原版程序或登录目录，移除启动器即可停止后续注入。Linux/macOS 仅修改应用副本及用户菜单入口。
 
 ## 兼容范围
 
@@ -26,11 +26,11 @@ Codexflare 是一个轻量级本地外观编辑器：在独立桌面窗口中选
 | --- | --- | --- |
 | Linux x86_64 | 26.1002.52244 / 13536 | `/usr/lib/chatgpt` |
 | macOS Apple Silicon（arm64） | 26.1021.31345 / 21828 | `/Applications/Codex.app` 或 `/Applications/ChatGPT.app` |
-| Windows x64 | 26.1002.52244 / 13536 | Microsoft Store 包 `26.1002.7124.0`；见 [Windows 指南](WINDOWS.md) |
+| Windows x64 | 26.1021.31345 / 21828；保留 26.1002.52244 / 13536 构建校验 | Microsoft Store 包 `26.1021.3705.0` / `26.1002.7124.0`；见 [Windows 指南](WINDOWS.md) |
 
 macOS 动画与编辑器已在 26.5.2 验证；yabai 等平铺窗口管理器可以覆盖居中/恢复模式的窗口尺寸。Intel / 通用二进制、其他 macOS 版本及新 Codex 构建尚未验证。Linux 已在 Fedora KDE / Wayland（XWayland）验证。
 
-这是独立的非官方项目，与 OpenAI 无隶属或背书关系。发布包不包含 Codex、ChatGPT 或 Electron 的程序文件，需要自行安装兼容的 Codex。创建本地副本需要约 **1.6 GB** 额外空间。
+这是独立的非官方项目，与 OpenAI 无隶属或背书关系。发布包不包含 Codex、ChatGPT 或 Electron 的程序文件，需要已安装兼容应用。Linux/macOS 的本地副本需要额外空间；Windows 默认启动器不创建应用副本。
 
 ## 安装与使用
 
@@ -100,10 +100,10 @@ Linux 源码运行需要上述 GTK 桌面依赖；macOS 使用上节的 PyObjC �
 
 1. 在「开场动画」选择视频，或在「常驻背景」选择、上传图片。
 2. 调节预览参数与「Codex 启动窗口」，点击「保存设置」。
-3. **完全退出 Codex**，在仍然打开的 Codexflare 中点击「刷新状态」，再点击「应用到 Codex」。仅关闭窗口可能仍留在托盘。
-4. Linux 从原来的菜单入口启动；macOS 从 `~/Applications/Codexflare Codex.app` 启动。
+3. 点击「应用到 Codex」。Linux/macOS 需先正常退出定制副本并刷新状态；Windows 可以在原版运行时应用设置。
+4. 正常退出当前应用后重新启动：Windows 从开始菜单 **Codex (Codexflare)**，Linux 从原来的菜单入口，macOS 从 `~/Applications/Codexflare Codex.app` 启动。仅关闭窗口可能仍留在托盘。
 
-保存设置不会更新已安装的副本，需重新应用。工具拒绝覆盖正在运行的定制副本，也不会关闭你的会话。唤起已有实例时不重复播放或调整窗口。
+保存后还需应用，下一次从上述入口冷启动时才会使用新的设置。工具不会关闭当前会话；Windows 原 Store 图标始终直接打开标准版，不加载 Codexflare 效果。
 
 ## 参数与素材
 
@@ -116,7 +116,7 @@ Linux 源码运行需要上述 GTK 桌面依赖；macOS 使用上节的 PyObjC �
 
 视频导入上限 **100 MiB / 30 秒**，支持的输入格式取决于 FFmpeg。导入后转换为不超过 1920×1080、30 fps 的 VP9 WebM，有音轨时保留为 Opus；原片不变。没有音轨的视频无法发声。
 
-背景支持 **PNG，最大 40 MiB，单边不超过 8192 像素、总计不超过 6400 万像素**。内置 `default1.png` 和 `default2.png`，默认选中第一张。应用时仅将运行副本中的大图缩至 3840×2160 范围，保留原图与透明度；缺少 FFmpeg 时使用原尺寸。
+背景支持 **PNG，最大 40 MiB，单边不超过 8192 像素、总计不超过 6400 万像素**。内置 `default1.png` 和 `default2.png`，默认选中第一张。用于显示的大图会缩至 3840×2160 范围，保留原图与透明度；缺少 FFmpeg 时使用原尺寸。
 
 背景样式适合黑底线条素材：深色主题使用滤色融合，浅色主题反相后混合，普通照片可能改变观感。窄窗口进一步淡化，高对比度或减少透明效果偏好会隐藏背景。关闭「启用图片背景」并重新应用即可单独撤回背景。
 
@@ -124,18 +124,18 @@ Linux 源码运行需要上述 GTK 桌面依赖；macOS 使用上节的 PyObjC �
 
 ## 配置、管理与卸载
 
-| 安装方式 | 配置、导入素材、运行副本与备份 |
+| 安装方式 | 配置与安装数据 |
 | --- | --- |
 | RPM | `${XDG_DATA_HOME:-~/.local/share}/codexflare/` |
 | 源码 | 仓库内 `.local/` |
 
-目录内 `animation.json` 保存设置，`media/` 与 `backgrounds/` 保存导入素材，`runtime/` 保存定制副本。两种安装方式的数据独立；切换方式前先恢复原菜单入口。源码方式启用期间不要移动或删除仓库。
+目录内 `animation.json` 保存编辑设置，`media/` 与 `backgrounds/` 保存导入素材。Windows 的 `install-windows.json` 保存启用时设置与启动器状态，不创建应用副本；Linux 的 `runtime/`、macOS 的 `Codexflare Runtime.app` 保存定制副本。RPM 与源码方式的数据独立，切换前先停用增强入口。源码方式启用期间不要移动或删除仓库。
 
 ```bash
-codexflare-manage status      # 检查副本与菜单入口
-codexflare-manage install     # 使用已保存设置生成并启用副本
-codexflare-manage launch      # 启动副本，来源变化时回退原版
-codexflare-manage uninstall   # 恢复原菜单入口，保留配置、素材和备份
+codexflare-manage status      # 检查应用来源与增强入口
+codexflare-manage install     # 使用已保存设置启用增强入口
+codexflare-manage launch      # 通过增强入口启动，来源变化时回退原版
+codexflare-manage uninstall   # 停用增强入口，保留配置、素材和已有副本
 ```
 
 源码方式将 `codexflare-manage` 替换为 `python3 tools/manage.py`。

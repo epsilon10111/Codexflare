@@ -4,7 +4,7 @@
 
 本仓库为 Linux 和 macOS Codex 桌面版生成可回退的开屏动画副本。Linux 目标为 `26.1002.52244 / build 13536 / x86_64`；macOS 目标为 `26.1021.31345 / build 21828 / arm64`。
 
-`feat/windows-support` 分支增加同版本 Windows x64 Owl 适配（MSIX `26.1002.7124.0`）。`desktop_windows.py` 使用 pywebview/WebView2；`manage_windows.py` 管理复制、完整性哈希、独立开始菜单快捷方式和回退；`patch_windows.py` 验证 Windows 构建并复用经过唯一匹配检查的主窗口补丁。Windows 使用 Python 3.12+（推荐 3.13）；命令及边界见 `WINDOWS.md`。不要改写 WindowsApps、官方可执行文件或真实账户目录。
+`feat/windows-support` 支持 Windows x64 Owl 当前 MSIX `26.1021.3705.0`（内部 26.1021.31345 / build 21828），保留旧 build 13536 的构建映射。`desktop_windows.py` 使用 pywebview/WebView2；`manage_windows.py` 默认只安装指向现有标准版的启动器，`windows_inject.py` 用私有匿名管道加入外观；不复制整套应用，不创建第二套真实账户目录。`patch_windows.py` 的归档补丁仍用于构建验证。Windows 使用 Python 3.12+；命令及边界见 `WINDOWS.md`。不要改写 WindowsApps、官方可执行文件、真实账户目录或关闭签名、CSP、单实例保护。
 
 - `src/boot.js`、`src/boot.css`：动画层、播放退出逻辑和样式；启动窗口模式由 `tools/patch_app.py` 的主进程补丁处理。
 - `src/background.css`：常驻背景融合与输入区样式；仅打包本地选中的图片，保留内容层可读性与交互。
@@ -29,11 +29,12 @@
 | `python -m unittest discover -s tests -v` | 检查归档补丁、安装保护及回退 |
 | `node --test tests/test_boot.cjs tests/test_editor_ui.cjs tests/test_window_mode.cjs` | 检查动画生命周期、失败退出与编辑器交互 |
 | `/usr/bin/python3 tools/generate_demo.py` | 重新生成旧光轨示例，不覆盖 default；需要 Pillow、NumPy、FFmpeg/ffprobe、libvpx-vp9 和脚本指定的 DejaVuSans 字体 |
-| `python tools/manage.py install` | 创建定制副本并更新用户菜单入口 |
-| `python tools/manage.py status` | 检查副本及入口状态 |
-| `python tools/manage.py launch` | 启动副本，来源变化时回退到原版 |
-| `python tools/manage.py uninstall` | 恢复原菜单入口，保留副本与备份 |
+| `python tools/manage.py install` | 应用已保存设置：Windows 启用原版启动器，Linux/macOS 创建定制副本 |
+| `python tools/manage.py status` | 检查应用来源及增强入口状态 |
+| `python tools/manage.py launch` | 通过增强入口启动，来源变化时回退到原版 |
+| `python tools/manage.py uninstall` | 停用增强入口，Linux 恢复原入口；保留配置、已有副本与备份 |
 | `python tools/native_smoke.py` | 基于已安装副本打开隔离普通窗口，验证动画与应用就绪过渡并保存截图 |
+| `python tools/windows_smoke.py --window-mode centered` | 从现有签名 Windows EXE 启动隔离测试窗口，检查注入、背景、交互与刷新 |
 | `python tools/build_rpm.py` | 从已提交的 HEAD 构建 RPM、SRPM、源码归档与校验文件 |
 | `python tools/rpm_smoke.py dist/codexflare-0.1.0-1.noarch.rpm` | 检查包内容、只读资源、用户配置及隔离 RPM 安装/卸载 |
 
@@ -47,7 +48,7 @@ Python 使用标准库 `unittest`，文件命名为 `test_*.py`，方法命名�
 
 窗口或视频变更还需在图形桌面运行原生测试，检查实际窗口边界和播放前后截图。单元测试与隔离登录页均不能证明真实账户冷启动正常；在 `VALIDATION.md` 明确记录未验证项。
 
-Windows 原生验证：`python tools/windows_editor_smoke.py`；`python tools/windows_smoke.py --window-mode centered`，并覆盖 `fullscreen --sound` 和 `restore --seed-bounds 100 100 980 700`。测试仅在 `work/` 中创建副本与独立 profile，不注册菜单或协议；测试进程使用 no-reduced-motion 参数验证播放，实际启动尊重系统无障碍偏好。产物含应用副本，不得提交或分发。
+Windows 编辑器验证：`python tools/windows_editor_smoke.py`。原版注入验证只启动现有签名 EXE，profile 放在 `work/`，不复制应用，不注册测试入口，不读取真实账户，也不停止用户现有进程。只结束测试自己创建的进程。测试可仅对该进程强制允许动画，正式启动尊重系统无障碍偏好；测试 profile 与日志不得提交。
 
 编辑器改动还需在实际 GTK/WebKit 窗口验证上传、预览、保存、关闭与错误提示。HTTP 测试使用临时目录和安装函数替身，不应改动真实菜单入口。遵循 `DESIGN.md` 的黑白六瓣几何风格、字号与减少动态效果规则，视频保留原色；自绘标题栏保留 GTK 的窗口操作和关闭保护。
 

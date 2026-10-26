@@ -25,6 +25,7 @@ else:
     import manage
 
 manage = manage.platform_manager()
+SUPPORTED_VERSIONS = getattr(manage, 'SUPPORTED_VERSIONS', (manage.VERSION,))
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_UPLOAD = 100 * 1024 * 1024
@@ -37,7 +38,7 @@ STATIC = {'/': ('index.html', 'text/html; charset=utf-8'),
 def installation_status():
     try:
         state = manage.read_state()
-        available = manage.fingerprint()['version'] == manage.VERSION
+        available = manage.fingerprint()['version'] in SUPPORTED_VERSIONS
         problem = manage.runtime_problem(state)
         active = bool(state and state.get('active') and not problem
                       and manage.desktop_snapshot() == state.get('installed_desktop'))
@@ -46,7 +47,7 @@ def installation_status():
         if active and hasattr(manage, 'LAUNCH_HINT'):
             message += '；' + manage.LAUNCH_HINT
         if not available:
-            message = f'当前应用版本尚未适配，仅支持 {manage.VERSION}；仍可预览和保存'
+            message = f'当前应用版本尚未适配，仅支持 {"、".join(SUPPORTED_VERSIONS)}；仍可预览和保存'
         elif running:
             message = '定制 Codex 正在运行；退出 Codex 后刷新状态，再点击应用。预览和保存不受影响'
         return {'active': active, 'available': available, 'running': running, 'message': message}
@@ -328,7 +329,7 @@ class EditorHandler(BaseHTTPRequestHandler):
             data = json.loads(raw)
             if path == '/api/uninstall':
                 manage.uninstall()
-                self.reply(200, {'message': '已恢复原版入口；未停止当前会话',
+                self.reply(200, {'message': '已停用增强入口；未停止当前会话。当前窗口效果会在正常退出后结束',
                                  'installation': installation_status()})
                 return
             settings = animation.validate_settings(data)
@@ -337,8 +338,8 @@ class EditorHandler(BaseHTTPRequestHandler):
                 if manage.running_pids():
                     self.reply(409, {'error': '定制 Codex 正在运行；退出 Codex 后刷新状态，再点击应用。可先保存设置'})
                     return
-                if manage.fingerprint()['version'] != manage.VERSION:
-                    raise ValueError(f'当前版本尚未适配，仅支持 {manage.VERSION}')
+                if manage.fingerprint()['version'] not in SUPPORTED_VERSIONS:
+                    raise ValueError(f'当前版本尚未适配，仅支持 {"、".join(SUPPORTED_VERSIONS)}')
             animation.save_settings(settings)
             if path == '/api/install':
                 try:
