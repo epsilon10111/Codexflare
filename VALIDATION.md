@@ -2,7 +2,7 @@
 
 ## 当前 Windows 原版增强修复（2026-10-26，Asia/Shanghai）
 
-本轮基于 Windows 分支 `feat/windows-support` 的 `e18abeb`，已对照 `origin/main`（`3f780e8`）和 macOS 分支；以下记录修复后的本地验证结果。
+本轮从 Windows 分支 `e18abeb` 开始修复，最终合入 `origin/main` 的 `8f5b093`，保留其结构兼容检测、macOS 原入口及 DMG 支持。以下记录合并后的本地验证；版本是原生验收基线，不作为白名单。
 
 目标是本机既有 `OpenAI.Codex 26.1021.3705.0 x64`（显示名 ChatGPT，内部 `26.1021.31345 / build 21828`）。默认安装现在只创建增强快捷方式，使用该包的原 EXE、原包身份和原默认数据路径；不创建应用副本或独立账户目录。源码目录和虚拟环境需保留。旧 Store 图标继续普通启动。
 
@@ -10,19 +10,19 @@
 
 额外定位了大背景卡顿：25,237,663 字节 PNG 生成约 32 MiB 的 preload.href，官方 Vite 模块加载器 f_ 遍历 link 时反复解析它。无背景三次完整播放通过；带图无截图对照在 9.682 秒复现，Debugger 栈指向该循环。图片现转换为内存 Blob，CSS、preload 与 Image 共用 49 字符 URL；视频地址保持原逻辑。新增 CI 测试实际执行生成脚本，验证解码两路径、完整字节、共用地址与关闭背景。
 
-- 合入最新 `main` 后 Python **154 项：130 通过，24 跳过**；跳过为 FFmpeg 4 项、其他平台及权限 20 项。Node **65/65**；`compileall` 与 `git diff --check` 通过。新增三项回退回归，覆盖重新发现升级后的来源、包身份失败停止，以及拒绝未经验证的旧执行文件名；正常增强与异常回退都保留包身份。
-- 真实 WebView2 编辑器通过视频播放、1.5×参数保存、中文 PNG 上传、预览、坏 PNG 拒绝、外部导航限制与关闭保护；截图已查看。上传走 File/DataTransfer，不冒充原生文件选择器人工测试。
+- 合入 `8f5b093` 后 Python **208 项：165 通过，43 跳过**；跳过为 FFmpeg 4 项、其他平台及权限 39 项。Node **75/75**；`compileall` 与 `git diff --check` 通过。新增三项回退回归，覆盖重新发现升级后的来源、包身份失败停止，以及拒绝未经验证的旧执行文件名；正常增强与异常回退都保留包身份。
+- 合并后 `work/windows-editor-917lkgm7/` 的真实 WebView2 编辑器通过视频播放、1.5×参数保存、中文 PNG 上传、预览、坏 PNG 拒绝、外部导航限制与关闭保护；截图已查看。上传走 File/DataTransfer，不冒充原生文件选择器人工测试。
 - 以下六项均通过正式包上下文启动器打开同一签名 EXE，使用临时 profile。启动及窗口就绪时都验证原 MSIX 包身份；所有测试前后官方文件哈希一致。
 - 各项还检查 Blob 短地址、实际输入/鼠标点击、右侧面板透明度、浅色模式、减少透明度/高对比/强制颜色以及刷新不重播。背景为实际应用 CSS 加模拟会话，不能代表真实账户界面已验收。
 
 | 场景 | 结果 | 原生窗口物理像素（DPI 144） | 视频前进样本 | 证据目录 |
 | --- | --- | --- | --- | --- |
-| centered / ended | 通过 | 1650×1140 | 33 | `windows-original-smoke-qhqgc1k7` |
-| fullscreen / ended / 有声 | 通过 | 3840×2160 | 33 | `windows-original-smoke-my1_h6yd` |
-| restore / ended | 通过 | 1964×1372 | 31 | `windows-original-smoke-maqwstse` |
-| centered / skipped | 通过 | 1650×1140 | 5 | `windows-original-smoke-m9cz1q9z` |
-| centered / media-error | 通过 | 1650×1140 | 5 | `windows-original-smoke-eoi5idt4` |
-| centered / reduced-motion | 通过 | 1650×1140 | 0 | `windows-original-smoke-a6fgjfch` |
+| centered / ended | 通过 | 1650×1140 | 32 | `windows-original-smoke-1mrv5daa` |
+| fullscreen / ended / 有声 | 通过 | 3840×2160 | 31 | `windows-original-smoke-8pwkbdd6` |
+| restore / ended | 通过 | 1964×1372 | 41 | `windows-original-smoke-eb5jhpw_` |
+| centered / skipped | 通过 | 1650×1140 | 4 | `windows-original-smoke-yols334c` |
+| centered / media-error | 通过 | 1650×1140 | 4 | `windows-original-smoke-nsc1lbq6` |
+| centered / reduced-motion | 通过 | 1650×1140 | 0 | `windows-original-smoke-exzrrc6x` |
 
 居中 1650×1140 对应 1100×760 DIP；全屏为 3840×2160 显示器。恢复模式不修改窗口，1964×1372、位置 938,394 与未注入原版基线一致。原版登录页不采用预置 100,100,980,700，种子文件未变化，因此不宣称指定历史尺寸恢复通过。全屏在工作区就绪后进入，刷新退出 HTML 全屏。
 
@@ -32,7 +32,28 @@
 
 未检查：真实账户冷启动/登录/会话恢复、长期稳定性、声卡实际输出、FFmpeg 转码、旧 Windows 构建的原生启动和未来应用升级。只验证音轨未静音与视频推进，不称为声学验收。MSIX 包上下文命令的 token 不保证与普通激活完全相同，麦克风、摄像头、通知及相关隐私功能需另验；详见 [Windows 指南](WINDOWS.md)。深链接冷启动不增强；私有管道 helper 需随应用常驻。
 
+合并后批处理首轮 `work/windows-original-smoke-8_9uc7zh/` 和第二轮 `work/windows-original-smoke-kkvn26wp/` 分别在 4.112 秒、3.884 秒出现 `paused=true`，随后由超时保护退出；这两次未计为通过。固定随机 token 后，合并前后的当前构建注入脚本逐字符一致（38,843,172 字符，SHA256 `8e1c8227d133a2f2d3c41f4ef1af6648fada8b08ef2702a0df79b77a2b75e595`）。带媒体事件记录的两次复测（`41xon7j2`、`qyus7uyc`）自然结束。没有改动播放逻辑，改为逐项派发后，上表六场景分别通过。
+
+逐项验证中，损坏视频首次运行 `work/windows-original-smoke-ho_fno3n/` 已进入 `media-error` 并移除遮罩，但原应用没有在 70 秒内报告工作区就绪，因此整项判失败；独立复测 `nsc1lbq6` 通过。两次暂停与一次初始化超时的根因尚未定位，结果不代表所有尝试均成功，也不声明长期播放稳定性已验收。
+
 下面保留旧方案与其他平台的历史记录，不作为当前原版启动方案的通过证据。
+
+## 按结构检测兼容性（2026-10-26，Asia/Singapore）
+
+基于 main `2b5deca`，保留原入口模式、两种 macOS 构建的参考数据、DMG 打包、退出/备份保护和签名临时文件修复。安装不再比较固定版本号；资源角色、窗口代码结构和 CSS-module 角色必须唯一匹配。`python tools/manage.py check` 只读分析当前来源，不写入应用副本或账户目录。
+
+- 本机 Python **147 项，141 通过、6 跳过**：3 项 GTK、2 项 Windows WebView2、1 项 Windows Shell COM；Node **74/74**。`compileall`、`git diff --check` 通过。
+- 合成 ASAR 覆盖 Linux / Windows / macOS、三种窗口模式和未列出的 `99.1.1 / 99999` 元数据；兼容结构可通过，加载契约改变时拒绝且来源不变。变量重命名覆盖 macOS 20586/21828 差异及注入变量冲突。原入口测试覆盖协议保留、从官方备份检查、结构不兼容时不备份/替换。
+- 实机来源为 macOS arm64 Codex **26.1021.31345 / build 21828**。真实主脚本三种窗口模式 × 静音/有声 × 独立/原入口，共 **12** 种补丁均通过 `node --check`。新候选构建及签名验证通过，官方来源指纹未改变。
+- `work/native-smoke-3n8i3gt8/`：独立副本、恢复窗口、静音；39 个播放样本，1 个自然结束样本。`work/native-smoke-39q92gts/`：全屏、有声；40 个播放样本、40 个 audible 样本，1 个自然结束样本，使用生产补丁，无额外音频诊断修改。此前两次全屏有声运行未开始播放并超时；诊断运行和最后一次独立运行通过，未将超时计为成功，也未声明有声启动的长期稳定性。
+- `work/native-smoke-dgtx1rd9/`：从保留身份的原入口候选复制后，按原生测试流程隔离身份、移除协议注册并使用测试 profile；39 个播放样本、1 个自然结束样本。未在 `/Applications` 中执行真实原入口替换或读取真实账户。
+- `work/background-smoke-gjrzampp/`：真实来源 CSS + 模拟会话，深浅色、主/右侧面板、窄窗口、滚动遮罩、输入框 48% 不透明度及 6px 模糊、无障碍规则均通过。已查看宽窗口和右侧面板截图；[背景验证截图](docs/images/compat-background.png)。首次测试发现测试协议仍只允许旧 CSS 文件名，修复资源列表后通过，未降低像素断言。
+- `work/background-smoke-h64uo6_m/`：完整视频到普通/全宽右侧工作区的衔接通过；两个布局的第一张截图与 500ms 后截图的比较区域均为 **0 变化像素**，自然片尾后约 0.5ms 开始淡出。
+- `work/compat-editor-merged/`：最新 Cocoa/WKWebView 编辑器的实际可见性、视频播放、参数保存、PNG 上传、错误提示与关闭通过（9 个样本），截图已查看。早期关闭阻塞保留在测试记录中；合入 main 的 Cocoa 事件循环唤醒修复后复测通过。
+
+本轮只在 build 21828 上运行 macOS 原生测试；20586 使用构建差异 fixture，保留 main 中原有验收记录。Windows / Linux 原生桌面、真实账户冷启动与会话背景、长期有声启动稳定性未在本轮复测。结构检查不等同于任意未来版本兼容：资源角色、窗口流程或工作区布局变化仍可能需要适配。已发布 v0.1.0 / v0.1.1 附件和标签保持原有范围。
+
+本文按工作阶段保留历史证据。早期“待应用”“未推送”和后台状态仅描述当时的检查点，不代表当前安装或发布状态。macOS `v0.1.1` 发布范围与复测见文末及 `docs/releases/v0.1.1.md`；Linux 继续使用已发布的 `v0.1.0`。
 
 ## 历史 Windows 副本方案（2026-10-25，Asia/Shanghai）
 
@@ -308,3 +329,93 @@ Branch: `feat/macos-support`. This snapshot is not a completed macOS release.
 - Python：82 个测试，79 通过、3 个 GTK 专用跳过。Node：65 个测试通过。
 
 本地证据：`work/background-smoke-wtjdq6l3/result.json`、`work/background-smoke-7uhn3mj0/result.json`；公开模拟工作区截图 `docs/images/background-macos.png`。验证使用真实应用样式与模拟会话，未读取真实聊天。所匹配的是屏幕内的素材、构图、透明度与转场；拍屏的透视、显示器色彩和环境灯光不构成已验证的逐像素一致性。
+
+
+## 本地 macOS build 20586 安装验证 — 2026-10-25
+
+本地分支 `local/macos-build-20586` 基于上游 `feat/macos-support` 的 `62ab61c`；本节仅适用于本机 arm64 Codex `26.1013.31256 / 20586`，不代表上游发布支持。环境为 macOS 26.6.2、Python 3.12.14、PyObjC 12.2.2、FFmpeg/ffprobe 9.0。
+
+- 更新版本、主脚本和预加载资产的精确锚点，以及 Electron、窗口边界、窗口模式和协议注册的压缩符号；保留所有版本、唯一匹配和完整性校验。恢复窗口使用局部 `C`，回归测试确保不误用路径模块 `S`。
+- 实际 ASAR 的三种窗口模式 × 两种声音设置均唯一匹配，并通过 Node 语法校验。Node 全套 66/66 通过；Python 80 项中 77 通过、3 项 Linux GTK 专用测试跳过。
+- 原生 Cocoa/WKWebView 编辑器：8 个样本，通过视频播放、保存、背景解码/上传、无效 PNG 错误提示和正常关闭检查。
+- 最终安装位置 `~/Applications/Codexflare`，独立入口为 `~/Applications/Codexflare Codex.app`；额外提供 `Codexflare Editor.app`。原先工作目录过长导致 Unix socket EINVAL，迁至短路径后复测消失。
+- 最终原生 smoke 48 个样本：40 个视频播放样本，4 个正常结束样本；视频 1920×1080、10.039 秒、默认静音；恢复隔离配置的 1100×760 窗口边界，背景 ready 后揭幕并进入可交互登录页。证据位于 `work/native-smoke-4leqcl4l`。
+- `codesign --verify --deep --strict` 通过；安装状态为定制副本可用；原版应用 ASAR、可执行文件及 Info.plist 的文件指纹与安装前一致。没有退出原版会话。
+- 最终两个 Finder 启动入口均实测打开：定制版显示登录页，编辑器识别已安装且正在运行的定制版。
+
+真实账户登录、真实会话背景、长期运行及签名相关电脑控制/通知/Keychain 功能没有验收。独立副本需要单独登录，ad-hoc 签名的兼容性限制仍然适用。全屏/有声已通过语义单测，本机未重复其原生窗口测试。
+
+## 本地更新、退出状态和图标修复 — 2026-10-25
+
+此节记录本次发布前的本机修复检查点。已快进到上游 `main` 的 `25f3b0c`（合入 macOS 支持与背景修复），保留本机 `26.1013.31256 / 20586 / arm64` 的精确锚点。用户保存的全屏、静音、视频和背景参数逐项比对未改变。
+
+- 复现到定制版主进程退出后，Frameworks 内的 `browser_crashpad_handler` 仍存活，被错误当成正在运行。现在只排除该残留报告进程，主进程、renderer、GPU 等仍阻止覆盖安装。返回编辑器自动刷新状态，不覆盖草稿、不禁用首击，迟到响应不能覆盖写操作结果。
+- 原生 UI 实际单击“应用到 Codex”后出现“已应用”提示。使用安装副本与独立测试 profile 复测：运行时按钮禁用，正常退出后剩余两个 crashpad 进程但 `running_pids=[]`；返回编辑器自动恢复可应用，未点击“刷新状态”。
+- 原生测试另复现了编辑器窗口关闭后进程等待事件的问题。异步 WebKit 回调中的 `NSApplication.stop_()` 现在追加空的应用事件唤醒主循环；重新验证实际编辑器关闭后进程消失，再从 Finder 双击成功重开。
+- `ui/mark.icns` 直接由 Linux 同源 `ui/mark.svg` 生成，含 16–1024 像素的 10 种表示；运行副本、Codex 启动器和编辑器均使用该图标。Finder 截图检查两个入口均显示六瓣 Logo。图标写入发生在签名前，未关闭完整性检查。
+- Python 全套 90 项：87 通过，3 项 Linux GTK 专用跳过；Node 全套 69/69 通过。全部 6 种窗口模式/声音组合的真实主脚本补丁通过唯一匹配及 Node 语法检查。
+- 修复后的 Cocoa/WKWebView 编辑器 smoke：8 个样本，视频播放、参数保存、背景解码、PNG 上传、无效 PNG 提示与关闭通过，进程正常结束。
+- 背景隔离验证通过：左右像素分区、代码不透明表面、输入交互、两种面板布局、12 种滚动布局和无障碍状态。启动背景验证的普通工作区/全宽面板两条路径均通过，动画自然结束且背景 ready；揭幕首帧与 500ms 后背景区域差异均为 0 像素。
+- 实际全屏/静音原生 smoke：42 个样本、39 个播放样本、1 个结束样本；1920×1080 视频播放 10.039 秒后释放遮罩，背景 ready、应用可交互，原生 fullscreen 标志与窗口边界通过。
+- `codesign --verify --deep --strict` 通过，原版 ASAR、可执行文件及 Info.plist 的指纹与安装前一致。没有退出原版会话。
+
+证据：`work/followup/` 下测试日志、`macos-editor-fixed/result.json`、`lifecycle.json`；背景测试 `work/background-smoke-8u4kr0uj/`，启动衔接 `work/background-smoke-z63g8g2u/`，全屏原生测试 `work/native-smoke-rg8a1xyb/`。失败的首次编辑器关闭测试没有完成结果，修复后的复测才计入通过。
+
+本轮未进行真实账号登录、聊天及长期运行；背景检查使用真实构建 CSS 与模拟会话。ad-hoc 签名相关功能的既有限制不变。该检查点发生于代码提交和发布之前。
+
+## 本机原 ChatGPT 入口模式 — 2026-10-25
+
+用户明确要求点击原来的 ChatGPT 图标即可使用动画、背景及 Linux 同款优化。本节取代此前“本机只使用独立入口”的使用方式；构建仍精确限定 `26.1013.31256 / 20586 / arm64`。
+
+- 新增 `tools/original_macos.py`：先验证并完整备份官方应用，再从备份构建候选；原应用正常退出后才原子替换 `/Applications/ChatGPT.app`。安装前检查原包、备份与候选内容摘要和签名，重复确认进程状态；中断恢复、签名失败回退、来源变化拒绝覆盖及并发锁均有回归覆盖。安装器不结束用户进程。
+- 原入口模式保留原 bundle ID、native product directory、名称、图标与 URL 协议，不设置独立 `CODEX_HOME` 或 UI profile。重新签名仍为 ad-hoc，不继承供应商团队、Keychain 或 app-group 特权。真实账户目录未读取或改写。
+- 两个平台共用动画、背景与媒体预处理实现：视频导入限制为 1080p/30fps 的 VP9/Opus，背景限制在 3840×2160 范围；模块/CSS 与背景预加载、并行应用初始化、背景解码就绪门控、230ms 淡入及超时/跳过/减少动态效果路径保留。
+- 编辑器识别原入口模式：ChatGPT 运行时可以准备设置，点击“应用到 ChatGPT”后显示“已准备，等待 ChatGPT 退出”；不会将排队状态显示成“已应用”。实际 Cocoa/WKWebView 窗口完成一次点击应用，后台 worker 锁及等待状态已核对。
+- Python 全套 114 项：111 通过，3 项 Linux GTK 专用跳过；Node 71/71 通过。`git diff --check` 通过。
+- 第一份候选的隔离原生测试通过：42 个样本、39 个实际播放样本、1 个结束样本；1920×1080、10.039 秒、全屏、静音，背景 ready 后移除遮罩，窗口可交互。测试副本使用隔离身份和测试 profile，并移除协议注册，避免改变真实入口与回调。
+- 实际编辑器点击应用重建后的最终候选另行复测通过：43 个样本、40 个播放样本、1 个结束样本，参数与原保存设置一致。最终候选的 21 项检查全部通过，实际内容摘要与 pending 记录匹配；与第一份候选摘要不同，未假定两包等同。最终原生证据为 `work/native-smoke-qoo83rif/`，核查记录为 `work/original-entry/final-candidate-checks.json`。
+- 最终候选另通过 `background_smoke.py --startup`：普通工作区与全宽面板两种布局均自然播放结束，背景在揭幕前 ready；揭幕后首帧与 500ms 后背景区域均为 0 像素差异，关闭背景的对照有明确像素变化。证据 `work/background-smoke-phw1vh1j/`；工作区使用真实构建样式与模拟会话。
+
+截至本节记录时，安装状态为 `queued / active=false / worker_running=true`；官方原路径内容仍与备份一致。后台等待器已带 `--relaunch` 启动，用户用 Cmd+Q 完全退出原 ChatGPT 后才进行替换并自动重新打开。**原路径替换后的真实账户冷启动仍待该次退出后验收，不能计为已通过。** 原入口保留不代表供应商签名身份保留；登录、电脑控制、通知、共享 Keychain 及长期运行尚未验证。编辑器“恢复原版 ChatGPT”可排队恢复已验证的官方备份，遇到来源更新则拒绝覆盖。
+
+证据位于 `work/original-entry/`；原生测试记录为 `work/native-smoke-z7f8p_tn/`。该检查点发生于代码提交和发布之前。
+
+## macOS DMG 发布前试构建与脱离开发目录验证 — 2026-10-25
+
+此节的未发布试构建产物为 `dist/Codexflare-0.1.0-macOS-arm64-build20586.dmg`（不属于已发布的 Linux v0.1.0），约 105 MiB，仅适配 arm64 与 build 20586。自包含 Python 3.12.14 / PyObjC 12.2.2，不含官方应用、个人配置、备份或 FFmpeg。两张默认背景在构建时预缩至 3840×2156 / 2869×2160；默认 WebM 可直接播放。打包源码与素材许可均保留，另含当前检出的源码归档。
+
+- 使用 PyInstaller 6.22.3 onedir 打包，带 Linux 同源 `mark.icns`、Applications 链接、中文安装说明及 `NSAppBundlesUsageDescription`。安装说明区分 ChatGPT 会话执行和独立 Codexflare 执行，要求在“隐私与安全性 → App 管理”中授权实际执行修改的 App；不要求完全磁盘访问或关闭全局安全保护。
+- 冻结后的 worker 和管理命令经应用自身的 `--original` / `--manage` 路由执行；后台 worker 使用独立 PyInstaller 环境。首次打包版默认原入口模式，配置写入 `~/.local/share/codexflare`。相关 62 个 Python 回归测试通过。
+- 初版功能测试虽通过，截图发现 header、预览和设置面板的 CSS 入场动画停留在透明状态。移除这三个核心区域的装饰性淡入，并为原生 smoke 增加 opacity、visibility、display、尺寸与 viewport 相交检查；实际窗口复测显示 Logo、背景预览、滑块和应用按钮完整可见。
+- 最终 DMG 的 `hdiutil verify` 通过；只读挂载后复制到含空格的新路径并卸载镜像，`codesign --verify --deep --strict`、自检、两种 status 命令与无待办 worker 路由通过。PATH 限制为系统路径时，资源及预缩背景仍可用，不依赖开发目录的 Python 或 FFmpeg。
+- 最终包原生 smoke 7 个样本通过：核心区域始终可见、1920×1080 视频实际播放、设置保存、背景解码及 PNG 上传、无效 PNG 提示、窗口关闭。截图人工核对通过。没有用打包版再次修改真实 ChatGPT。
+
+该未发布试构建的 SHA-256：`b6b79c71666c3236fdb2bffa713907a6e4eea3facacde2761c73f5cd48b56024`。证据为 `work/dmg-build-final.log`、`work/dmg-final-verification/checks.json` 和 `work/dmg-final-verification/native-editor/`。首次验证脚本曾错误地把文字格式的 `manage status` 当作 JSON 解析，调整测试解析后通过；这不是应用故障。
+
+未做 Developer ID 签名或 Apple 公证；首次下载后的 Gatekeeper 流程、其他 macOS 版本和真实账户未在本轮重新验收。源码版迁移须先用旧编辑器恢复官方应用，不能直接迁移旧状态文件。自定义视频导入和新图进一步缩图需用户另装 FFmpeg。
+
+## v0.1.1 macOS 发布准备 — 2026-10-25
+
+发布分支为 `release/macos-build20586`，基于 `25f3b0c`，仅适配 `26.1013.31256 / 20586 / arm64`。远程 `main` 已新增其他平台和构建支持，本次不合并或覆盖这些改动。保留已发布的 `v0.1.0` 标签与附件，macOS 定向版本不设为 Latest。
+
+- 发布前全套 Python 119 项：116 通过、3 项 Linux GTK 专用跳过；Node 71/71 通过。相关日志位于忽略的 `work/release-python-tests.log`、`work/release-node-tests.log`。
+- `build_dmg.py --release` 对未提交树的拒绝检查通过；正式包要求干净 HEAD，并在打包源码时再次确认提交和工作树未变化。源码归档仅含该提交的跟踪内容，归档所有者不使用构建机账户；构建信息记录 commit、dirty 状态、Python 和依赖版本。
+- README、安装说明及许可文档已明确 App 管理的授权主体、源码原入口模式的迁移步骤和目标构建；清理了公开文档中的个人绝对路径。
+- 上节试构建已完成脱离开发目录及原生编辑器验证。正式 v0.1.1 包在上述提交后重建，上传前另做只读挂载、签名、自检、源码对应和原生编辑器复核；最终摘要随 GitHub Release 的 `SHA256SUMS` 发布，避免将试构建摘要当成正式下载摘要。
+
+本次不再修改真实 ChatGPT 或中断用户会话；真实账户、长期运行及 Apple 公证等未验收项仍以本文件和发布说明为准。
+
+## macOS 发布功能合入 main — 2026-10-25
+
+本阶段将已发布 v0.1.1 的原入口模式、DMG 构建、Logo 和编辑器修复合入主分支，保留 Windows、DEB、双语文档与既有 macOS build 21828 适配，同时增加 build 20586。已发布 v0.1.1 DMG 仍仅支持 build 20586，不移动 v0.1.0 / v0.1.1 标签，不替换发布附件。
+
+- macOS 本机 Python 137 项：131 通过，6 项平台运行时测试跳过（GTK 3 项、pywebview 2 项、Windows Shell COM 1 项）；Node 80/80 通过。
+- 两版全部窗口/音频组合的补丁输出与各自旧实现逐字一致；主脚本路径、预载、背景 CSS 映射及模拟工作区结构亦保持一致。合成 ASAR 测试验证两版分派，交叉 version/build 和缺失锚点被拒绝。
+- build 20586 的真实官方备份通过 12 种窗口、音频及保留原身份组合的唯一匹配与 Node 语法检查，背景选择器与真实 CSS 对应。检查仅在内存进行，没有改写原应用。
+- Cocoa/WKWebView 原生编辑器 7 个样本通过：核心控件可见、视频播放、设置保存、背景上传/解码、无效图片提示与正常关闭；已查看截图。
+- 保留 Windows 入口提示、管理分派、DEB 工具和 CI；macOS 原路径管理器延迟导入 POSIX 锁，Windows 仅跳过依赖 POSIX 语义的事务测试。缺少 fcntl 和 Windows 路径分隔符的本机模拟通过；实际 Windows/Ubuntu 结果以 PR 的 CI 为准。
+- 发布标签与附件保持不变。main 的本地 DMG 构建改为记录两组 targets，文件名不再含单一 build；不将其当作已发布的 v0.1.1 DMG。
+- 集成提交 `a4461ff` 的 DMG 已从干净 HEAD 构建，双 targets 与源码提交核对一致；只读挂载、脱离镜像后的签名/资源自检/管理命令、Linux 同源图标和原生编辑器 7 个样本通过，证据为 `work/merge-dmg-verification/`。该包仅用于合入验证，未覆盖已发布附件。
+- 首次远程 Ubuntu CI 通过；Windows 的 6 项签名测试因重开未关闭的临时文件失败。签名逻辑改为先关闭私有临时目录中的权限文件再调用 codesign，保留全部原测试；macOS 23 项相关测试及隔离真实应用副本的深度签名校验通过，远程结果以 PR 最新检查为准。
+
+本地证据在忽略的 `work/merge-python-tests.log`、`work/merge-node-tests.log`、`work/merge-real-asar.json` 和 `work/merge-native-editor/`。build 21828 没有本机真实应用包，本轮未重做该版本原生验收；真实账户及签名相关服务仍未验收。

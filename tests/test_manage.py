@@ -137,12 +137,12 @@ class ManageTests(unittest.TestCase):
             manage.launch([])
             execute.assert_called_once_with(str(manage.SYSTEM_LAUNCHER), [str(manage.SYSTEM_LAUNCHER)])
 
-    def test_running_runtime_and_unsupported_version_refuse_install(self):
+    def test_running_runtime_and_incompatible_structure_refuse_install(self):
         with patch.object(manage, 'running_pids', return_value=[123]):
             with self.assertRaisesRegex(ValueError, '仍在运行'):
                 manage.install()
-        self.fingerprint['version'] = 'future'
-        with self.assertRaisesRegex(ValueError, '仅支持'):
+        self.patches.enter_context(patch.object(manage, 'patch_archive', side_effect=ValueError('不兼容的窗口结构')))
+        with self.assertRaisesRegex(ValueError, '不兼容的窗口结构'):
             manage.install()
         self.assertFalse(manage.RUNTIME.exists())
 

@@ -14,9 +14,13 @@ import tempfile
 if __package__:
     from .patch_app import Asar, ROOT, replace_once
     from .native_smoke import probe_timing
+    from .background_layout import BackgroundLayout
+    from .build_layout import entrypoint
 else:
     from patch_app import Asar, ROOT, replace_once
     from native_smoke import probe_timing
+    from background_layout import BackgroundLayout
+    from build_layout import entrypoint
 
 
 def main():
@@ -45,9 +49,11 @@ def main():
         fixture = (ROOT / 'tests/background_fixture.html').read_text()
         probe = 'startup_probe.cjs' if args.startup else 'background_probe.cjs'
         timeout_ms = 45000
+        early = entrypoint(archive)
+        probe_path = str(Path(early).parent / 'background-probe.cjs')
         changes = {
-            '.vite/build/early-bootstrap.js': b'require("./background-probe.cjs");\n',
-            '.vite/build/background-probe.cjs': (ROOT / 'tests' / probe).read_bytes(),
+            early: b'require("./background-probe.cjs");\n',
+            probe_path: (ROOT / 'tests' / probe).read_bytes(),
         }
         if args.startup:
             fixture = replace_once(fixture, "font-src 'self'", "font-src 'self'; script-src 'self'; media-src 'self'")
@@ -71,21 +77,21 @@ def main():
         else:
             # 普通背景回归固定摆放参数；首帧回归保留候选归档的实际设置。
             changes['webview/assets/codex-background.css'] = (ROOT / 'src/background.css').read_bytes()
-        names = ('app-shared-f2d570e85ceb.css', 'app-initial-c43288484373.css', 'thread-scroll-layout-24b9bd243051.css')
+        layout = BackgroundLayout(system)
+        fixture = layout.fixture(fixture)
         if macos:
-            fixture = patch_macos.adapt_background_fixture(fixture)
             fixture = fixture.replace('<html ', '<html data-codex-os="darwin" ', 1)
-            probe_path = '.vite/build/background-probe.cjs'
-            changes[probe_path] = patch_macos.adapt_background_classes(changes[probe_path].decode()).encode()
-            if not args.startup:
-                changes['webview/assets/codex-background.css'] = patch_macos.patch_background_css(
-                    (ROOT / 'src/background.css').read_text(), system).encode()
-            # Stable test URLs carry the current build's real shared, composer and workspace styles.
-            for alias, name in zip(names, patch_macos.BACKGROUND_STYLES):
-                changes['webview/assets/' + alias] = system.read('webview/assets/' + name)
-        else:
-            for name in names:
-                changes['webview/assets/' + name] = system.read('webview/assets/' + name)
+        changes[probe_path] = replace_once(layout.adapt(changes[probe_path].decode()),
+            '/* CODEX_BACKGROUND_STYLES */ []', json.dumps(layout.styles)).encode()
+        if not args.startup:
+            changes['webview/assets/codex-background.css'] = layout.adapt(
+                (ROOT / 'src/background.css').read_text()).encode()
+        fixture = re.sub(r'<link rel="stylesheet" href="./assets/(?:app-shared|app-initial|thread-scroll-layout)-[^\"]+">', '', fixture)
+        fixture = fixture.replace('<link rel="stylesheet" href="./assets/codex-background.css">',
+            ''.join(f'<link rel="stylesheet" href="./assets/{name}">\n' for name in layout.styles)
+            + '<link rel="stylesheet" href="./assets/codex-background.css">', 1)
+        for name in layout.styles:
+            changes['webview/assets/' + name] = system.read('webview/assets/' + name)
         changes['webview/background-fixture.html'] = fixture.encode()
         temporary = archive_path.with_suffix('.qa.asar')
         archive.write_changes(temporary, changes)

@@ -40,15 +40,15 @@ class WindowsInjectionTests(unittest.TestCase):
             local = Path(folder)
             video = local / 'video.webm'
             video.write_bytes(b'fixture video')
-            package = {'name': 'openai-codex-electron', 'version': '26.1021.31345',
-                       'codexBuildNumber': '21828', 'codexWindowsPackageIdentity': 'OpenAI.Codex'}
             settings = animation.validate_settings({'background': {'enabled': False}})
             before = json.dumps(settings)
-            with patch.object(inject, 'Asar') as archive, \
+            with patch.object(inject, 'Asar'), \
+                    patch.object(inject, 'check_archive') as check, \
+                    patch.object(inject, 'loading_class', return_value='_delayedBlossom_current_16'), \
                     patch.object(animation, 'video_info', return_value={'duration': 1}), \
                     patch.object(animation, 'video_path', return_value=video):
-                archive.return_value.read.return_value = json.dumps(package).encode()
                 script = inject.prepare_script(local, settings, local)
+            check.assert_called_once_with(local / 'resources/app.asar', 'win32', settings)
             self.assertEqual(json.dumps(settings), before)
             self.assertIn('data:video/webm;base64,', script)
             self.assertIn('window !== window.top', script)
@@ -63,13 +63,14 @@ class WindowsInjectionTests(unittest.TestCase):
     def test_background_blob_is_shared_by_css_and_preload_for_both_decoders(self):
         image = bytes(range(256))
         scripts = []
-        with patch.object(inject, 'Asar') as archive, \
-                patch.object(inject.patch_windows, 'select_build', return_value=SimpleNamespace(patch_background_css=None)), \
+        with patch.object(inject, 'Asar'), \
+                patch.object(inject, 'check_archive'), \
+                patch.object(inject, 'loading_class', return_value='_delayedBlossom_current_16'), \
+                patch.object(inject, 'patch_background_css', side_effect=lambda text, _archive: text), \
                 patch.object(animation, 'video_info', return_value={'duration': 1}), \
                 patch.object(animation, 'video_path', return_value=SimpleNamespace(read_bytes=lambda: b'video')), \
                 patch.object(inject.background, 'load_selected') as selected, \
                 patch.object(inject.background, 'prepare_image', return_value=(image, {})):
-            archive.return_value.read.return_value = b'{}'
             for enabled in (True, False):
                 selected.return_value = (image, {}) if enabled else (None, None)
                 scripts.append(inject.prepare_script(Path('source'), {'background': {'enabled': enabled}}, Path('local')))

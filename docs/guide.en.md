@@ -4,21 +4,21 @@
 
 ## Compatibility
 
-Codexflare is an unofficial local appearance editor. It does not include Codex, ChatGPT, or Electron. Install a supported Codex build first; other builds allow previews and saved settings, but cannot be patched.
+Codexflare is an unofficial local appearance editor. It does not include Codex, ChatGPT, or Electron. Install Codex first. Current source checks application structure; the table lists native validation baselines, not a version allowlist.
 
-| Platform | Codex version / build | Original application |
+| Platform | Native validation baseline / build | Original application |
 | --- | --- | --- |
 | Linux x86_64 | `26.1002.52244 / 13536` | `/usr/lib/chatgpt` |
-| macOS arm64 | `26.1021.31345 / 21828` | `/Applications/Codex.app` or `/Applications/ChatGPT.app` |
+| macOS arm64 | `26.1021.31345 / 21828`, `26.1013.31256 / 20586` | `/Applications/Codex.app` or `/Applications/ChatGPT.app` |
 | Windows x64 | `26.1021.31345 / 21828` | Microsoft Store / MSIX `26.1021.3705.0` |
 
-**The v0.1.0 RPM and DEB are Linux packages. Use current `main` source for macOS and Windows.** Allow approximately 1.6 GB for a Linux / macOS copy, plus temporary space during updates. Windows creates only a shortcut to launch the installed standard app, without copying it. Windows build checks for `26.1002.52244 / 13536` (MSIX `26.1002.7124.0`) remain, but the older build has not been retested natively with the new launcher. Exact build checks determine compatibility.
+**The v0.1.0 RPM and DEB are Linux packages; the v0.1.1 DMG supports macOS build 20586 only.** Current `main` source supports both macOS builds above and Windows. Integration into main does not add build 21828 support to the published DMG. Allow approximately 1.6 GB for a Linux / macOS copy, plus temporary space during updates. macOS original-entry mode also keeps a full official backup and prepared candidate. Windows creates only a shortcut to launch the installed standard app, without copying it. The older `26.1002.52244 / 13536` (MSIX `26.1002.7124.0`) is a historical reference and has not been retested natively with the new launcher. Published packages retain their original version restrictions. Run `python tools/manage.py check` (use `.venv/bin/python` on macOS) for a read-only check. Resource hashes, minified bindings and CSS-module hashes are discovered automatically; missing or ambiguous window/background structures stop application. Structural checks do not replace native validation. After an official update, check and reapply; original-entry backup and source-change protections remain in place.
 
 <a id="linux"></a>
 
 ## Install a Linux release
 
-Download a package and its matching checksum file from [Releases](https://github.com/epsilon10111/Codexflare/releases/latest), then run these commands in the download directory.
+Download a package and its matching checksum file from [the Linux v0.1.0 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.0), then run these commands in the download directory.
 
 ### Fedora
 
@@ -37,6 +37,20 @@ codexflare
 ```
 
 Packages install Python 3.11+, GTK 3, PyGObject, WebKit2 4.1, and basic GStreamer media dependencies. You can also open **Codexflare** from the application menu. Installing a package does not modify Codex. `noarch` / `all` describe the editor's architecture-independent code, not wider patch compatibility. Initial packages are unsigned; SHA256 checks download integrity only.
+
+<a id="macos-dmg"></a>
+
+## Install the macOS DMG (build 20586)
+
+Download the DMG and matching `.sha256` file from the [v0.1.1 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.1), then run:
+
+```bash
+shasum -a 256 -c Codexflare-0.1.1-macOS-arm64-build20586.dmg.sha256
+```
+
+Drag `Codexflare.app` into Applications and run it there. The DMG bundles Python / PyObjC and defaults to [original-entry mode](#macos-original). The default video and resized backgrounds need no additional tools; custom video imports require separately installed FFmpeg / ffprobe. The app is ad-hoc signed and not Apple-notarized. Validation used Apple Silicon / macOS 26.6.2. Complete [installation instructions (Chinese)](../packaging/macos/安装说明.txt) are included in the DMG.
+
+If an older source installation modified ChatGPT through original-entry mode, restore the official app with that editor, quit normally and wait for restoration before enabling the DMG version. Do not migrate old state or official backups directly. Users of independent copies do not need to restore the original app.
 
 <a id="source"></a>
 
@@ -63,7 +77,7 @@ If the selected Python lacks GI, the launcher tries `/usr/bin/python3`. The edit
 
 ### macOS
 
-Complete the [clone step](#source) above first. Requires Python 3.11+ and Apple Command Line Tools (`codesign` / `lipo`); an older system Python may not qualify. Install Cocoa / WKWebView bindings through PyObjC:
+Complete the [clone step](#source) above first. Prefer a short path, such as `~/Applications/Codexflare`, to avoid Unix socket path limits. Requires Python 3.11+ and Apple Command Line Tools (`codesign` / `lipo`); an older system Python may not qualify. Install Cocoa / WKWebView bindings through PyObjC:
 
 ```bash
 python3 -m venv .venv
@@ -72,6 +86,25 @@ python3 -m venv .venv
 ```
 
 With `uv` installed, use `uv venv --python python3 .venv` and `uv pip install --python .venv/bin/python -r requirements-macos.txt` instead to create the environment and install dependencies.
+
+Source installations default to an independent copy and support both macOS builds listed for main. The DMG defaults to the following original-entry mode.
+
+<a id="macos-original"></a>
+
+#### Original ChatGPT entry
+
+Under **System Settings → Privacy & Security → App Management**, authorize the app performing the modification: **ChatGPT** for a ChatGPT task, or **Codexflare** for the standalone editor. Follow the name in the system prompt. This is separate from Automation or Full Disk Access and does not require disabling system protections. [Apple guide](https://support.apple.com/guide/mac-help/mchl211c911f/26/mac/26)
+
+To enable this mode for the first time from source, run in the repository directory:
+
+```bash
+.venv/bin/python tools/original_macos.py prepare
+.venv/bin/python tools/original_macos.py wait-activate --relaunch
+```
+
+The second command waits for the target app to quit normally. For subsequent changes, save and click Apply to ChatGPT (应用到 ChatGPT) in the editor. Once preparation completes, **fully quit ChatGPT with Cmd+Q**; only then does the installer atomically replace the original path. Continue launching from the original icon. The DMG does not need these manual activation commands. This mode retains the name, icon, bundle ID, protocols and default configuration path, without copying login or chat data. It shares Linux's media preprocessing, background preload, parallel initialization and ready-state transition.
+
+The official backup and state live in the installation's data directory as `Original ChatGPT.app` and `original-install.json`. Before installation or restoration, signature and full-content hashes are checked, along with external updates to the source app; changes cause a refusal to overwrite. To restore, click Restore original ChatGPT (恢复原版 ChatGPT), quit normally and confirm completion. Modified apps use ad-hoc signatures and cannot retain vendor privileges; see [configuration and recovery](#uninstall).
 
 <a id="windows"></a>
 
@@ -91,8 +124,8 @@ pywebview uses WebView2 exclusively, without an IE fallback. Keep the source dir
 
 1. Choose a video under **开场动画** (Startup animation), select or upload a PNG under **常驻背景** (Background), then adjust the preview and startup window mode.
 2. Click **保存设置** (Save settings). Saving updates configuration; **apply again so the next cold start uses the new settings**.
-3. On Linux and macOS, quit the customized Codex normally, then click **刷新状态** (Refresh status) and **应用到 Codex** (Apply to Codex). On Linux, fully quit the original app before the first application too. Windows can apply settings while the original app is running.
-4. Quit the current app normally, including any remaining tray process, then launch from the original menu entry on Linux, `~/Applications/Codexflare Codex.app` on macOS, or **Codex (Codexflare)** in the Windows Start menu. The original Windows Store or pinned icon still opens the standard app without enhancements.
+3. For a Linux or macOS independent copy, quit the customized Codex normally, then click **刷新状态** (Refresh status) and **应用到 Codex** (Apply to Codex) in Codexflare. On Linux, fully quit the original app before the first application too. In macOS original-entry mode, click Apply to ChatGPT first, wait for preparation, then fully quit with Cmd+Q and wait for installation. Windows can apply settings while the original app is running.
+4. Quit the current app normally, including any remaining tray process, then use the original entry on Linux or in macOS original-entry mode, `~/Applications/Codexflare Codex.app` for a macOS independent copy, or **Codex (Codexflare)** in the Windows Start menu. The original Windows Store or pinned icon still opens the standard app without enhancements.
 
 The tool does not terminate active sessions. The Windows enhancement launcher refuses a duplicate launch while the original app is running. The animation runs on a cold start; activating an existing instance neither replays it nor changes its window mode. The workspace loads during playback. If initialization continues after the video, the last frame remains for up to 20 seconds. Esc, playback failure, or timeout releases the overlay. Slow network or backend startup can still cause a wait.
 
@@ -122,9 +155,10 @@ On Windows, restore mode leaves window management to the original app; the curre
 | Installation | Data directory |
 | --- | --- |
 | Linux RPM / DEB | `$XDG_DATA_HOME/codexflare/`; defaults to `~/.local/share/codexflare/` if unset or not absolute |
+| macOS DMG | `$XDG_DATA_HOME/codexflare/`; defaults to `~/.local/share/codexflare/` if unset or not absolute |
 | Source on any platform | `.local/` inside the repository |
 
-`animation.json` stores settings; `media/` and `backgrounds/` store imports. Runtime copies use `runtime/` on Linux and `Codexflare Runtime.app` on macOS. Windows stores applied settings, source and shortcut state in `install-windows.json`, without an application copy. Source and package installations have separate data; remove the old launcher before switching. Settings and media are processed locally, without uploads.
+`animation.json` stores settings; `media/` and `backgrounds/` store imports. Runtime copies use `runtime/` on Linux and `Codexflare Runtime.app` for macOS independent copies. Windows stores applied settings, source and shortcut state in `install-windows.json`, without an application copy. Source and package installations have separate data; remove an old independent launcher before switching, or restore the official app with the old editor when using original-entry mode. Settings and media are processed locally, without uploads.
 
 ```bash
 codexflare-manage status      # Check the source application and enhancement launcher
@@ -133,11 +167,13 @@ codexflare-manage launch      # Launch; fall back after the source application c
 codexflare-manage uninstall   # Restore / remove the entry; keep user data
 ```
 
-For source installations, replace `codexflare-manage` with `python3 tools/manage.py`; use `.venv/bin/python` on macOS or `.\.venv\Scripts\python.exe` on Windows. Management refuses to overwrite a running runtime or externally modified launcher. Uninstalling does not stop processes or delete settings, media, backups, or runtime copies.
+These commands manage Linux / macOS independent copies and the Windows enhancement launcher; macOS original-entry mode uses the editor or `tools/original_macos.py`. For source installations, replace `codexflare-manage` with `python3 tools/manage.py`; use `.venv/bin/python` on macOS or `.\.venv\Scripts\python.exe` on Windows. Management refuses to overwrite a running runtime or externally modified launcher. Uninstalling does not stop processes or delete settings, media, backups, or runtime copies.
 
 Linux changes only the user-level `chatgpt.desktop`, with a backup. It does not modify `/usr/lib/chatgpt`, system commands, or account data. Before removing a package, run `codexflare-manage uninstall`, followed by `sudo dnf remove codexflare` or `sudo apt remove codexflare`. If the package is removed first, the retained `launch.py` falls back to system Codex.
 
-**macOS uses an independent profile and a local ad-hoc signature.** Data lives in `.local/profile` / `.local/codex-home`; a separate login may be required. The copy cannot inherit OpenAI's Developer ID, shared Keychain, notification, or native tool service identity. Services that verify signatures, such as computer control, may reject it. Uninstalling removes only the generated `~/Applications/Codexflare Codex.app` entry; `/Applications` and original account data stay unchanged. To select a different source app, set `CODEXFLARE_SOURCE_APP=/full/path/Codex.app` consistently for subsequent commands.
+**macOS independent-copy mode uses a separate profile and a local ad-hoc signature.** Data lives in `.local/profile` / `.local/codex-home`; a separate login may be required. The copy cannot inherit OpenAI's Developer ID, shared Keychain, notification, or native tool service identity. Services that verify signatures, such as computer control, may reject it. Uninstalling removes only the generated `~/Applications/Codexflare Codex.app` entry; `/Applications` and original account data stay unchanged. To select a different source app, set `CODEXFLARE_SOURCE_APP=/full/path/Codex.app` consistently for subsequent commands.
+
+**macOS original-entry mode retains the default configuration path, but not vendor signing identity.** Modified apps still use ad-hoc signatures and may require another login. Shared Keychain, notifications, computer control and other signature-dependent services may be unavailable; real-account behavior has not been validated. Before removal, restore the official app in the editor, quit the target normally and confirm completion, then delete Codexflare. Do not delete the only official backup or overwrite an updated source app with an old backup. Keep the source checkout in place while enabled.
 
 **Windows uses the installed standard app's package identity and original default data paths, without a second ChatGPT installation.** The original EXE, ASAR, vendor signature, WindowsApps and protocol registration stay unchanged. Appearance code uses private anonymous pipes, without a network debugging port. The default path creates no `runtime-windows/`, `profile-windows/` or `codex-home-windows/`. Keep the helper running with the app; do not terminate its Python process. Override the source with `$env:CODEXFLARE_SOURCE_APP = 'D:\Apps\Codex\app'` or an MSIX root directory belonging to a registered standard package. Uninstalling removes only the protected shortcut; current effects end when the app quits normally. Old copies and their separate data are not deleted automatically. After a source update, the launcher falls back to the unenhanced standard app until validation and application are repeated.
 
@@ -147,7 +183,7 @@ Package-context launch retains identity, but its token is not guaranteed to matc
 
 ## Development and builds
 
-`ui/` contains the editor, `src/` injected animation and styles, `tools/` platform management and validation, `tests/` regression tests, `assets/` media, and `packaging/` Linux package definitions. See [AGENTS.md](../AGENTS.md) for contribution rules and [DESIGN.md](../DESIGN.md) for interface principles; both are in Chinese.
+`ui/` contains the editor, `src/` injected animation and styles, `tools/` platform management and validation, `tests/` regression tests, `assets/` media, and `packaging/` Linux and macOS package definitions. See [AGENTS.md](../AGENTS.md) for contribution rules and [DESIGN.md](../DESIGN.md) for interface principles; both are in Chinese.
 
 ```bash
 python3 -m unittest discover -s tests -v
@@ -173,6 +209,15 @@ python3 tools/deb_smoke.py dist/codexflare_0.1.0-1_all.deb
 RPM output in `dist/` includes a binary package, SRPM, source archive, and `SHA256SUMS`; DEB output includes the package and a separate `.deb.sha256`. Runtime packages contain the default WebM and both PNG backgrounds. Original MP4, legacy demo, and development tools remain in source distributions. System Codex and user data are excluded.
 
 RPM uses the chosen ref's spec and resources. DEB uses the checked-out build script / Debian templates with application resources from the chosen ref. **DEB tooling, macOS, and Windows support were added after the v0.1.0 tag.** To rebuild the original DEB, keep current tooling and pass `--ref v0.1.0`; the old tag does not contain the newer tools. Do not move the original tag or replace published assets.
+
+Build macOS DMGs on Apple Silicon with the build dependencies installed and FFmpeg on PATH to resize the default backgrounds:
+
+```bash
+.venv/bin/python -m pip install -r requirements-build-macos.txt
+.venv/bin/python tools/build_dmg.py --release
+```
+
+`--release` requires a clean, committed HEAD and writes artifacts and checksums to `dist/`. The source archive contains only tracked files from that commit, and the manifest records the commit and dependency versions. Official apps, user data and FFmpeg are excluded. Before publishing, verify the image, deep signature, relocated `--self-check` / `--smoke-test --output /temporary-validation-directory`, and actual control visibility. The historical v0.1.1 DMG still supports build 20586 only. Describe main-built artifacts using their own build manifests and validation records; do not overwrite existing release assets.
 
 ## Validation and licensing
 

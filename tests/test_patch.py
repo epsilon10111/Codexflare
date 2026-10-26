@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import struct
 import subprocess
@@ -33,6 +34,17 @@ def make_png(width=1, height=1, depth=8, color=6):
             + png_chunk(b'IDAT', zlib.compress((b'\0' + b'\xff' * (width * 4)) * height)) + png_chunk(b'IEND', b''))
 
 
+def style_fixture():
+    return (''.join('._'+role+'_fixture_2{}' for role in ('WorkspaceContent','MainContentSurface',
+        'MainContentViewport','ComposerLayoutRoot','compactScrollMask','delayedBlossom'))
+        + '.bg-gradient-to-t{}.from-surface{}').encode()
+
+
+def main_fixture():
+    source = Path(__file__).with_name('test_window_mode.cjs').read_text(encoding='utf-8')
+    return re.search(r'let fixture = `([\s\S]*?)\n`;', source)[1].replace('\\`', '`')
+
+
 class PatchTests(unittest.TestCase):
     def setUp(self):
         folder = tempfile.TemporaryDirectory()
@@ -55,8 +67,9 @@ class PatchTests(unittest.TestCase):
         make_archive(seed)
         Asar(seed).write_changes(original, {
             'package.json': json.dumps({'name': 'openai-codex-electron', 'version': patch_app.VERSION}).encode(),
+            'webview/assets/app-shared-fixture.css': b'shared styles',
             patch_app.MAIN: b'main placeholder', 'webview/index.html': b'<head></head><body></body>',
-            **{f'webview/assets/{name}': b'preload fixture' for name in patch_app.STARTUP_PRELOADS
+            **{f'webview/assets/{name}': (style_fixture() if name.endswith('.css') else b'preload fixture') for name in patch_app.STARTUP_PRELOADS
                if name != missing_asset},
         })
         video = self.root / 'video.webm'
@@ -100,20 +113,13 @@ class PatchTests(unittest.TestCase):
             patch_html(patched)
 
     def test_main_starts_animation_without_overriding_window_geometry(self):
-        geometry = ('minWidth:A?.width,minHeight:A?.height,webPreferences:P},R=new m.BrowserWindow(L);'
-                    'k&&R.once(`ready-to-show`,()=>{R.isDestroyed()||R.maximize()});'
-                    'let i=Cje(t);if((0,W.default)(this.primaryWindowMode,t)){};')
-        original = (geometry + 'await R.loadURL(t.o(f,{mcpAppSandboxLocalDevelopment:ee}));'
-                    'B.createPrimaryWindow({title:m.app.getName(),show:e,initialRoute:t===`/`?void 0:t,opener:n})')
+        original = main_fixture()
         result = patch_main(original)
-        self.assertTrue(result.startswith(geometry.split(';', 1)[0] + ';'))
-        self.assertIn('k&&R.once(`ready-to-show`,()=>{R.isDestroyed()||R.maximize()});', result)
-        self.assertIn('e.codexflareStartup&&w&&(R.codexflareWindowMode=`restore`)', result)
+        self.assertIn('k&&R.once(`ready-to-show`', result)
+        self.assertIn('R.codexflareWindowMode=`restore`', result)
         self.assertNotIn('setFullScreen', result)
-        self.assertNotIn('fullscreen:', result)
-        self.assertNotIn('autoplayPolicy', result)
         self.assertNotIn('codex-boot-play', result)
-        self.assertIn('n&&!r&&d&&e.searchParams.set(`codexBootAnimation`,`1`)', result)
+        self.assertIn('contextIsolation:true,nodeIntegration:false', result)
         self.assertIn('show:process.env.CODEX_ELECTRON_START_IN_BACKGROUND===`1`?e:!0', result)
         with self.assertRaises(ValueError):
             patch_main(result)
@@ -139,7 +145,7 @@ class PatchTests(unittest.TestCase):
         missing = patch_app.STARTUP_PRELOADS[-1]
         original, target = self.prepare_background_archive(missing_asset=missing)
         before = original.read_bytes()
-        with self.assertRaisesRegex(ValueError, '启动预载资源缺失'):
+        with self.assertRaisesRegex(ValueError, '应用资源角色必须唯一'):
             patch_archive(original, target)
         self.assertFalse(target.exists())
         self.assertEqual(original.read_bytes(), before)
@@ -170,8 +176,9 @@ class PatchTests(unittest.TestCase):
             make_archive(seed)
             Asar(seed).write_changes(original, {
                 'package.json': json.dumps({'name': 'openai-codex-electron', 'version': patch_app.VERSION}).encode(),
-                patch_app.MAIN: b'main placeholder', 'webview/index.html': b'<head></head><body></body>',
-                **{f'webview/assets/{name}': b'preload fixture' for name in patch_app.STARTUP_PRELOADS},
+                'webview/assets/app-shared-fixture.css': b'shared styles',
+            patch_app.MAIN: b'main placeholder', 'webview/index.html': b'<head></head><body></body>',
+                **{f'webview/assets/{name}': (style_fixture() if name.endswith('.css') else b'preload fixture') for name in patch_app.STARTUP_PRELOADS},
             })
             settings = {'video': 'a' * 64, 'speed': 0.5, 'brightness': 1.25,
                         'contrast': 0.75, 'saturation': 0, 'fit': 'contain', 'windowMode': 'centered',
@@ -227,6 +234,14 @@ class PatchTests(unittest.TestCase):
         }):
             patch_archive(original, target)
         self.assertEqual(Asar(target).read('webview/assets/codex-background.png'), png)
+
+    def test_missing_legacy_background_does_not_inject_broken_links(self):
+        original, target = self.prepare_background_archive()
+        with patch.object(patch_app, 'load_settings', return_value={
+            'video': 'default', 'background': {'image': 'legacy'},
+        }):
+            patch_archive(original, target)
+        self.assertNotIn('codex-background', Asar(target).read('webview/index.html').decode())
 
     def test_archive_reads_user_data_outside_code_directory(self):
         original, target = self.prepare_background_archive()

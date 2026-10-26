@@ -73,7 +73,9 @@ async function setup(options = {}) {
     File: VideoFile,
     fetch: async (url, request) => {
       requests.push({ url, ...request });
-      const result = url === '/api/state' ? state : await options.write(url, request);
+      const result = await (url === '/api/state'
+        ? options.read ? options.read(state) : state
+        : options.write(url, request));
       return { ok: !result.error, status: result.error ? 400 : 200, json: async () => structuredClone(result) };
     },
   };
@@ -286,6 +288,174 @@ test('配置恢复警告仍可保存，运行状态刷新保留未保存参数',
   assert.equal(nodes.speed.value, 1.8);
   assert.equal(nodes.install.disabled, true);
   assert.equal(nodes.save.disabled, false);
+  state.installation.running = false;
+  nodes['refresh-state'].click();
+  await flush();
+  assert.equal(nodes.speed.value, 1.8);
+  assert.equal(nodes.install.disabled, false);
+  assert.equal(nodes.save.disabled, false);
+});
+
+test('返回编辑器自动刷新退出状态，保留草稿并避免重复请求', async () => {
+  const { nodes, state, requests, window } = await setup({
+    state: { installation: { active: true, available: true, running: true } },
+  });
+  assert.equal(nodes.install.disabled, true);
+  nodes.speed.value = '1.8';
+  nodes.speed.emit('input');
+  nodes['window-mode'].value = 'fullscreen';
+  nodes['window-mode'].emit('change');
+  nodes['background-opacity'].value = '.4';
+  nodes['background-opacity'].emit('input');
+  state.installation.running = false;
+  const before = requests.length;
+  window.emit('focus');
+  window.emit('focus');
+  assert.equal(nodes.adjustments.disabled, false);
+  assert.equal(nodes.save.disabled, false);
+  await flush();
+  assert.equal(requests.length, before + 1);
+  assert.equal(requests.at(-1).url, '/api/state');
+  assert.equal(nodes.install.disabled, false);
+  assert.equal(nodes.speed.value, '1.8');
+  assert.equal(nodes['window-mode'].value, 'fullscreen');
+  assert.equal(nodes['background-opacity'].value, '.4');
+  assert.equal(nodes.save.disabled, false);
+});
+
+test('焦点刷新未完成仍可立即保存或应用，迟到状态不能覆盖写入结果', async () => {
+  for (const action of ['save', 'install']) {
+    let resolveRefresh;
+    let reads = 0;
+    const { nodes, state, requests, window } = await setup({
+      read: state => ++reads === 1 ? state : new Promise(resolve => { resolveRefresh = resolve; }),
+      write: (url, request) => ({
+        settings: JSON.parse(request.body),
+        installation: { active: true, available: true, running: false, message: '新应用状态' },
+      }),
+    });
+    nodes.speed.value = '1.8';
+    nodes.speed.emit('input');
+    const stale = structuredClone(state);
+    stale.installation = { active: false, available: true, running: true, message: '旧运行状态' };
+    window.emit('focus');
+    window.emit('focus');
+    assert.equal(reads, 2);
+    assert.equal(nodes.adjustments.disabled, false);
+    assert.equal(nodes.save.disabled, false);
+    assert.equal(nodes.install.disabled, false);
+    nodes[action].click();
+    assert.equal(requests.at(-1).url, action === 'save' ? '/api/settings' : '/api/install');
+    await flush();
+    assert.equal(nodes['installation-message'].textContent, '新应用状态');
+    nodes.speed.value = '1.6';
+    nodes.speed.emit('input');
+    resolveRefresh(stale);
+    await flush();
+    assert.equal(nodes['installation-message'].textContent, '新应用状态');
+    assert.equal(nodes.install.disabled, false);
+    assert.equal(nodes.speed.value, '1.6');
+    assert.equal(nodes.save.disabled, false);
+  }
+});
+
+test('焦点刷新失败可重试且保留当前可用界面和草稿', async () => {
+  let reads = 0;
+  const { nodes, window } = await setup({
+    read: state => ++reads === 1 ? state : Promise.reject(new Error('offline')),
+  });
+  nodes.speed.value = '1.8';
+  nodes.speed.emit('input');
+  window.emit('focus');
+  await flush();
+  assert.match(nodes['error-text'].textContent, /刷新状态.*重试/);
+  assert.equal(nodes.adjustments.disabled, false);
+  assert.equal(nodes.install.disabled, false);
+  assert.equal(nodes.save.disabled, false);
+  assert.equal(nodes.speed.value, '1.8');
+});
+
+test('Windows 原版增强使用独立入口提示，不冒充 macOS 原图标模式', async () => {
+  const installation = { mode: 'windows-original', active: true, available: true, running: false };
+  const { nodes, requests } = await setup({
+    state: { installation },
+    write: (url, request) => url === '/api/uninstall'
+      ? { installation: { ...installation, active: false } }
+      : { settings: JSON.parse(request.body), installation },
+  });
+  assert.equal(nodes['installation-heading'].textContent, '增强启动入口已启用');
+  assert.equal(nodes['install-label'].textContent, '应用到 Codex');
+  assert.equal(nodes.restore.textContent, '停用增强入口');
+  assert.match(nodes['apply-hint'].textContent, /Codex \(Codexflare\)/);
+  assert.doesNotMatch(nodes['apply-hint'].textContent, /原图标/);
+  nodes.install.click();
+  await flush();
+  assert.equal(requests.at(-1).url, '/api/install');
+  assert.match(nodes.notice.textContent, /下次从增强入口/);
+  nodes.restore.click();
+  await flush();
+  assert.equal(requests.at(-1).url, '/api/uninstall');
+  assert.equal(nodes['installation-heading'].textContent, '使用原版启动入口');
+  assert.match(nodes.notice.textContent, /正常退出后结束/);
+});
+
+test('原图标模式允许运行中的 ChatGPT 准备更新，待退出状态不冒充已应用', async () => {
+  const pending = {
+    mode: 'original', phase: 'queued', active: false, available: true, running: true,
+    pending: true, queued: true, message: '已准备，退出 ChatGPT 后自动应用；下次从原图标启动生效。',
+  };
+  const { nodes, requests, state, window } = await setup({
+    state: { installation: { mode: 'original', phase: 'ready', active: false, available: true, running: true, pending: false } },
+    write: (url, request) => ({ settings: JSON.parse(request.body), installation: pending, message: pending.message }),
+  });
+  assert.equal(nodes.install.disabled, false);
+  assert.equal(nodes['install-label'].textContent, '应用到 ChatGPT');
+  assert.match(nodes['apply-hint'].textContent, /原图标/);
+  nodes.speed.value = '1.6';
+  nodes.speed.emit('input');
+  nodes.install.click();
+  await flush();
+  assert.equal(requests.at(-1).url, '/api/install');
+  assert.equal(JSON.parse(requests.at(-1).body).speed, 1.6);
+  assert.equal(nodes['installation-heading'].textContent, '已准备，等待 ChatGPT 退出');
+  assert.equal(nodes.notice.textContent, pending.message);
+  assert.equal(nodes.install.disabled, false);
+  assert.equal(nodes.restore.disabled, false);
+  nodes.speed.value = '1.8';
+  nodes.speed.emit('input');
+  state.installation = { ...pending, phase: 'active', active: true, pending: false, queued: false, message: '已应用，从原图标启动生效' };
+  window.emit('focus');
+  await flush();
+  assert.equal(nodes['installation-heading'].textContent, '原 ChatGPT 图标已启用定制效果');
+  assert.equal(nodes.speed.value, '1.8');
+  assert.equal(nodes.save.disabled, false);
+});
+
+test('原图标模式保存保留应用提示，恢复原版也显示等待退出', async () => {
+  const restored = {
+    mode: 'original', phase: 'queued', active: true, available: true, running: true,
+    pending: true, message: '已准备恢复原版，退出 ChatGPT 后自动应用。',
+  };
+  const { nodes, requests } = await setup({
+    state: { installation: { mode: 'original', phase: 'active', active: true, available: true, running: true, pending: false } },
+    write: (url, request) => url === '/api/settings'
+      ? { settings: JSON.parse(request.body) }
+      : { installation: restored, message: restored.message },
+  });
+  assert.equal(nodes.install.disabled, false);
+  assert.equal(nodes.restore.disabled, false);
+  nodes.speed.value = '1.6';
+  nodes.speed.emit('input');
+  nodes.save.click();
+  await flush();
+  assert.match(nodes.notice.textContent, /应用到 ChatGPT/);
+  assert.equal(nodes.speed.value, 1.6);
+  nodes.restore.click();
+  await flush();
+  assert.equal(requests.at(-1).url, '/api/uninstall');
+  assert.equal(nodes.notice.textContent, restored.message);
+  assert.equal(nodes['installation-heading'].textContent, '已准备，等待 ChatGPT 退出');
+  assert.equal(nodes.speed.value, 1.6);
 });
 
 

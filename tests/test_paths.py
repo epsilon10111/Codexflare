@@ -12,6 +12,33 @@ from tools import paths
 
 
 class PathTests(unittest.TestCase):
+    def test_source_commands_preserve_the_virtualenv_interpreter_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            interpreter = Path(directory) / 'python'
+            try:
+                interpreter.symlink_to(sys.executable)
+            except OSError as error:
+                if getattr(error, 'winerror', None) == 1314:
+                    self.skipTest('Windows symlink privilege unavailable')
+                raise
+            executable = str(interpreter)
+            with patch.object(paths.sys, 'frozen', False, create=True), \
+                    patch.object(paths.sys, 'executable', executable):
+                self.assertEqual(paths.command_for('original_macos', 'wait-activate', '--relaunch'),
+                                 [executable, str(paths.ROOT / 'tools/original_macos.py'),
+                                  'wait-activate', '--relaunch'])
+                self.assertEqual(paths.command_for('manage', 'launch'),
+                                 [executable, str(paths.ROOT / 'tools/manage.py'), 'launch'])
+
+    def test_frozen_commands_use_the_application_dispatcher(self):
+        executable = '/Applications/Codexflare.app/Contents/MacOS/Codexflare'
+        with patch.object(paths.sys, 'frozen', True, create=True), \
+                patch.object(paths.sys, 'executable', executable):
+            self.assertEqual(paths.command_for('original_macos', 'wait-activate', '--relaunch'),
+                             [executable, '--original', 'wait-activate', '--relaunch'])
+            self.assertEqual(paths.command_for('manage', 'launch'),
+                             [executable, '--manage', 'launch'])
+
     def test_source_checkout_keeps_local_configuration(self):
         with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {'XDG_DATA_HOME': '/other/data'}):
             root = Path(folder)
@@ -35,7 +62,8 @@ class PathTests(unittest.TestCase):
             root, data = folder / 'installed', folder / 'data'
             (root / 'tools').mkdir(parents=True)
             (root / '.packaged').touch()
-            for name in ('paths.py', 'animation.py', 'background.py', 'manage.py', 'patch_app.py'):
+            for name in ('paths.py', 'animation.py', 'background.py', 'manage.py', 'patch_app.py',
+                         'build_layout.py', 'background_layout.py'):
                 shutil.copyfile(paths.ROOT / 'tools' / name, root / 'tools' / name)
             (root / 'assets').mkdir()
             (root / 'assets/default.webm').touch()

@@ -15,14 +15,14 @@ import tempfile
 import shlex
 
 if __package__:
-    from .patch_app import Asar, patch_archive
+    from .patch_app import Asar, patch_archive, check_archive
     from .patch_macos import VERSION, BUILD
-    from .paths import ROOT, LOCAL
+    from .paths import ROOT, LOCAL, command_for
     from .manage import atomic_write, digest
 else:
-    from patch_app import Asar, patch_archive
+    from patch_app import Asar, patch_archive, check_archive
     from patch_macos import VERSION, BUILD
-    from paths import ROOT, LOCAL
+    from paths import ROOT, LOCAL, command_for
     from manage import atomic_write, digest
 
 
@@ -56,24 +56,36 @@ def executable(bundle):
     return bundle / 'Contents/MacOS' / name
 
 
-def fingerprint():
-    info = bundle_info(SOURCE)
-    package = json.loads(Asar(SOURCE / ASAR).read('package.json'))
+def fingerprint(bundle=None):
+    bundle = SOURCE if bundle is None else Path(bundle)
+    info = bundle_info(bundle)
+    package = json.loads(Asar(bundle / ASAR).read('package.json'))
     if package.get('name') != 'openai-codex-electron':
         raise ValueError('来源不是 Codex Electron 应用')
     result = {'version': package['version'], 'build': str(info['CFBundleVersion']),
-              'source': str(SOURCE.resolve())}
-    for path in (SOURCE / ASAR, executable(SOURCE), SOURCE / PLIST):
+              'source': str(bundle.resolve())}
+    for path in (bundle / ASAR, executable(bundle), bundle / PLIST):
         value = path.stat()
-        result[str(path.relative_to(SOURCE))] = [value.st_dev, value.st_ino, value.st_size,
+        result[str(path.relative_to(bundle))] = [value.st_dev, value.st_ino, value.st_size,
                                                 value.st_mtime_ns, value.st_ctime_ns]
     return result
 
 
-def require_supported(source):
-    if (source['version'], source['build']) != (VERSION, BUILD):
-        raise ValueError(f'仅支持 macOS Codex {VERSION} / build {BUILD}；当前 {source["version"]} / {source["build"]}')
-    arch = subprocess.check_output(['/usr/bin/lipo', '-archs', str(executable(SOURCE))], text=True).strip()
+def supported_source(source):
+    return isinstance(source.get('version'), str) and bool(source['version']) and bool(source.get('build'))
+
+
+def check_compatibility(settings=None, bundle=None, preserve_identity=False):
+    bundle = SOURCE if bundle is None else Path(bundle)
+    require_supported(fingerprint(bundle), bundle=bundle)
+    return check_archive(bundle / ASAR, 'darwin', settings, preserve_identity=preserve_identity)
+
+
+def require_supported(source, bundle=None):
+    if not supported_source(source):
+        raise ValueError('macOS 应用缺少版本或构建信息')
+    bundle = SOURCE if bundle is None else Path(bundle)
+    arch = subprocess.check_output(['/usr/bin/lipo', '-archs', str(executable(bundle))], text=True).strip()
     if arch != 'arm64':
         raise ValueError(f'当前 macOS 补丁仅验证 Apple Silicon arm64；来源为 {arch}')
 
@@ -117,6 +129,10 @@ def running_pids():
     for line in result.stdout.splitlines():
         parts = line.strip().split(None, 1)
         if len(parts) == 2 and parts[0].isdigit() and parts[1].startswith(prefix):
+            # Crash reporting helpers can outlive a normally quit application.
+            if (parts[1].startswith(prefix + 'Contents/Frameworks/')
+                    and Path(parts[1]).name == 'browser_crashpad_handler'):
+                continue
             pids.append(int(parts[0]))
     return pids
 
@@ -160,8 +176,27 @@ def update_framework_integrity(bundle, previous, current):
         data.flush()
 
 
-def seal_bundle(bundle):
+def seal_bundle(bundle, preserve_identity=False):
     """Update Electron's ASAR header integrity, then ad-hoc sign this copy only."""
+    if type(preserve_identity) is not bool:
+        raise ValueError('保留应用身份必须是布尔值')
+    entitlements = {'com.apple.security.cs.allow-jit': True,
+                    'com.apple.security.cs.allow-unsigned-executable-memory': True,
+                    'com.apple.security.cs.disable-library-validation': True}
+    if preserve_identity:
+        result = subprocess.run(['/usr/bin/codesign', '--display', '--entitlements', '-', '--xml', str(bundle)],
+                                check=True, capture_output=True)
+        original = plistlib.loads(result.stdout)
+        if not isinstance(original, dict):
+            raise ValueError('无效的原应用签名权限')
+        # Only reviewed local resource rights; Team, app groups, Keychain and APNs are excluded.
+        for name in ('app-sandbox', 'automation.apple-events', 'device.audio-input', 'device.camera',
+                     'files.user-selected.read-write', 'network.client', 'personal-information.calendars'):
+            key = 'com.apple.security.' + name
+            if key in original:
+                if type(original[key]) is not bool:
+                    raise ValueError(f'无效的原应用签名权限值: {key}')
+                entitlements[key] = original[key]
     archive = bundle / ASAR
     with archive.open('rb') as stream:
         size, header_size, payload_size, string_size = struct.unpack('<4I', stream.read(16))
@@ -173,39 +208,49 @@ def seal_bundle(bundle):
     info['ElectronAsarIntegrity'] = {'Resources/app.asar': {
         'algorithm': 'SHA256', 'hash': hashlib.sha256(header).hexdigest()}}
     update_framework_integrity(bundle, previous_integrity, info['ElectronAsarIntegrity'])
-    # A distinct native identity prevents sharing NSUserDefaults/account caches with the vendor app.
-    info['CFBundleIdentifier'] = 'org.codexflare.runtime'
-    info['CrProductDirName'] = 'org.codexflare.runtime'
-    # Do not register the vendor URL schemes from the local copy.
-    info.pop('CFBundleURLTypes', None)
-    info['CFBundleDisplayName'] = 'Codex (Codexflare)'
+    if not preserve_identity:
+        # A distinct identity prevents standalone copies from sharing vendor account caches.
+        info['CFBundleIdentifier'] = 'org.codexflare.runtime'
+        info['CrProductDirName'] = 'org.codexflare.runtime'
+        info.pop('CFBundleURLTypes', None)
+        info['CFBundleDisplayName'] = 'Codex (Codexflare)'
+        install_icon(bundle, info)
     (bundle / PLIST).write_bytes(plistlib.dumps(info))
-    # Vendor team, push, app-group and Keychain entitlements cannot be carried by an ad-hoc signature.
-    entitlements = {'com.apple.security.cs.allow-jit': True,
-                    'com.apple.security.cs.allow-unsigned-executable-memory': True,
-                    'com.apple.security.cs.disable-library-validation': True}
-    with tempfile.NamedTemporaryFile(suffix='.plist') as file:
-        file.write(plistlib.dumps(entitlements)); file.flush()
+    with tempfile.TemporaryDirectory(prefix='codexflare-sign-') as folder:
+        entitlements_file = Path(folder) / 'entitlements.plist'
+        entitlements_file.write_bytes(plistlib.dumps(entitlements))
         subprocess.run(['/usr/bin/codesign', '--force', '--deep', '--sign', '-', '--options', 'runtime',
-                        '--entitlements', file.name, str(bundle)], check=True, capture_output=True)
+                        '--entitlements', str(entitlements_file), str(bundle)], check=True, capture_output=True)
     subprocess.run(['/usr/bin/codesign', '--verify', '--deep', '--strict', str(bundle)],
                    check=True, capture_output=True)
 
 
-def build_runtime(destination):
+def build_runtime(destination, source=None, preserve_identity=False):
     """Used by installation and isolated smoke tests; no launcher or profile changes."""
-    before = fingerprint()
-    require_supported(before)
+    source = SOURCE if source is None else Path(source)
+    destination = Path(destination)
+    before = fingerprint(source)
+    require_supported(before, bundle=source)
     if destination.exists():
         raise ValueError('构建目标已经存在')
-    subprocess.run(['/usr/bin/ditto', str(SOURCE), str(destination)], check=True)
+    subprocess.run(['/usr/bin/ditto', str(source), str(destination)], check=True)
     patched = destination / 'Contents/Resources/app.patched.asar'
-    metadata = patch_archive(SOURCE / ASAR, patched, platform='darwin')
+    metadata = patch_archive(source / ASAR, patched, platform='darwin', preserve_identity=preserve_identity)
     os.replace(patched, destination / ASAR)
-    seal_bundle(destination)
-    if fingerprint() != before:
+    seal_bundle(destination, preserve_identity=preserve_identity)
+    if fingerprint(source) != before:
         raise ValueError('构建期间原版应用发生变化，未启用副本')
     return before, metadata
+
+
+def install_icon(bundle, info):
+    resources = bundle / 'Contents/Resources'
+    resources.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(ROOT / 'ui/mark.icns', resources / 'codexflare.icns')
+    info['CFBundleIconFile'] = 'codexflare.icns'
+    # The vendor's asset-catalog name overrides CFBundleIconFile on macOS.
+    info.pop('CFBundleIconName', None)
+    info.pop('CodexAppIconBaseName', None)
 
 
 def make_launcher(bundle):
@@ -213,9 +258,10 @@ def make_launcher(bundle):
     (contents / 'MacOS').mkdir(parents=True)
     info = {'CFBundleIdentifier': 'org.codexflare.codex-launcher', 'CFBundleName': 'Codexflare Codex',
             'CFBundleExecutable': 'launch', 'CFBundlePackageType': 'APPL', 'CFBundleVersion': '1'}
+    install_icon(bundle, info)
     (contents / 'Info.plist').write_bytes(plistlib.dumps(info))
     command = ' '.join(shlex.quote(str(value)) for value in
-                       (sys.executable, Path(__file__).with_name('manage.py').resolve(), 'launch'))
+                       command_for('manage', 'launch'))
     script = contents / 'MacOS/launch'
     script.write_text('#!/bin/sh\nexec ' + command + ' "$@"\n')
     script.chmod(0o755)
@@ -295,4 +341,4 @@ def launch(arguments):
 def status():
     state = read_state()
     print(f'状态：{runtime_problem(state) or "定制副本可用"}')
-    print(f'目标：macOS arm64 Codex {VERSION} / build {BUILD}\n原版：{SOURCE}\n副本：{RUNTIME}\n启动器：{DESKTOP}')
+    print(f'目标：macOS arm64 Codex（按结构检测兼容性）\n原版：{SOURCE}\n副本：{RUNTIME}\n启动器：{DESKTOP}')

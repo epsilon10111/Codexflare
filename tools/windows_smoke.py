@@ -13,10 +13,12 @@ import tempfile
 import time
 
 if __package__:
-    from . import animation, manage_windows, patch_macos, patch_windows, windows_inject, windows_package
+    from . import animation, manage_windows, windows_inject, windows_package
+    from .background_layout import BackgroundLayout
     from .patch_app import Asar, ROOT
 else:
-    import animation, manage_windows, patch_macos, patch_windows, windows_inject, windows_package
+    import animation, manage_windows, windows_inject, windows_package
+    from background_layout import BackgroundLayout
     from patch_app import Asar, ROOT
 
 PROBE = '''(() => {
@@ -149,14 +151,10 @@ def main():
         bounds = window
         scale = window['dpi'] / 96
         archive = Asar(source / 'resources/app.asar')
-        package = json.loads(archive.read('package.json'))
         fixture = (ROOT / 'tests/background_fixture.html').read_text(encoding='utf-8')
-        if package['version'] == patch_windows.CURRENT_VERSION:
-            fixture = patch_macos.adapt_background_fixture(fixture)
-            css_names = patch_macos.BACKGROUND_STYLES
-        else:
-            css_names = ('app-shared-f2d570e85ceb.css', 'app-initial-c43288484373.css', 'thread-scroll-layout-24b9bd243051.css')
-        style = '\n'.join(archive.read('webview/assets/' + n).decode() for n in css_names)
+        layout = BackgroundLayout(archive)
+        fixture = layout.fixture(fixture)
+        style = '\n'.join(archive.read('webview/assets/' + n).decode() for n in layout.styles)
         style += re.search(r'<style>([\s\S]*?)</style>', fixture).group(1)
         body = fixture.split('<body>', 1)[1].split('</body>', 1)[0]
         session.call('Page.bringToFront', session=injector.main_session)

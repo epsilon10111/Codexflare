@@ -1,4 +1,5 @@
 """Cocoa/WKWebView host for the loopback editor; no account/browser data is loaded."""
+from pathlib import Path
 from urllib.parse import urlsplit
 
 import objc
@@ -9,7 +10,8 @@ from AppKit import (NSApplication, NSApplicationActivationPolicyRegular, NSWindo
                     NSWindowStyleMaskMiniaturizable, NSWindowStyleMaskResizable,
                     NSBackingStoreBuffered, NSAlert, NSAlertFirstButtonReturn,
                     NSOpenPanel, NSModalResponseOK, NSMenu, NSMenuItem, NSAppearance,
-                    NSAppearanceNameDarkAqua, NSTerminateCancel)
+                    NSAppearanceNameDarkAqua, NSTerminateCancel, NSImage,
+                    NSEvent, NSEventTypeApplicationDefined)
 from WebKit import (WKWebView, WKWebViewConfiguration, WKWebsiteDataStore,
                     WKNavigationActionPolicyAllow, WKNavigationActionPolicyCancel)
 
@@ -18,6 +20,15 @@ def local_navigation(uri, origin):
     target, home = urlsplit(uri), urlsplit(origin)
     return (target.scheme == home.scheme and target.netloc == home.netloc
             and target.username is None and target.password is None)
+
+
+def stop_event_loop():
+    app = NSApplication.sharedApplication()
+    app.stop_(None)
+    # A WK completion callback is not an NSEvent; wake run() so it observes stop.
+    event = NSEvent.otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2_(
+        NSEventTypeApplicationDefined, (0, 0), 0, 0, 0, None, 0, 0, 0)
+    app.postEvent_atStart_(event, True)
 
 
 # WKWebView can supply C++-generated blocks without introspection metadata. Invoke
@@ -116,7 +127,7 @@ class EditorDelegate(NSObject, protocols=[objc.protocolNamed('WKNavigationDelega
         return False
 
     def windowWillClose_(self, notification):
-        NSApplication.sharedApplication().stop_(None)
+        stop_event_loop()
 
     @objc.signature(b'Q@:@')
     def applicationShouldTerminate_(self, sender):
@@ -130,6 +141,8 @@ class EditorDelegate(NSObject, protocols=[objc.protocolNamed('WKNavigationDelega
 def create_window(url, server):
     app = NSApplication.sharedApplication()
     app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
+    icon = NSImage.alloc().initWithContentsOfFile_(str(Path(__file__).resolve().parents[1] / 'ui/mark.icns'))
+    app.setApplicationIconImage_(icon)
     config = WKWebViewConfiguration.alloc().init()
     config.setWebsiteDataStore_(WKWebsiteDataStore.nonPersistentDataStore())
     config.setMediaTypesRequiringUserActionForPlayback_(0)

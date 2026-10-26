@@ -1,22 +1,17 @@
 import json
 from pathlib import Path
+import re
 import struct
 import tempfile
 import unittest
 from unittest.mock import patch
 import zlib
 
-from tools import patch_app, patch_macos, patch_windows as windows
+from tools import patch_app, patch_macos, patch_windows as windows, windows_inject
 
 
-CURRENT_MAIN = (
-    'await z.loadURL(t.o(p,{mcpAppSandboxLocalDevelopment:P}));'
-    'V.createPrimaryWindow({title:O.app.getName(),show:e,initialRoute:t===`/`?void 0:t,opener:n});'
-    'minWidth:A?.width,minHeight:A?.height,webPreferences:F},z=new O.BrowserWindow(R);'
-    'let t=this.getPrimaryMinimumSize();for(let n of e){if(n.setMinimumSize(t.width,t.height),!0){}};'
-    'let i=A5e(t);if((0,q.default)(this.primaryWindowMode,t)){};'
-    'We.deepLinks.registerProtocolClient();'
-)
+CURRENT_MAIN = re.search(r'let fixture = `([\s\S]*?)\n`;',
+    Path(__file__).with_name('test_window_mode_macos.cjs').read_text(encoding='utf-8'))[1].replace('\\`', '`')
 
 
 def write_archive(path, files):
@@ -41,17 +36,19 @@ class CurrentWindowsPatchTests(unittest.TestCase):
         self.root = Path(temporary.name)
         self.package = {'name': 'openai-codex-electron', 'version': windows.CURRENT_VERSION,
                         'codexBuildNumber': windows.CURRENT_BUILD, 'codexWindowsPackageIdentity': 'OpenAI.Codex'}
+        self.build = patch_macos.BUILDS[windows.CURRENT_VERSION]
         self.files = {
             'package.json': json.dumps(self.package).encode(),
             windows.CURRENT_MAIN: CURRENT_MAIN.encode(),
             'webview/index.html': b'<head></head><body></body>',
             **{f'webview/assets/{name}': b'preload fixture' for name in windows.CURRENT_STARTUP_PRELOADS},
-            **{f'webview/assets/{name}': b'.fixture {}' for name in patch_macos.BACKGROUND_STYLES},
+            **{f'webview/assets/{name}': b'.fixture {}' for name in self.build['background_styles']},
         }
-        selectors = (*patch_macos.BACKGROUND_CLASSES.values(),
+        selectors = (*self.build['background_classes'].values(),
                      '_background_106nk_2', '_fade_106nk_2', '_surface_106nk_2')
-        self.files['webview/assets/' + patch_macos.BACKGROUND_STYLES[0]] = '\n'.join(
+        self.files['webview/assets/' + self.build['background_styles'][0]] = '\n'.join(
             f'.{name} {{}}' for name in selectors).encode()
+        self.files['webview/assets/' + windows.CURRENT_STARTUP_PRELOADS[4]] = b'._delayedBlossom_current_16 {}'
         self.source, self.target = self.root / 'source.asar', self.root / 'target.asar'
         video = self.root / 'video.webm'
         video.write_bytes(b'video fixture')
@@ -66,21 +63,32 @@ class CurrentWindowsPatchTests(unittest.TestCase):
         self.settings = {'video': 'default', 'windowMode': 'restore', 'muted': True}
         self.enterContext(patch.object(patch_app, 'load_settings', side_effect=lambda: self.settings.copy()))
 
-    def test_selects_only_exact_legacy_and_current_builds(self):
-        current = windows.select_build(self.package)
-        self.assertEqual(current.MAIN, windows.CURRENT_MAIN)
-        self.assertIs(current.patch_main, patch_macos.patch_main)
-        self.assertIs(current.patch_background_css, patch_macos.patch_background_css)
-        legacy_package = self.package | {'version': windows.VERSION, 'codexBuildNumber': windows.BUILD}
-        legacy = windows.select_build(legacy_package)
-        self.assertEqual(legacy.MAIN, windows.MAIN)
-        self.assertIs(legacy.patch_main, windows.patch_main)
-        self.assertIsNone(legacy.patch_background_css)
-        for package in (self.package | {'version': windows.VERSION},
-                        legacy_package | {'version': windows.CURRENT_VERSION},
-                        *(self.package | {key: 'future'} for key in self.package)):
+    def test_package_identity_is_required_without_a_version_allowlist(self):
+        for version, build in ((windows.CURRENT_VERSION, windows.CURRENT_BUILD),
+                               (windows.VERSION, windows.BUILD), ('99.1.1', '99999')):
+            windows.require_supported(self.package | {'version': version, 'codexBuildNumber': build})
+        for package in (self.package | {'name': 'other-app'},
+                        self.package | {'codexWindowsPackageIdentity': 'other-package'},
+                        self.package | {'version': ''}):
             with self.subTest(package=package), self.assertRaisesRegex(ValueError, '仅支持'):
-                windows.select_build(package)
+                windows.require_supported(package)
+
+    def test_injection_discovers_future_resource_names_and_loading_class(self):
+        files = {re.sub(r'-[^/-]+\.(js|css)$', r'-future.\1', name): data
+                 for name, data in self.files.items()}
+        files['package.json'] = json.dumps(self.package | {'version': '99.1.1', 'codexBuildNumber': '99999'}).encode()
+        (self.root / 'resources').mkdir()
+        source = self.root / 'resources/app.asar'
+        write_archive(source, files)
+        before = source.read_bytes()
+        with patch.object(windows_inject.animation, 'video_info', return_value={'duration': 4}), \
+                patch.object(windows_inject.animation, 'video_path', return_value=self.root / 'video.webm'):
+            script = windows_inject.prepare_script(self.root, self.settings, self.root)
+        self.assertIn('_delayedBlossom_current_16', script)
+        self.assertNotIn('_delayedBlossom_ovcb0_16', script)
+        self.assertIn('_WorkspaceContent_azz1c_2', script)
+        self.assertIn('URL.createObjectURL', script)
+        self.assertEqual(source.read_bytes(), before)
 
     def test_current_archive_six_playback_modes_preserve_source(self):
         write_archive(self.source, self.files)
@@ -114,17 +122,17 @@ class CurrentWindowsPatchTests(unittest.TestCase):
             with self.subTest(main=main):
                 write_archive(self.source, self.files | {windows.CURRENT_MAIN: main.encode()})
                 before = self.source.read_bytes()
-                with self.assertRaisesRegex(ValueError, '匹配不是唯一'):
+                with self.assertRaisesRegex(ValueError, 'packaged loadURL'):
                     patch_app.patch_archive(self.source, self.target, platform='win32')
                 self.assertFalse(self.target.exists())
                 self.assertEqual(self.source.read_bytes(), before)
 
     def test_missing_resources_and_changed_background_selectors_fail_before_output(self):
         missing = 'webview/assets/' + windows.CURRENT_STARTUP_PRELOADS[0]
-        cases = [({key: value for key, value in self.files.items() if key != missing}, '启动预载资源缺失'),
-                 (self.files | {missing: b''}, '启动预载资源为空'),
-                 (self.files | {'webview/assets/' + patch_macos.BACKGROUND_STYLES[0]: b'.changed {}'},
-                  'Background selector missing')]
+        cases = [({key: value for key, value in self.files.items() if key != missing}, '应用资源角色必须唯一'),
+                 (self.files | {missing: b''}, '应用资源为空'),
+                 (self.files | {'webview/assets/' + self.build['background_styles'][0]: b'.changed {}'},
+                  '背景 CSS 角色必须唯一')]
         for files, message in cases:
             with self.subTest(message=message):
                 write_archive(self.source, files)
@@ -135,7 +143,7 @@ class CurrentWindowsPatchTests(unittest.TestCase):
                 self.assertEqual(self.source.read_bytes(), before)
 
     def test_unsupported_package_and_repatch_are_rejected(self):
-        bad_package = self.package | {'codexBuildNumber': windows.BUILD}
+        bad_package = self.package | {'codexWindowsPackageIdentity': 'other-package'}
         write_archive(self.source, self.files | {'package.json': json.dumps(bad_package).encode()})
         with self.assertRaisesRegex(ValueError, '仅支持'):
             patch_app.patch_archive(self.source, self.target, platform='win32')
@@ -143,6 +151,6 @@ class CurrentWindowsPatchTests(unittest.TestCase):
         write_archive(self.source, self.files)
         patch_app.patch_archive(self.source, self.target, platform='win32')
         second = self.root / 'second.asar'
-        with self.assertRaisesRegex(ValueError, '匹配不是唯一'):
+        with self.assertRaisesRegex(ValueError, '已经包含'):
             patch_app.patch_archive(self.target, second, platform='win32')
         self.assertFalse(second.exists())

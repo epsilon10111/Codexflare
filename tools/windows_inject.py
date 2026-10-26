@@ -16,11 +16,13 @@ import time
 from urllib.parse import parse_qs, urlsplit
 
 if __package__:
-    from . import animation, background, patch_windows
-    from .patch_app import Asar, ROOT, replace_once
+    from . import animation, background
+    from .background_layout import loading_class, patch_background_css
+    from .patch_app import Asar, ROOT, check_archive, replace_once
 else:
-    import animation, background, patch_windows
-    from patch_app import Asar, ROOT, replace_once
+    import animation, background
+    from background_layout import loading_class, patch_background_css
+    from patch_app import Asar, ROOT, check_archive, replace_once
 
 
 def main_url(url):
@@ -32,14 +34,16 @@ def main_url(url):
 
 def prepare_script(source, settings, local):
     values = animation.validate_settings(settings)
-    archive = Asar(Path(source) / 'resources/app.asar')
-    build = patch_windows.select_build(json.loads(archive.read('package.json')))
+    archive_path = Path(source) / 'resources/app.asar'
+    check_archive(archive_path, 'win32', values)
+    archive = Asar(archive_path)
     values = values | {'duration': animation.video_info(values['video'])['duration']}
     video = animation.video_path(values['video']).read_bytes()
     data_url = 'data:video/webm;base64,' + base64.b64encode(video).decode('ascii')
     boot = (ROOT / 'src/boot.js').read_text(encoding='utf-8')
     boot = replace_once(boot, "  if (new URLSearchParams(location.search).get('codexBootAnimation') !== '1') return;", '')
     boot = replace_once(boot, '/* CODEX_BOOT_SETTINGS */ null', json.dumps(values, allow_nan=False))
+    boot = boot.replace('_delayedBlossom_ovcb0_16', loading_class(archive))
     boot = replace_once(boot, '  const scriptUrl = document.currentScript.src;', '')
     boot = replace_once(boot, "new URL('./codex-boot.webm', scriptUrl).href", json.dumps(data_url))
     start, end = '    const readySurface = () => {', '    const prepareWorkspace = () => {'
@@ -52,9 +56,7 @@ def prepare_script(source, settings, local):
     if image is not None:
         image, _ = background.prepare_image(image, info)
         image_data = base64.b64encode(image).decode('ascii')
-        style = (ROOT / 'src/background.css').read_text(encoding='utf-8')
-        if build.patch_background_css is not None:
-            style = build.patch_background_css(style, archive)
+        style = patch_background_css((ROOT / 'src/background.css').read_text(encoding='utf-8'), archive)
         style = replace_once(style, './codex-background.png', 'CODEXFLARE_BACKGROUND_IMAGE')
         selected = values['background']
         css += (f"\n:root {{ --codex-bg-opacity: {selected['opacity']}; "

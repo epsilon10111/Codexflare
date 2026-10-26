@@ -20,6 +20,6 @@ jobs:
       - run: python -m unittest discover -s tests -v
         env:
           PYTHONUTF8: '1'
-      - run: node --test tests/test_boot.cjs tests/test_editor_ui.cjs tests/test_window_mode.cjs tests/test_window_mode_macos.cjs
+      - run: node --test tests/test_*.cjs
         env:
           PYTHONUTF8: '1'

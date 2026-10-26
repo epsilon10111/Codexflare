@@ -14,10 +14,10 @@ import sys
 import tempfile
 
 if __package__:
-    from .patch_app import Asar, VERSION, patch_archive
+    from .patch_app import Asar, VERSION, patch_archive, check_archive
     from .paths import ROOT, LOCAL, data_home
 else:
-    from patch_app import Asar, VERSION, patch_archive
+    from patch_app import Asar, VERSION, patch_archive, check_archive
     from paths import ROOT, LOCAL, data_home
 
 RUNTIME = LOCAL / 'runtime'
@@ -52,6 +52,11 @@ def read_state():
     if not isinstance(state, dict) or state.get('schema') != 1 or state.get('desktop') != str(DESKTOP):
         raise ValueError('安装状态无效或属于另一个 desktop 路径')
     return state
+
+
+def check_compatibility(settings=None):
+    fingerprint()
+    return check_archive(SOURCE / 'resources/app.asar', 'linux', settings)
 
 
 def atomic_write(path, data, mode=0o600):
@@ -174,8 +179,6 @@ def install():
         if current_desktop not in (expected, state['original_desktop']):
             raise ValueError('用户 desktop 已被其他操作修改；拒绝覆盖')
     before = fingerprint()
-    if before['version'] != VERSION:
-        raise ValueError(f'仅支持 Codex {VERSION}；当前 {before["version"]}')
     require_stopped()
     LOCAL.mkdir(parents=True, exist_ok=True)
     LOCAL.chmod(0o700)
@@ -186,7 +189,7 @@ def install():
         subprocess.run(['cp', '-a', '--reflink=auto', str(SOURCE) + '/.', str(staged)], check=True)
         patched = staged / 'resources/app.patched.asar'
         metadata = patch_archive(SOURCE / 'resources/app.asar', patched)
-        if metadata['version'] != VERSION or fingerprint() != before:
+        if metadata['version'] != before['version'] or fingerprint() != before:
             raise ValueError('生成副本期间系统应用发生变化，未启用本次副本')
         os.chmod(patched, stat.S_IMODE((SOURCE / 'resources/app.asar').stat().st_mode))
         os.replace(patched, staged / 'resources/app.asar')
@@ -214,7 +217,7 @@ def install():
     finally:
         if staged.exists():
             shutil.rmtree(staged)
-    print(f'已安装 Codex {VERSION} 定制副本：{RUNTIME}')
+    print(f'已安装 Codex {before["version"]} 定制副本：{RUNTIME}')
     print('应用菜单入口已启用；当前已运行的系统应用需要正常退出后重新打开。')
 
 
@@ -295,7 +298,7 @@ def platform_manager():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('install', 'launch', 'uninstall', 'status'))
+    parser.add_argument('command', choices=('install', 'launch', 'uninstall', 'status', 'check'))
     parser.add_argument('arguments', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     try:
@@ -303,6 +306,8 @@ def main():
             platform_manager().launch(args.arguments)
         elif args.arguments:
             parser.error('只有 launch 接受应用参数')
+        elif args.command == 'check':
+            print(json.dumps(platform_manager().check_compatibility(), ensure_ascii=False, indent=2))
         else:
             getattr(platform_manager(), args.command)()
     except (OSError, ValueError, RuntimeError, KeyError, struct.error, subprocess.SubprocessError) as error:

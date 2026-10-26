@@ -4,11 +4,11 @@
 
 ## 兼容与依赖
 
-- 当前目标：Windows x64 Microsoft Store 包 **OpenAI.Codex 26.1021.3705.0**，显示名 ChatGPT，内部版本 **26.1021.31345 / build 21828**。
-- 保留旧 **26.1002.52244 / build 13536**（Store 26.1002.7124.0）的精确构建与资源映射；本轮原生验证以当前构建为准，旧构建新启动方式未重新做真机验收。
+- Windows x64 正式版的当前原生验收基线：Microsoft Store 包 **OpenAI.Codex 26.1021.3705.0**，显示名 ChatGPT，内部版本 **26.1021.31345 / build 21828**。当前源码按结构检测兼容性，不以版本号为白名单。
+- 旧 **26.1002.52244 / build 13536**（Store 26.1002.7124.0）保留为历史参考；本轮原生验证以当前构建为准，旧构建新启动方式未重新做真机验收。
 - Python **3.12+ x64**。编辑器依赖 `requirements-windows.txt` 和系统 WebView2；启动管道使用 Python 标准库，不安装新浏览器或 Electron。
 - 自定义视频导入需要 PATH 中的 FFmpeg/ffprobe（VP9 / Opus）；默认视频与 PNG 不依赖 FFmpeg。
-- 不支持任意新版本、Beta 或 ARM64。识别不到构建或背景 CSS 时明确拒绝，不取消版本校验。
+- 使用 `.venv\Scripts\python.exe tools/manage.py check` 只读检查资源、窗口与背景结构，无法唯一识别时拒绝应用。结构检查通过不等于完成原生验收；仍不支持 Beta、ARM64 或普通 Electron 包。
 
 ## 使用
 
@@ -27,6 +27,7 @@ py -3.12 -m venv .venv
 原来的 Store/固定图标仍可用，直接从原图标启动不会加载 Codexflare 效果。这里新增的是快捷方式，不是第二份 ChatGPT 安装。源码和虚拟环境是启动器的依赖，启用期间不要移动或删除。
 
 ```powershell
+.\.venv\Scripts\python.exe tools/manage.py check
 .\.venv\Scripts\python.exe tools/manage.py status
 .\.venv\Scripts\python.exe tools/manage.py install
 .\.venv\Scripts\python.exe tools/manage.py launch
@@ -61,7 +62,7 @@ $env:CODEXFLARE_SOURCE_APP = 'D:\Apps\Codex\app'
 .\.venv\Scripts\python.exe tools/editor.py
 ```
 
-来源发生更新时，启动器会回退启动未增强的标准版，等待重新验证与应用。没有覆盖 WindowsApps 或关闭签名检查的修复步骤。
+来源发生更新时，启动器会回退启动未增强的标准版；重新运行结构检查，通过后才能再次应用，检查失败则需适配对应结构。没有覆盖 WindowsApps 或关闭签名检查的修复步骤。
 
 ## 验证边界
 

@@ -12,14 +12,14 @@ import tempfile
 if __package__:
     from . import animation, windows_package
     from .manage import atomic_write, digest
-    from .patch_app import Asar, patch_archive
-    from .patch_windows import VERSION, BUILD, SUPPORTED_BUILDS, require_supported
+    from .patch_app import Asar, patch_archive, check_archive
+    from .patch_windows import VERSION, BUILD, require_supported
     from .paths import LOCAL
 else:
     import animation, windows_package
     from manage import atomic_write, digest
-    from patch_app import Asar, patch_archive
-    from patch_windows import VERSION, BUILD, SUPPORTED_BUILDS, require_supported
+    from patch_app import Asar, patch_archive, check_archive
+    from patch_windows import VERSION, BUILD, require_supported
     from paths import LOCAL
 
 
@@ -54,7 +54,6 @@ DESKTOP = Path(os.environ.get('APPDATA', Path.home() / 'AppData/Roaming')) / 'Mi
 ASAR = Path('resources/app.asar')
 BINARY = 'ChatGPT.exe'
 RUNTIME_FILES = (ASAR, Path(BINARY), Path('chrome.dll'), Path('owl-shell-runtime.json'))
-SUPPORTED_VERSIONS = tuple(version for version, _build in SUPPORTED_BUILDS)
 LAUNCH_HINT = '正常退出原版后，从开始菜单 Codex (Codexflare) 启动同一原版应用；原 Store 图标保持不变。'
 
 
@@ -72,6 +71,11 @@ def fingerprint():
         info = (SOURCE / relative).stat()
         result[str(relative)] = [info.st_size, info.st_mtime_ns, info.st_ctime_ns]
     return result
+
+
+def check_compatibility(settings=None):
+    fingerprint()
+    return check_archive(SOURCE / ASAR, 'win32', settings)
 
 
 def read_state():
@@ -331,5 +335,4 @@ def launch(arguments):
 
 def status():
     print(f'状态：{runtime_problem(read_state()) or "原版应用增强启动器可用"}')
-    versions = '、'.join(f'{version} / build {build}' for version, build in SUPPORTED_BUILDS)
-    print(f'目标：Windows x64 Codex {versions}\n原版：{SOURCE}\n启动器：{DESKTOP}\n不创建第二份应用或独立账户目录。')
+    print(f'目标：Windows x64 Codex（按结构检测兼容性）\n原版：{SOURCE}\n启动器：{DESKTOP}\n不创建第二份应用或独立账户目录。')
