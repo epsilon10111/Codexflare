@@ -74,7 +74,8 @@ def main(arguments=None):
         elif args.command == 'check':
             installation = editor.installation_status()
             result = {'platform': sys.platform, 'python': sys.version.split()[0],
-                      'supported_codex_version': editor.manage.VERSION,
+                      'reference_codex_version': editor.manage.VERSION,
+                      'compatibility_policy': 'structural',
                       'installation': installation,
                       'ffmpeg': bool(shutil.which('ffmpeg')), 'ffprobe': bool(shutil.which('ffprobe')),
                       'settings_file': str(animation.SETTINGS)}

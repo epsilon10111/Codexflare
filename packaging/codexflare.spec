@@ -1,9 +1,5 @@
 Name:           codexflare
-<<<<<<< HEAD
-Version:        0.1.1
-=======
 Version:        0.2.0
->>>>>>> c23863e (feat: 添加 Agent 配置接口与双语 Skill 介绍)
 Release:        1
 Summary:        Local startup animation and background editor for Codex
 License:        MIT AND LicenseRef-Codexflare-Media
@@ -29,7 +25,7 @@ Recommends:     ffmpeg-free
 Codexflare is a local GTK/WebKit editor for custom startup videos and PNG
 workspace backgrounds. It creates a reversible per-user copy of an existing
 Linux Codex installation. It does not include or modify the system Codex app.
-Patching currently supports Codex 26.1002.52244, build 13536, on x86_64 only.
+Patching checks Linux x86_64 app structures; unknown structures are rejected.
 The editor can preview and save settings without a compatible Codex install.
 
 %prep
@@ -41,7 +37,7 @@ cp assets/LICENSE MEDIA-LICENSE
 
 %install
 install -d %{buildroot}%{_datadir}/%{name}/{tools,src,ui,assets}
-for file in animation background configure desktop editor manage patch_app paths; do
+for file in animation background background_layout build_layout configure desktop editor manage patch_app paths window_patch; do
     install -m 0644 tools/$file.py %{buildroot}%{_datadir}/%{name}/tools/
 done
 sed -i '1{/^#!/d;}' %{buildroot}%{_datadir}/%{name}/tools/*.py
@@ -74,13 +70,11 @@ python3 -c 'import ast, pathlib; [ast.parse(p.read_text()) for p in pathlib.Path
 %{_mandir}/man1/codexflare-manage.1*
 
 %changelog
-<<<<<<< HEAD
-* Sun Oct 25 2026 epsilon10111 - 0.1.1-1
-- macOS build 20586 release; no new RPM published for this version.
-=======
 * Sun Nov 01 2026 epsilon10111 - 0.2.0-1
 - Add validated JSON configuration commands and coordinate writes with the editor.
->>>>>>> c23863e (feat: 添加 Agent 配置接口与双语 Skill 介绍)
+
+* Sun Oct 25 2026 epsilon10111 - 0.1.1-1
+- macOS build 20586 release; no new RPM published for this version.
 
 * Sun Oct 25 2026 epsilon10111 - 0.1.0-1
 - Initial RPM with per-user settings and reversible Codex customization.

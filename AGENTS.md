@@ -34,6 +34,47 @@ Windows x64 Owl 原版增强的原生验收基线为 MSIX `26.1021.3705.0`（内
 | `python tools/manage.py check` | 只读检查来源的资源、窗口与背景结构 |
 | `python tools/manage.py install` | 应用已保存设置：Windows 启用原版启动器，Linux/macOS 独立模式创建定制副本 |
 | `python tools/manage.py status` | 检查应用来源及增强入口状态 |
+| `python tools/manage.py configure show` | JSON 读取配置；`set patch.json` 预览局部修改，增加 `--save` 保存；写入前关闭编辑器 |
 | `python tools/manage.py launch` | 通过增强入口启动，来源变化时回退到原版 |
 | `python tools/manage.py uninstall` | 停用增强入口，Linux 恢复原入口；保留配置、已有副本与备份 |
-| `python tools/manage.py configure show` | JSON 读取配置；`set patch.json` 预览局部修改，增加 `--save` 保存；写入前关闭编辑器 |
+| `python tools/native_smoke.py` | 基于已安装副本打开隔离普通窗口，验证动画与应用就绪过渡并保存截图 |
+| `python tools/windows_smoke.py --window-mode centered` | 从现有签名 Windows EXE 启动隔离测试窗口，检查注入、背景、交互与刷新 |
+| `python tools/build_rpm.py` | 从已提交的 HEAD 构建 RPM、SRPM、源码归档与校验文件 |
+| `python tools/rpm_smoke.py dist/codexflare-0.1.0-1.noarch.rpm` | 检查包内容、只读资源、用户配置及隔离 RPM 安装/卸载 |
+| `python tools/build_deb.py --ref v0.1.0` | 用当前检出的 DEB 模板打包指定已提交版本的应用，输出 DEB 和独立校验文件 |
+| `python tools/deb_smoke.py dist/codexflare_0.1.0-1_all.deb` | 检查 DEB 内容、依赖、只读资源与用户配置 |
+| `.venv/bin/python tools/build_dmg.py --release` | 在 Apple Silicon 上从干净、已提交的 HEAD 构建 DMG；源码归档不包含未跟踪文件 |
+
+DEB 工具在 v0.1.0 发布后加入，重建时保留包含工具的后续提交，通过 `--ref v0.1.0` 选择应用版本；不要移动原标签或覆盖已发布的 RPM、源码归档和校验文件。Debian / Ubuntu 的依赖可用性与实际桌面验收分开记录。
+
+## 编码风格与命名
+
+Python 使用四空格缩进、`snake_case` 函数和大写常量；JavaScript/CSS 使用两空格缩进，JavaScript 使用 `camelCase` 和分号。沿用所在文件的引号风格。仓库未配置格式化或 lint 工具；保持局部修改，复用现有辅助函数。修改参数范围时同步检查配置验证、UI 和动画运行时，保留基于时长和速度的超时保护。
+
+## 测试要求
+
+Python 使用标准库 `unittest`，文件命名为 `test_*.py`，方法命名为 `test_*`；JavaScript 使用内置 `node:test` 和严格断言。没有覆盖率百分比门槛；行为变更应补充回归测试，覆盖跳过、播放失败、减少动态效果或安装恢复等受影响路径。
+
+窗口或视频变更还需在图形桌面运行原生测试，检查实际窗口边界和播放前后截图。单元测试与隔离登录页均不能证明真实账户冷启动正常；在 `VALIDATION.md` 明确记录未验证项。
+
+Windows 编辑器验证：`python tools/windows_editor_smoke.py`。原版注入验证只启动现有签名 EXE，profile 放在 `work/`，不复制应用，不注册测试入口，不读取真实账户，也不停止用户现有进程。只结束测试自己创建的进程。测试可仅对该进程强制允许动画，正式启动尊重系统无障碍偏好；测试 profile 与日志不得提交。
+
+编辑器改动还需在目标平台的实际 GTK/WebKit 或 Cocoa/WKWebView 窗口验证上传、预览、保存、关闭与错误提示。检查控件实际可见性，不能仅以 DOM 存在判定通过。HTTP 测试使用临时目录和安装函数替身，不应改动真实菜单入口或应用。遵循 `DESIGN.md` 的黑白六瓣几何风格、字号与减少动态效果规则，视频保留原色；保留平台窗口操作和关闭保护。
+
+## 提交与 Pull Request
+
+提交使用简短类型前缀，沿用 `feat: 添加 Codex 全屏开屏动画 demo` 的风格，例如 `fix: 修复动画超时退出`、`docs: 更新验证说明`。PR 应说明问题、改动、目标构建和实际测试结果；有关联 issue 时附链接，视觉变更附截图或短视频。
+
+每个功能使用最小有意义的提交；发现错误后另建修复提交，不 amend 或 squash。每个后续提交（包括合并提交）必须包含 `Co-authored-by: Haoran Zhang <zhr20040823@sjtu.edu.cn>`，并保留共同作者尾注 `Co-authored-by: Frank Shi <frank20050415@sjtu.edu.cn>`；对应已核实的仓库协作者为 `Frank0415`。不得为补写尾注而改写已发布标签或其他历史提交。
+
+`v0.1.1` 最初从 `release/macos-build20586` 独立发布，此后将功能合入 main 并保留其他平台及 build 21828 的适配。保留 `v0.1.0`、`v0.1.1` 标签和已发布资产，不覆盖旧附件；原 macOS 定向 Release 不设为 latest。正式 DMG 使用 `--release` 构建，源码归档与发布提交一致，发布说明包含精确目标构建、依赖、签名限制和验收边界。
+
+## 安全与配置边界
+
+Linux 与 macOS 独立副本模式仅修改各自数据目录内的应用副本及受保护的用户入口，不改写 `/usr/lib/chatgpt` 或 `/Applications` 中的原应用。macOS 原入口模式遵循下节的备份与退出保护。所有模式均不得改写用户登录数据或聊天目录，不提交官方应用二进制副本、测试 profile 或日志。记录来源版本，按结构检测兼容性；保留唯一匹配、平台身份/架构、CSP、上下文隔离、签名和备份恢复检查。结构检测通过不等于完成原生验收。安装前正常退出定制副本，测试不得终止用户当前会话。
+
+## macOS 验证与边界
+
+使用 `.venv/bin/python` 与 `requirements-macos.txt`。执行 `tools/macos_editor_smoke.py` 验证真实编辑器，再执行 `tools/native_smoke.py --runtime ".local/Codexflare Runtime.app"` 验证隔离应用。Node 测试增加 `tests/test_window_mode_macos.cjs`。原生测试只修改隔离副本，不改写 `/Applications`，不继承供应商 Keychain/team entitlements，也不终止用户原版会话。签名相关原生功能的限制须保留在 README 与 VALIDATION 中。
+
+macOS DMG 默认使用 `tools/original_macos.py` 原入口模式；源码默认使用独立副本，首次执行 `original_macos.py prepare` 后显式启用原入口模式。原入口模式可在原应用正常退出后原子替换原路径；运行期间只备份和构建候选，绝不结束会话。保持独立、完整且签名验证通过的官方备份，复核原包、候选和版本未改变，再执行安装或恢复。原入口模式保留 bundle ID、图标、协议和默认配置路径，但不伪造或继承供应商签名特权。系统需要 App 管理授权时，应授权实际发起修改的 App，以系统提示为准；不要求完全磁盘访问或关闭安全保护。测试仍使用隔离身份和测试 profile，不读取真实账号。
