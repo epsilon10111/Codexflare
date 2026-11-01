@@ -12,6 +12,7 @@
   <a href="https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.0">Linux 下载</a> ·
   <a href="https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.1">macOS DMG</a> ·
   <a href="docs/guide.zh-CN.md">使用指南</a> ·
+  <a href="#agent-skill">Agent Skill</a> ·
   <a href="AGENTS.md">参与贡献</a>
 </p>
 
@@ -122,6 +123,16 @@ shasum -a 256 -c Codexflare-0.1.1-macOS-arm64-build20586.dmg.sha256
 保存后需要重新应用，下次冷启动才会使用新设置。Windows 原 Store / 固定图标仍按普通方式启动。开场视频不能保证覆盖所有网络与初始化等待。
 
 **Windows 直接增强现有标准版，不安装第二份应用。** 启动器保留原 MSIX 包身份、默认数据路径及官方文件签名；源码与 Python 环境需保留，启动器随应用运行。真实账户冷启动及麦克风、摄像头、通知仍需另验，见 [Windows 指南](WINDOWS.md)。macOS 独立副本使用独立登录数据，原入口模式保留默认配置路径；两种模式修改后的应用均使用 ad-hoc 签名，仍可能需要重新登录，部分原生服务可能受限。详见[平台指南](docs/guide.zh-CN.md)及上文原入口说明。
+
+<a id="agent-skill"></a>
+## 让 Agent 帮你配置
+
+**Codexflare Studio** 将版本检查、素材导入、参数调整、应用与回退整理为一套 Agent 工作流，提供中文与英文两个版本。告诉 Agent 你想要的画面，它会先展示修改，再保存和应用。
+
+应用继续免费开源；付费 Skill 独立交付。**动画和背景素材将持续更新**，通过后续 Codexflare 版本提供，内容以发布说明为准。
+
+<!-- agensi-product-url: 审核上线后将作者页替换为真实商品购买链接。 -->
+[Agensi 作者页 · 商品筹备中](https://www.agensi.io/creators/epsilon10111) · [开放配置接口](docs/agent-configure.md)
 
 ## 文档与许可
 

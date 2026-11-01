@@ -73,6 +73,16 @@ with editor.EditorServer() as server:
     finally:
         server.shutdown()
         worker.join(timeout=5)
+if (root / 'tools/configure.py').is_file():
+    from tools import configure
+    before = animation.SETTINGS.read_bytes()
+    preview = configure.update_settings({'background': {'opacity': 0.12}})
+    assert not preview['saved'] and animation.SETTINGS.read_bytes() == before
+    saved = configure.update_settings({'background': {'opacity': 0.12}}, save=True)
+    assert saved['saved'] and not saved['applied']
+    assert saved['settings']['speed'] == 1.25
+    assert saved['settings']['background']['image'] == 'default2'
+    assert saved['settings']['background']['opacity'] == 0.12
 assert not manage.DESKTOP.exists() and not manage.RUNTIME.exists()
 assert not (root / '.local').exists()
 print(json.dumps({'passed': True, 'data_directory': str(expected),

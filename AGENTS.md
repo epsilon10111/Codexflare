@@ -34,6 +34,7 @@ Windows x64 Owl 原版增强的原生验收基线为 MSIX `26.1021.3705.0`（内
 | `python tools/manage.py check` | 只读检查来源的资源、窗口与背景结构 |
 | `python tools/manage.py install` | 应用已保存设置：Windows 启用原版启动器，Linux/macOS 独立模式创建定制副本 |
 | `python tools/manage.py status` | 检查应用来源及增强入口状态 |
+| `python tools/manage.py configure show` | JSON 读取配置；`set patch.json` 预览局部修改，增加 `--save` 保存；写入前关闭编辑器 |
 | `python tools/manage.py launch` | 通过增强入口启动，来源变化时回退到原版 |
 | `python tools/manage.py uninstall` | 停用增强入口，Linux 恢复原入口；保留配置、已有副本与备份 |
 | `python tools/native_smoke.py` | 基于已安装副本打开隔离普通窗口，验证动画与应用就绪过渡并保存截图 |

@@ -1,4 +1,4 @@
-.TH CODEXFLARE-MANAGE 1 "2026-10-25" "Codexflare 0.1.0" "User Commands"
+.TH CODEXFLARE-MANAGE 1 "2026-11-01" "Codexflare 0.2.0" "User Commands"
 .SH NAME
 codexflare-manage \- manage the per-user customized Codex copy
 .SH SYNOPSIS
@@ -7,7 +7,18 @@ codexflare-manage \- manage the per-user customized Codex copy
 .br
 .B codexflare-manage launch
 .RI [ application-arguments ... ]
+.br
+.B codexflare-manage configure
+.RI { show | check | set | import-video | import-background }
 .SH COMMANDS
+.TP
+.B configure
+Read or update local settings with JSON output. Requires Codexflare 0.2.0 or later.
+Use configure show to read settings and configure check to inspect compatibility.
+Use configure set patch.json to preview a partial update; add --save to save it.
+Use configure import-video FILE or configure import-background FILE to import
+media without selecting it. Close the editor before writing. Saving does not
+apply settings; use install separately when ready.
 .TP
 .B status
 Report runtime compatibility and desktop-entry ownership.

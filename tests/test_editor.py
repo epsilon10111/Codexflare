@@ -172,6 +172,22 @@ class EditorTests(unittest.TestCase):
                                       {'Content-Length': str(editor.MAX_UPLOAD + 1)})[0], 413)
         self.assertEqual(animation.SETTINGS.read_bytes(), before)
 
+    def test_completed_write_releases_lock_before_reply_arrives(self):
+        available = []
+        original = editor.EditorHandler.end_headers
+
+        def inspect_lock(handler):
+            acquired = handler.server.write_lock.acquire(blocking=False)
+            available.append(acquired)
+            if acquired:
+                handler.server.write_lock.release()
+            original(handler)
+
+        with patch.object(editor.EditorHandler, 'end_headers', inspect_lock):
+            self.assertEqual(self.request('POST', '/api/settings', {'speed': True})[0], 400)
+            self.assertEqual(self.request('POST', '/api/settings', {'speed': 0.75})[0], 200)
+        self.assertEqual(available, [True, True])
+
     def test_ranges_and_path_traversal(self):
         video = animation.video_path('default').read_bytes()
         status, data, response = self.request('GET', '/media/default', headers={'Range': 'bytes=2-15'})

@@ -12,6 +12,7 @@
   <a href="https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.0">Linux downloads</a> ·
   <a href="https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.1">macOS DMG</a> ·
   <a href="docs/guide.en.md">User guide</a> ·
+  <a href="#agent-skill">Agent Skill</a> ·
   <a href="docs/guide.en.md#development">Contribute</a>
 </p>
 
@@ -122,6 +123,16 @@ The second command waits for the target app to quit normally. Later saves, appli
 Reapply after saving; new settings take effect on the next cold start. The original Windows Store or pinned icon still starts the ordinary app. A startup video cannot guarantee that all network and initialization delays are hidden.
 
 **Windows enhances the existing standard app without a second installation.** The launcher preserves its MSIX package identity, default data paths and signed application files. Keep the source and Python environment in place, and keep the helper running with the app. Real-account cold starts, microphone, camera and notifications still need separate validation; see the [Windows guide (Chinese)](WINDOWS.md). macOS independent copies use separate login data; original-entry mode retains the default configuration path. Both macOS modes use ad-hoc signatures for the modified app, so another login may be needed and some native services may be restricted. See the [platform guide](docs/guide.en.md) and original-entry section above.
+
+<a id="agent-skill"></a>
+## Configure with your agent
+
+**Codexflare Studio** packages version checks, media imports, visual tuning, application, and rollback into an agent workflow, with both English and Chinese editions. Describe the look you want; your agent previews the changes before saving and applying them.
+
+The app remains free and open source; the paid Skill is delivered separately. **More animations and backgrounds will be added** through future Codexflare releases, with details in the release notes.
+
+<!-- agensi-product-url: Replace the creator page with the verified product URL after approval. -->
+[Agensi creator page · Listing in preparation](https://www.agensi.io/creators/epsilon10111) · [Open configuration interface](docs/agent-configure.md#english)
 
 ## Documentation and licensing
 

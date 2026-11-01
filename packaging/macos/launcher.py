@@ -37,7 +37,7 @@ def main():
         if command == '--original':
             original_macos.main()
         elif command == '--manage':
-            manage.main()
+            sys.exit(manage.main())
         else:
             from tools import macos_editor_smoke
             macos_editor_smoke.main()

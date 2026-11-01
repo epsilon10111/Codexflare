@@ -298,14 +298,20 @@ def platform_manager():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('install', 'launch', 'uninstall', 'status', 'check'))
+    parser.add_argument('command', choices=('install', 'launch', 'uninstall', 'status', 'check', 'configure'))
     parser.add_argument('arguments', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     try:
+        if args.command == 'configure':
+            if __package__:
+                from . import configure
+            else:
+                import configure
+            return configure.main(args.arguments)
         if args.command == 'launch':
             platform_manager().launch(args.arguments)
         elif args.arguments:
-            parser.error('只有 launch 接受应用参数')
+            parser.error('只有 launch 和 configure 接受额外参数')
         elif args.command == 'check':
             print(json.dumps(platform_manager().check_compatibility(), ensure_ascii=False, indent=2))
         else:
@@ -318,4 +324,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
