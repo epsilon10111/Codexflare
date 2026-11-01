@@ -55,7 +55,8 @@ def main():
             return target
 
         app = 'usr/share/codexflare'
-        for module in MODULES:
+        modules = MODULES + (('configure',) if (source / 'tools/configure.py').is_file() else ())
+        for module in modules:
             target = install(f'tools/{module}.py', f'{app}/tools/{module}.py')
             text = target.read_text()
             if text.startswith('#!'):

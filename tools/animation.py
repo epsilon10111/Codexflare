@@ -1,4 +1,5 @@
 """本地动画设置与已导入的视频索引。"""
+from contextlib import contextmanager
 import json
 import math
 import os
@@ -23,6 +24,29 @@ DEFAULT_SETTINGS = {
     'windowMode': 'restore', 'muted': True,
     'background': background.DEFAULT_SETTINGS.copy(),
 }
+
+
+@contextmanager
+def edit_lock():
+    """编辑器持有期间阻止命令行写入，避免覆盖界面里尚未保存的设置。"""
+    LOCAL.mkdir(parents=True, exist_ok=True)
+    LOCAL.chmod(0o700)
+    descriptor = os.open(LOCAL / '.edit.lock', os.O_CREAT | os.O_RDWR | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+    with os.fdopen(descriptor, 'r+b') as lock:
+        try:
+            if os.name == 'nt':
+                import msvcrt
+                if os.fstat(lock.fileno()).st_size == 0:
+                    lock.write(b'0')
+                    lock.flush()
+                lock.seek(0)
+                msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as error:
+            raise ValueError('编辑器或另一个配置命令正在使用设置；请关闭编辑器或等待命令完成后重试') from error
+        yield
 
 
 def video_path(video_id):

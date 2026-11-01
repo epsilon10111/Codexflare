@@ -298,16 +298,30 @@ def platform_manager():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+<<<<<<< HEAD
     parser.add_argument('command', choices=('install', 'launch', 'uninstall', 'status', 'check'))
+=======
+    parser.add_argument('command', choices=('install', 'launch', 'uninstall', 'status', 'configure'))
+>>>>>>> c23863e (feat: 添加 Agent 配置接口与双语 Skill 介绍)
     parser.add_argument('arguments', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     try:
+        if args.command == 'configure':
+            if __package__:
+                from . import configure
+            else:
+                import configure
+            return configure.main(args.arguments)
         if args.command == 'launch':
             platform_manager().launch(args.arguments)
         elif args.arguments:
+<<<<<<< HEAD
             parser.error('只有 launch 接受应用参数')
         elif args.command == 'check':
             print(json.dumps(platform_manager().check_compatibility(), ensure_ascii=False, indent=2))
+=======
+            parser.error('只有 launch 和 configure 接受额外参数')
+>>>>>>> c23863e (feat: 添加 Agent 配置接口与双语 Skill 介绍)
         else:
             getattr(platform_manager(), args.command)()
     except (OSError, ValueError, RuntimeError, KeyError, struct.error, subprocess.SubprocessError) as error:
@@ -318,4 +332,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

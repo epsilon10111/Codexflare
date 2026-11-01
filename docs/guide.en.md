@@ -122,6 +122,8 @@ pywebview uses WebView2 exclusively, without an IE fallback. Keep the source dir
 
 ## Select, save, and apply
 
+Agents and scripts can use the [0.2.0 configuration interface](agent-configure.md#english) to preview partial changes before saving and applying them.
+
 1. Choose a video under **开场动画** (Startup animation), select or upload a PNG under **常驻背景** (Background), then adjust the preview and startup window mode.
 2. Click **保存设置** (Save settings). Saving updates configuration; **apply again so the next cold start uses the new settings**.
 3. For a Linux or macOS independent copy, quit the customized Codex normally, then click **刷新状态** (Refresh status) and **应用到 Codex** (Apply to Codex) in Codexflare. On Linux, fully quit the original app before the first application too. In macOS original-entry mode, click Apply to ChatGPT first, wait for preparation, then fully quit with Cmd+Q and wait for installation. Windows can apply settings while the original app is running.

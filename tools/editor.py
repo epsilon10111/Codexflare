@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """在独立桌面窗口中预览、配置和安装 Codex 开屏动画。"""
 import argparse
+from contextlib import ExitStack
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -168,9 +169,21 @@ class EditorServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, address=('127.0.0.1', 0)):
-        super().__init__(address, EditorHandler)
+        self.resources = ExitStack()
+        try:
+            self.resources.enter_context(animation.edit_lock())
+            super().__init__(address, EditorHandler)
+        except BaseException:
+            self.resources.close()
+            raise
         self.token = secrets.token_urlsafe(32)
         self.write_lock = threading.Lock()
+
+    def server_close(self):
+        try:
+            super().server_close()
+        finally:
+            self.resources.close()
 
 
 class EditorHandler(BaseHTTPRequestHandler):
@@ -422,7 +435,11 @@ def main():
             if system_python.exists() and Path(sys.executable).resolve() != system_python.resolve():
                 os.execv(str(system_python), [str(system_python), str(Path(__file__).resolve()), *sys.argv[1:]])
             parser.exit(1, '独立窗口需要系统 Python 的 GTK 3、PyGObject 与 WebKit2 4.1。\n')
-    with EditorServer(('127.0.0.1', args.port)) as server:
+    try:
+        server = EditorServer(('127.0.0.1', args.port))
+    except (OSError, ValueError) as error:
+        parser.exit(1, f'无法打开编辑器：{error}\n')
+    with server:
         url = f'http://127.0.0.1:{server.server_port}/'
         if args.headless:
             print(f'本地测试服务：{url}\n按 Ctrl+C 退出。', flush=True)
