@@ -132,7 +132,7 @@ Reapply after saving; new settings take effect on the next cold start. The origi
 The app remains free and open source; the paid Skill is delivered separately. **More animations and backgrounds will be added** through future Codexflare releases, with details in the release notes.
 
 <!-- agensi-product-url: Replace the creator page with the verified product URL after approval. -->
-[Agensi creator page · Listing in preparation](https://www.agensi.io/creators/epsilon10111) · [Open configuration interface](docs/agent-configure.md#english)
+[Agensi creator page · Pending review](https://www.agensi.io/creators/epsilon10111) · **US$4.99 once, both languages included; available after approval.** · [Open configuration interface](docs/agent-configure.md#english)
 
 ## Documentation and licensing
 

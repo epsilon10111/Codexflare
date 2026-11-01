@@ -132,7 +132,7 @@ shasum -a 256 -c Codexflare-0.1.1-macOS-arm64-build20586.dmg.sha256
 应用继续免费开源；付费 Skill 独立交付。**动画和背景素材将持续更新**，通过后续 Codexflare 版本提供，内容以发布说明为准。
 
 <!-- agensi-product-url: 审核上线后将作者页替换为真实商品购买链接。 -->
-[Agensi 作者页 · 商品筹备中](https://www.agensi.io/creators/epsilon10111) · [开放配置接口](docs/agent-configure.md)
+[Agensi 作者页 · 商品审核中](https://www.agensi.io/creators/epsilon10111) · **US$4.99，一次性购买，中英文包含在内；审核通过后开售。** · [开放配置接口](docs/agent-configure.md)
 
 ## 文档与许可
 
