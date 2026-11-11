@@ -5,6 +5,9 @@ on:
     branches: [codex/fix-renderer-freeze]
 permissions:
   contents: read
+concurrency:
+  group: packages-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   macos:
     runs-on: macos-15

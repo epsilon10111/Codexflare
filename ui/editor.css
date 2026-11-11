@@ -179,7 +179,7 @@ input[type="range"]:active::-moz-range-thumb { transform: scale(1.04); }
 .sample-conversation { position: absolute; top: 30%; left: 7%; right: 7%; font-size: 14px; line-height: 1.65; }
 .sample-question { width: fit-content; max-width: 90%; padding: 9px 12px; border-radius: 12px; background: #2b2b2b; }
 .sample-answer { margin-top: 17px; }
-.sample-composer { position: absolute; left: 7%; right: 7%; bottom: 18px; display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 9px 12px 9px 16px; border: 1px solid #ffffff18; border-radius: 16px; background: rgb(32 32 32 / .48); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); color: #aaa; font-size: 14px; }
+.sample-composer { position: absolute; left: 7%; right: 7%; bottom: 18px; display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 9px 12px 9px 16px; border: 1px solid #ffffff18; border-radius: 16px; background: #282828; color: #aaa; font-size: 14px; }
 .sample-send { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: #222; background: #ddd; font-size: 20px; }
 .background-placeholder { position: absolute; inset: 48px 0 0; display: flex; align-items: center; justify-content: center; padding: 24px; color: #bdbdbd; background: #202020f5; font-size: 14px; text-align: center; }
 .toggle-field { position: relative; display: flex; align-items: center; gap: 12px; font-size: 16px; cursor: pointer; padding: 3px 0; }
@@ -192,4 +192,4 @@ input[type="range"]:active::-moz-range-thumb { transform: scale(1.04); }
 .background-hint { margin: 12px 0 24px; }
 @media (max-width: 760px) { .background-preview { height: 340px; } }
 @media (prefers-reduced-motion: reduce) { .toggle-switch::after { transition: none; } }
-@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) { .background-image { display: none; } .sample-composer { background: #282828; -webkit-backdrop-filter: none; backdrop-filter: none; } }
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) { .background-image { display: none; } }
