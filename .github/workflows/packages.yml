@@ -1,0 +1,55 @@
+name: Release packages
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/fix-renderer-freeze]
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r requirements-build-macos.txt
+      - run: brew install ffmpeg
+      - run: python -m unittest discover -s tests -v
+      - run: python tools/macos_editor_smoke.py
+      - run: python tools/build_dmg.py --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: dist/*
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-editor-evidence
+          path: |
+            work/macos-editor-*/result.json
+            work/macos-editor-*/*.png
+  windows:
+    runs-on: windows-latest
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r requirements-windows.txt
+      - run: python -m unittest discover -s tests -v
+      - run: python tools/windows_editor_smoke.py
+      - run: python tools/build_windows.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-source
+          path: dist/*
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-editor-evidence
+          path: |
+            work/windows-editor-*/result.json
+            work/windows-editor-*/*.png

@@ -9,9 +9,9 @@ Windows x64 Owl 原版增强的原生验收基线为 MSIX `26.1021.3705.0`（内
 - `src/boot.js`、`src/boot.css`：动画层、播放退出逻辑和样式；启动窗口模式由 `tools/patch_app.py` 的主进程补丁处理。
 - `src/background.css`：常驻背景融合与输入区样式；仅打包本地选中的图片，保留内容层可读性与交互。
 - `ui/`：Codexflare 动画/背景编辑界面；`tools/desktop.py` 显示 GTK/WebKit 独立窗口，`tools/editor.py` 提供回环服务，`tools/animation.py` 保存配置，`tools/background.py` 验证 PNG 并管理忽略目录中的图片索引。
-- `assets/default.mp4`：默认开屏原片；`assets/default.webm`：约十秒 VP9 / Opus 播放版本。`assets/default1.png` / `assets/default2.png` 为内置背景，默认选中第一张，`assets/boot.webm` 保留为旧光轨示例。
+- `assets/default.webm`：约十秒 VP9 / Opus 播放版本。`assets/default1.png` / `assets/default2.png` 为内置背景，默认选中第一张。未使用的原片、旧光轨示例及生成器已从当前源码删除，历史提交仍保留。
 - macOS 使用 `tools/desktop_macos.py` 的 Cocoa/WKWebView 窗口、`manage_macos.py` 的独立 `.app` 副本、`original_macos.py` 的原入口安装与恢复，以及 `window_patch.py` 的结构匹配和 `patch_macos.py` 的原生验收参考数据；签名时更新 ASAR header 与 framework integrity digest，不关闭完整性检查。
-- `tools/`：`generate_demo.py` 生成素材，`patch_app.py` 修改 ASAR 副本，`manage.py` 管理安装与回退，`native_smoke.py` 验证原生窗口。
+- `tools/`：`patch_app.py` 修改 ASAR 副本，`manage.py` 管理安装与回退，`native_smoke.py` 验证原生窗口。
 - `tests/`：Python 单元测试、Node 动画测试及原生探针；`VALIDATION.md` 记录验收证据和边界。
 - 源码版 `.local/` 存放运行副本与回退信息，`work/` 存放截图和测试输出；两者均被 Git 忽略。
 - `packaging/` 定义 RPM、DEB、macOS DMG 启动器和安装说明；`tools/build_dmg.py` 生成自包含 DMG。`tools/paths.py` 让安装版使用用户数据目录（默认 `~/.local/share/codexflare`），源码版使用 `.local/`。`dist/` 为忽略的发布产物。
@@ -30,7 +30,6 @@ Windows x64 Owl 原版增强的原生验收基线为 MSIX `26.1021.3705.0`（内
 | `python tools/background_smoke.py --startup` | 验证真实视频片尾衔接与背景首显，覆盖普通工作区和全宽右侧面板 |
 | `python -m unittest discover -s tests -v` | 检查归档补丁、安装保护及回退 |
 | `node --test tests/test_boot.cjs tests/test_editor_ui.cjs tests/test_window_mode.cjs` | 检查动画生命周期、失败退出与编辑器交互 |
-| `/usr/bin/python3 tools/generate_demo.py` | 重新生成旧光轨示例，不覆盖 default；需要 Pillow、NumPy、FFmpeg/ffprobe、libvpx-vp9 和脚本指定的 DejaVuSans 字体 |
 | `python tools/manage.py check` | 只读检查来源的资源、窗口与背景结构 |
 | `python tools/manage.py install` | 应用已保存设置：Windows 启用原版启动器，Linux/macOS 独立模式创建定制副本 |
 | `python tools/manage.py status` | 检查应用来源及增强入口状态 |
@@ -39,6 +38,7 @@ Windows x64 Owl 原版增强的原生验收基线为 MSIX `26.1021.3705.0`（内
 | `python tools/manage.py uninstall` | 停用增强入口，Linux 恢复原入口；保留配置、已有副本与备份 |
 | `python tools/native_smoke.py` | 基于已安装副本打开隔离普通窗口，验证动画与应用就绪过渡并保存截图 |
 | `python tools/windows_smoke.py --window-mode centered` | 从现有签名 Windows EXE 启动隔离测试窗口，检查注入、背景、交互与刷新 |
+| `python tools/build_windows.py` | 从干净、已提交的 HEAD 生成 Windows x64 源码 ZIP 与校验文件，使用者需 Python 3.13 和 WebView2 |
 | `python tools/build_rpm.py` | 从已提交的 HEAD 构建 RPM、SRPM、源码归档与校验文件 |
 | `python tools/rpm_smoke.py dist/codexflare-0.1.0-1.noarch.rpm` | 检查包内容、只读资源、用户配置及隔离 RPM 安装/卸载 |
 | `python tools/build_deb.py --ref v0.1.0` | 用当前检出的 DEB 模板打包指定已提交版本的应用，输出 DEB 和独立校验文件 |

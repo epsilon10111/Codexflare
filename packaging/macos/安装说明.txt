@@ -1,15 +1,14 @@
-Codexflare macOS 安装说明（main 源码构建）
+Codexflare v0.2.1 macOS 安装说明
 
 适用范围
-main 源码支持 Apple Silicon（arm64）的两套精确构建：Codex 26.1013.31256 / build 20586、26.1021.31345 / build 21828。20586 已在 macOS 26.6.2 原生验证；21828 保留上游适配，本轮仅复测逻辑和归档，不代表重新完成原生验收。
-目标应用为 /Applications/ChatGPT.app 或 /Applications/Codex.app。
-不包含 OpenAI 应用；需先自行安装上述兼容构建。Intel、其他 build 和其他 macOS 版本不在本次验证范围。已发布的 v0.1.1 DMG 仍仅支持 20586；Linux 包仍从 v0.1.0 Release 下载。
+本包适用于 Apple Silicon（arm64），按结构检查兼容性。应用原生历史基线为 Codex 26.1013.31256 / build 20586、26.1021.31345 / build 21828；本轮构建、编辑器与应用集成的验证边界见 VALIDATION.md。
+目标应用为 /Applications/ChatGPT.app 或 /Applications/Codex.app；不包含官方应用。Intel 未验证。旧 v0.1.1 DMG 仍仅支持 build 20586，旧标签和附件不变。
+v0.2.1 恢复原应用的聊天布局和输入区底色。报告中的真实账户卡死尚未在隔离测试复现，不宣称永久修复。
 
 下载校验
-build 20586 用户可从 https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.1 下载已发布 DMG 与同名 .sha256 文件。在下载目录执行：
-  shasum -a 256 -c Codexflare-0.1.1-macOS-arm64-build20586.dmg.sha256
-
-从 main 源码自行构建的文件名为 Codexflare-<版本>-macOS-arm64.dmg，使用构建时生成的同名 .sha256 校验。其构建信息列出两套 targets 与源码提交；不要将它当作原 v0.1.1 Release 附件。
+从 https://github.com/epsilon10111/Codexflare/releases/tag/v0.2.1 下载 DMG 与同名 .sha256 文件，在下载目录执行：
+  shasum -a 256 -c Codexflare-0.2.1-macOS-arm64.dmg.sha256
+构建信息列出参考 targets 与源码提交；targets 不是本版已完成原应用集成测试的声明。
 
 安装
 1. 打开 DMG，将 Codexflare.app 拖到 Applications（应用程序）。

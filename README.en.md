@@ -9,8 +9,9 @@
 <p align="center"><a href="README.md">简体中文</a> · <strong>English</strong></p>
 
 <p align="center">
-  <a href="https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.0">Linux downloads</a> ·
-  <a href="https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.1">macOS DMG</a> ·
+  <a href="https://github.com/epsilon10111/Codexflare/releases/tag/v0.2.1">Linux downloads</a> ·
+  <a href="https://github.com/epsilon10111/Codexflare/releases/tag/v0.2.1">macOS DMG</a> ·
+  <a href="https://github.com/epsilon10111/Codexflare/releases/download/v0.2.1/Codexflare-0.2.1-Windows-x64-source.zip">Windows ZIP</a> ·
   <a href="docs/guide.en.md">User guide</a> ·
   <a href="#agent-skill">Agent Skill</a> ·
   <a href="docs/guide.en.md#development">Contribute</a>
@@ -54,12 +55,12 @@ Run `python tools/manage.py check` for a read-only compatibility check. Publishe
 
 | Platform | Native validation baseline / build | Get started |
 | --- | --- | --- |
-| Linux x86_64 | `26.1002.52244 / 13536` | [RPM](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.0/codexflare-0.1.0-1.noarch.rpm) · [DEB](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.0/codexflare_0.1.0-1_all.deb) |
-| macOS Apple Silicon | `26.1021.31345 / 21828` | [Run from main source](docs/guide.en.md#macos) |
-| macOS Apple Silicon | `26.1013.31256 / 20586` | [v0.1.1 DMG](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.1/Codexflare-0.1.1-macOS-arm64-build20586.dmg) · [Run from main source](docs/guide.en.md#macos) |
-| Windows x64 | `26.1021.31345 / 21828` | [Run from source](docs/guide.en.md#windows) |
+| Linux x86_64 | `26.1002.52244 / 13536` | [RPM](https://github.com/epsilon10111/Codexflare/releases/download/v0.2.1/codexflare-0.2.1-1.noarch.rpm) · [DEB](https://github.com/epsilon10111/Codexflare/releases/download/v0.2.1/codexflare_0.2.1-1_all.deb) |
+| macOS Apple Silicon | `26.1021.31345 / 21828` | [v0.2.1 DMG](https://github.com/epsilon10111/Codexflare/releases/download/v0.2.1/Codexflare-0.2.1-macOS-arm64.dmg) |
+| macOS Apple Silicon | `26.1013.31256 / 20586` | [v0.2.1 DMG](https://github.com/epsilon10111/Codexflare/releases/download/v0.2.1/Codexflare-0.2.1-macOS-arm64.dmg) · [Run from main source](docs/guide.en.md#macos) |
+| Windows x64 | `26.1021.31345 / 21828` | [Source ZIP](https://github.com/epsilon10111/Codexflare/releases/download/v0.2.1/Codexflare-0.2.1-Windows-x64-source.zip) (Python 3.13 + WebView2) |
 
-**The published v0.1.1 DMG supports build 20586 only** and was validated on macOS 26.6.2. The main source retains build 21828 and adds 20586. Integration into main does not expand the compatibility of that DMG; published tags and assets remain unchanged. The macOS source app is usually `/Applications/ChatGPT.app` or `/Applications/Codex.app`.
+**v0.2.1 preserves native conversation layout and composer surfaces**, while retaining backgrounds and startup videos. The reported real-account freeze has not been reproduced in isolation. This release removes potential rendering interference; it does not establish a permanent fix. See [validation](VALIDATION.md). Old tags and assets remain unchanged; the old v0.1.1 DMG still supports build 20586 only. The macOS app is normally `/Applications/ChatGPT.app` or `/Applications/Codex.app`.
 
 Linux expects Codex at `/usr/lib/chatgpt`; this Windows validation used MSIX `26.1021.3705.0`. The older `26.1002.52244 / 13536` is a historical reference and has not been retested with the new launcher. The RPM targets Fedora, and the DEB targets Debian 12+ / Ubuntu 24.04+.
 
@@ -70,13 +71,13 @@ Download the matching package, then use one set of commands:
 
 ```bash
 # Fedora
-sudo dnf install ./codexflare-0.1.0-1.noarch.rpm
+sudo dnf install ./codexflare-0.2.1-1.noarch.rpm
 codexflare
 ```
 
 ```bash
 # Debian / Ubuntu
-sudo apt install ./codexflare_0.1.0-1_all.deb
+sudo apt install ./codexflare_0.2.1-1_all.deb
 codexflare
 ```
 
@@ -87,10 +88,10 @@ You can also open Codexflare from the application menu. These initial packages a
 <details>
 <summary><strong>macOS DMG and the original ChatGPT entry</strong></summary>
 
-Download the DMG and its matching `.sha256` file from the [v0.1.1 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.1), then verify them in the download directory:
+Download the DMG and its matching `.sha256` file from the [v0.2.1 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.2.1), then verify them in the download directory:
 
 ```bash
-shasum -a 256 -c Codexflare-0.1.1-macOS-arm64-build20586.dmg.sha256
+shasum -a 256 -c Codexflare-0.2.1-macOS-arm64.dmg.sha256
 ```
 
 Drag `Codexflare.app` into **Applications** and run it there, rather than inside the read-only DMG. The DMG bundles Python / PyObjC and defaults to original-entry mode. Its data lives in `~/.local/share/codexflare` (or `codexflare/` under an absolute `XDG_DATA_HOME`). The default animation and resized backgrounds work out of the box. Importing custom videos requires separately installed FFmpeg / ffprobe; neither tool is bundled.
