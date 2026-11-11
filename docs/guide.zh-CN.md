@@ -12,43 +12,43 @@ Codexflare 是非官方的本地外观编辑器，不附带 Codex、ChatGPT 或 
 | macOS arm64 | `26.1021.31345 / 21828`、`26.1013.31256 / 20586` | `/Applications/Codex.app` 或 `/Applications/ChatGPT.app` |
 | Windows x64 | `26.1021.31345 / 21828` | Microsoft Store / MSIX `26.1021.3705.0` |
 
-**v0.1.0 的 RPM / DEB 仅适用于 Linux；v0.1.1 DMG 仅适配 macOS build 20586。** 当前 `main` 源码支持上表两个 macOS 构建及 Windows；已发布的 DMG 不因合入 main 而增加 build 21828 支持。Linux / macOS 创建副本约需 1.6 GB，更新还需临时空间；macOS 原入口模式另保留完整官方备份和待安装候选。Windows 只创建启动现有标准版的快捷方式，不复制应用；旧 `26.1002.52244 / 13536`（MSIX `26.1002.7124.0`）为历史参考，未重新原生验证新启动方式。已发布安装包仍保留原有版本限制。当前源码可用 `python tools/manage.py check`（macOS 使用 `.venv/bin/python`）只读检查。资源 hash、压缩变量名和 CSS-module hash 可自动识别；窗口流程或背景结构无法唯一匹配时停止。结构检查不替代原生验收。官方应用更新后需重新检查并应用，原入口模式的备份与来源变化保护仍保留。
+**v0.2.1 提供 Linux RPM/DEB、macOS arm64 DMG 和 Windows x64 源码 ZIP。** 旧 v0.1.0 / v0.1.1 附件保持原有范围；v0.1.1 DMG 仍只适配 build 20586。新版本的原生验收与故障边界见 [VALIDATION.md](../VALIDATION.md)。Linux / macOS 创建副本约需 1.6 GB，更新还需临时空间；macOS 原入口模式另保留完整官方备份和待安装候选。Windows 只创建启动现有标准版的快捷方式，不复制应用；旧 `26.1002.52244 / 13536`（MSIX `26.1002.7124.0`）为历史参考，未重新原生验证新启动方式。旧安装包仍保留原有版本限制。当前源码可用 `python tools/manage.py check`（macOS 使用 `.venv/bin/python`）只读检查。资源 hash、压缩变量名和 CSS-module hash 可自动识别；窗口流程或背景结构无法唯一匹配时停止。结构检查不替代原生验收。官方应用更新后需重新检查并应用，原入口模式的备份与来源变化保护仍保留。
 
 <a id="linux"></a>
 
 ## 安装 Linux 发布包
 
-从 [Linux v0.1.0 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.0) 下载安装包及对应校验文件，在下载目录执行。
+从 [v0.2.1 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.2.1) 下载安装包及对应校验文件，在下载目录执行。
 
 ### Fedora
 
 ```bash
 sha256sum --ignore-missing -c SHA256SUMS
-sudo dnf install ./codexflare-0.1.0-1.noarch.rpm
+sudo dnf install ./codexflare-0.2.1-1.noarch.rpm
 codexflare
 ```
 
 ### Debian 12+ / Ubuntu 24.04+
 
 ```bash
-sha256sum -c codexflare_0.1.0-1_all.deb.sha256
-sudo apt install ./codexflare_0.1.0-1_all.deb
+sha256sum -c codexflare_0.2.1-1_all.deb.sha256
+sudo apt install ./codexflare_0.2.1-1_all.deb
 codexflare
 ```
 
-安装包会安装 Python 3.11+、GTK 3、PyGObject、WebKit2 4.1 和 GStreamer 基础媒体依赖；也可从应用菜单打开 **Codexflare**。安装包本身不会修改 Codex。`noarch` / `all` 表示编辑器没有本机二进制，不扩大补丁兼容范围。首版包未签名，SHA256 仅用于下载完整性校验。
+安装包会安装 Python 3.11+、GTK 3、PyGObject、WebKit2 4.1 和 GStreamer 基础媒体依赖；也可从应用菜单打开 **Codexflare**。安装包本身不会修改 Codex。`noarch` / `all` 表示编辑器没有本机二进制，不扩大补丁兼容范围。安装包未签名，SHA256 仅用于下载完整性校验。
 
 <a id="macos-dmg"></a>
 
-## 安装 macOS DMG（build 20586）
+## 安装 macOS DMG（arm64）
 
-从 [v0.1.1 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.1) 下载 DMG 和同名 `.sha256` 文件，执行：
+从 [v0.2.1 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.2.1) 下载 DMG 和同名 `.sha256` 文件，执行：
 
 ```bash
-shasum -a 256 -c Codexflare-0.1.1-macOS-arm64-build20586.dmg.sha256
+shasum -a 256 -c Codexflare-0.2.1-macOS-arm64.dmg.sha256
 ```
 
-将 `Codexflare.app` 拖到 Applications 后运行。DMG 内嵌 Python / PyObjC，默认使用[原入口模式](#macos-original)；默认视频与已缩图背景无需额外工具，自定义视频导入需另装 FFmpeg / ffprobe。包使用 ad-hoc 签名，未做 Apple 公证，已验证环境为 Apple Silicon / macOS 26.6.2。完整[安装说明](../packaging/macos/安装说明.txt)随 DMG 提供。
+将 `Codexflare.app` 拖到 Applications 后运行。DMG 内嵌 Python / PyObjC，默认使用[原入口模式](#macos-original)；默认视频与已缩图背景无需额外工具，自定义视频导入需另装 FFmpeg / ffprobe。包使用 ad-hoc 签名，未做 Apple 公证，此前的应用集成基线为 Apple Silicon / macOS 26.6.2；本版构建和编辑器实测范围见 VALIDATION.md。完整[安装说明](../packaging/macos/安装说明.txt)随 DMG 提供。
 
 若旧源码版已通过原入口模式修改 ChatGPT，先用旧编辑器恢复官方应用、正常退出并等恢复完成，再启用 DMG；不要直接迁移状态文件和官方备份。只用过独立副本的用户无需恢复原应用。
 
@@ -109,6 +109,8 @@ python3 -m venv .venv
 <a id="windows"></a>
 
 ### Windows
+
+也可下载 [v0.2.1 Windows x64 源码 ZIP](https://github.com/epsilon10111/Codexflare/releases/download/v0.2.1/Codexflare-0.2.1-Windows-x64-source.zip)，完整解压后双击 `Codexflare.cmd`。需先安装 Python 3.13 x64（含 py 启动器）和 WebView2；脚本首次运行会建立 `.venv` 并联网安装 Python 依赖。安装启动器后保留解压目录和 `.venv`，设置留在该目录的 `.local/`。
 
 先完成上方的[克隆仓库](#source)步骤。需要 Python 3.12+（推荐 3.13 x64）和 [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)。在 PowerShell 中执行，无需管理员权限：
 
@@ -202,10 +204,10 @@ python3 tools/native_smoke.py                           # Linux 隔离应用
 RPM 需要 `rpm-build` 与 `desktop-file-utils`；DEB 需要 `dpkg-deb` 与 `desktop-file-utils`。均仅打包已提交资源，默认 `HEAD`：
 
 ```bash
-python3 tools/build_rpm.py --ref v0.1.0
-python3 tools/rpm_smoke.py dist/codexflare-0.1.0-1.noarch.rpm
-python3 tools/build_deb.py --ref v0.1.0
-python3 tools/deb_smoke.py dist/codexflare_0.1.0-1_all.deb
+python3 tools/build_rpm.py --ref v0.2.1
+python3 tools/rpm_smoke.py dist/codexflare-0.2.1-1.noarch.rpm
+python3 tools/build_deb.py --ref v0.2.1
+python3 tools/deb_smoke.py dist/codexflare_0.2.1-1_all.deb
 ```
 
 `dist/` 中 RPM 产物含二进制包、SRPM、源码归档与 `SHA256SUMS`；DEB 产物含安装包与独立 `.deb.sha256`。运行包含默认 WebM 和两张 PNG；原 MP4、旧示例及开发工具留在源码中，不打包系统 Codex 或用户数据。

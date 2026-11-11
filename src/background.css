@@ -26,46 +26,7 @@
   background-color: transparent;
 }
 
-/* shortcut: 此构建的 FooterFade 是不透明遮罩；仅在可固定文字遮罩时替换。 */
-@supports (animation-timeline: scroll(nearest y)) and (height: 100cqh) {
-  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] [data-request-input-activity-root]:has(> .thread-scroll-container > [data-thread-scroll-footer="true"]:not(.home-composer-anchor)) {
-    container-type: size;
-  }
-
-  /* 遮罩跟随可视区，仅隐藏滚动文字；同级输入框和工作区背景不受影响。 */
-  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container:has(> [data-thread-scroll-footer="true"]:not(.home-composer-anchor)) > :first-child {
-    mask-image: linear-gradient(to bottom, #000 calc(100% - var(--thread-scroll-padding-bottom, 0px) - 16px), transparent calc(100% - var(--thread-scroll-padding-bottom, 0px) + 16px));
-    mask-size: 100% 100cqh;
-    mask-repeat: no-repeat;
-    animation: codex-transcript-mask 1s linear both;
-    animation-timeline: scroll(nearest y);
-  }
-  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container.flex-col-reverse:has(> [data-thread-scroll-footer="true"]:not(.home-composer-anchor)) > :first-child {
-    animation-direction: reverse;
-  }
-  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container > [data-thread-scroll-footer="true"]:not(.home-composer-anchor),
-  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container > [data-thread-scroll-footer="true"]:not(.home-composer-anchor) > [aria-hidden="true"].bg-surface {
-    background-color: transparent;
-  }
-  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container:has(> [data-thread-scroll-footer="true"]:not(.home-composer-anchor)) > div > [aria-hidden="true"] > .bg-gradient-to-t.from-surface {
-    background-image: none;
-  }
-  @keyframes codex-transcript-mask {
-    from { mask-position: 0 0%; }
-    to { mask-position: 0 100%; }
-  }
-}
-
-/* 仅减淡深色输入表面；文字不透明，拖入附件和特殊编辑器仍使用原反馈。 */
-@media (prefers-reduced-transparency: no-preference) and (prefers-contrast: no-preference) and (forced-colors: none) {
-  :root[data-codex-window-type="electron"][data-theme="dark"] main[data-app-shell-main-surface="default"]:not([data-theme="light"]) [data-thread-scroll-footer] ._ComposerLayoutRoot_15oep_2:is([data-composer-surface-variant="default"], [data-composer-surface-variant="opaque"]):not([data-composer-drag-active]),
-  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"][data-theme="dark"] [data-thread-scroll-footer] ._ComposerLayoutRoot_15oep_2:is([data-composer-surface-variant="default"], [data-composer-surface-variant="opaque"]):not([data-composer-drag-active]) {
-    --composer-layout-surface-background: color-mix(in srgb, var(--color-surface) 48%, transparent);
-    --composer-layout-surface-backdrop-filter: blur(6px);
-    --composer-layout-surface-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text-primary) 10%, transparent);
-  }
-}
-
+/* 保留原应用的会话布局、FooterFade 和输入表面，避免影响滚动测量与合成。 */
 :root[data-codex-window-type="electron"][data-theme="light"] main[data-app-shell-main-surface="default"]:not([data-theme="dark"])::before,
 :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"][data-theme="light"]::before {
   filter: invert(1);
@@ -79,15 +40,4 @@
 
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
   :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"]::before { display: none; }
-  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container:has(> [data-thread-scroll-footer="true"]:not(.home-composer-anchor)) > :first-child {
-    mask-image: none;
-    animation: none;
-  }
-  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container > [data-thread-scroll-footer="true"]:not(.home-composer-anchor),
-  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container > [data-thread-scroll-footer="true"]:not(.home-composer-anchor) > [aria-hidden="true"].bg-surface {
-    background-color: revert-layer;
-  }
-  :root[data-codex-window-type="electron"] main[data-app-shell-main-surface="default"] .thread-scroll-container:has(> [data-thread-scroll-footer="true"]:not(.home-composer-anchor)) > div > [aria-hidden="true"] > .bg-gradient-to-t.from-surface {
-    background-image: revert-layer;
-  }
 }

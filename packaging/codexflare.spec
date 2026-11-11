@@ -1,5 +1,5 @@
 Name:           codexflare
-Version:        0.2.0
+Version:        0.2.1
 Release:        1
 Summary:        Local startup animation and background editor for Codex
 License:        MIT AND LicenseRef-Codexflare-Media
@@ -70,6 +70,9 @@ python3 -c 'import ast, pathlib; [ast.parse(p.read_text()) for p in pathlib.Path
 %{_mandir}/man1/codexflare-manage.1*
 
 %changelog
+* Wed Nov 11 2026 epsilon10111 - 0.2.1-1
+- Preserve native conversation layout and composer surfaces; remove transcript effects.
+
 * Sun Nov 01 2026 epsilon10111 - 0.2.0-1
 - Add validated JSON configuration commands and coordinate writes with the editor.
 

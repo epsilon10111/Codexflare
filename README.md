@@ -9,8 +9,9 @@
 <p align="center"><strong>简体中文</strong> · <a href="README.en.md">English</a></p>
 
 <p align="center">
-  <a href="https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.0">Linux 下载</a> ·
-  <a href="https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.1">macOS DMG</a> ·
+  <a href="https://github.com/epsilon10111/Codexflare/releases/tag/v0.2.1">Linux 下载</a> ·
+  <a href="https://github.com/epsilon10111/Codexflare/releases/tag/v0.2.1">macOS DMG</a> ·
+  <a href="https://github.com/epsilon10111/Codexflare/releases/download/v0.2.1/Codexflare-0.2.1-Windows-x64-source.zip">Windows ZIP</a> ·
   <a href="docs/guide.zh-CN.md">使用指南</a> ·
   <a href="#agent-skill">Agent Skill</a> ·
   <a href="AGENTS.md">参与贡献</a>
@@ -54,12 +55,12 @@
 
 | 平台 | 原生验收基线 / build | 安装方式 |
 | --- | --- | --- |
-| Linux x86_64 | `26.1002.52244 / 13536` | [RPM](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.0/codexflare-0.1.0-1.noarch.rpm) · [DEB](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.0/codexflare_0.1.0-1_all.deb) |
-| macOS Apple Silicon | `26.1021.31345 / 21828` | [main 源码安装](docs/guide.zh-CN.md#macos) |
-| macOS Apple Silicon | `26.1013.31256 / 20586` | [v0.1.1 DMG](https://github.com/epsilon10111/Codexflare/releases/download/v0.1.1/Codexflare-0.1.1-macOS-arm64-build20586.dmg) · [main 源码安装](docs/guide.zh-CN.md#macos) |
-| Windows x64 | `26.1021.31345 / 21828` | [源码安装](docs/guide.zh-CN.md#windows) |
+| Linux x86_64 | `26.1002.52244 / 13536` | [RPM](https://github.com/epsilon10111/Codexflare/releases/download/v0.2.1/codexflare-0.2.1-1.noarch.rpm) · [DEB](https://github.com/epsilon10111/Codexflare/releases/download/v0.2.1/codexflare_0.2.1-1_all.deb) |
+| macOS Apple Silicon | `26.1021.31345 / 21828` | [v0.2.1 DMG](https://github.com/epsilon10111/Codexflare/releases/download/v0.2.1/Codexflare-0.2.1-macOS-arm64.dmg) |
+| macOS Apple Silicon | `26.1013.31256 / 20586` | [v0.2.1 DMG](https://github.com/epsilon10111/Codexflare/releases/download/v0.2.1/Codexflare-0.2.1-macOS-arm64.dmg) · [main 源码安装](docs/guide.zh-CN.md#macos) |
+| Windows x64 | `26.1021.31345 / 21828` | [源码 ZIP](https://github.com/epsilon10111/Codexflare/releases/download/v0.2.1/Codexflare-0.2.1-Windows-x64-source.zip)（Python 3.13 + WebView2） |
 
-**已发布的 v0.1.1 DMG 仅支持 build 20586**，已在 macOS 26.6.2 验证；main 源码保留 build 21828 并增加 20586。合入 main 不改变该 DMG 的兼容范围，已发布标签和附件保持不变。macOS 原应用通常位于 `/Applications/ChatGPT.app` 或 `/Applications/Codex.app`。
+**v0.2.1 恢复原应用的聊天布局与输入区样式**，保留背景和开屏动画。报告中的真实账户卡死尚未在隔离测试中复现，本次是移除潜在渲染干扰的稳定性修复，不承诺永久消除卡死。平台实测范围见 [VALIDATION.md](VALIDATION.md)。旧 v0.1.0 / v0.1.1 标签和附件保持不变；旧 v0.1.1 DMG 仍仅支持 build 20586。macOS 原应用通常位于 `/Applications/ChatGPT.app` 或 `/Applications/Codex.app`。
 
 Linux 要求原应用位于 `/usr/lib/chatgpt`；Windows 本轮验收对应 MSIX `26.1021.3705.0`。旧 `26.1002.52244 / 13536` 为历史参考，新启动方式未重新验证该构建。RPM 面向 Fedora，DEB 面向 Debian 12+ / Ubuntu 24.04+。
 
@@ -70,27 +71,27 @@ Linux 要求原应用位于 `/usr/lib/chatgpt`；Windows 本轮验收对应 MSIX
 
 ```bash
 # Fedora
-sudo dnf install ./codexflare-0.1.0-1.noarch.rpm
+sudo dnf install ./codexflare-0.2.1-1.noarch.rpm
 codexflare
 ```
 
 ```bash
 # Debian / Ubuntu
-sudo apt install ./codexflare_0.1.0-1_all.deb
+sudo apt install ./codexflare_0.2.1-1_all.deb
 codexflare
 ```
 
-也可从应用菜单打开 Codexflare。首版包未签名；校验文件、依赖和卸载步骤见[安装指南](docs/guide.zh-CN.md#linux)。
+也可从应用菜单打开 Codexflare。安装包未签名；校验文件、依赖和卸载步骤见[安装指南](docs/guide.zh-CN.md#linux)。
 
 </details>
 
 <details>
 <summary><strong>macOS DMG 与原 ChatGPT 入口</strong></summary>
 
-从 [v0.1.1 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.1) 下载 DMG 和同名 `.sha256` 文件，在下载目录校验：
+从 [v0.2.1 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.2.1) 下载 DMG 和同名 `.sha256` 文件，在下载目录校验：
 
 ```bash
-shasum -a 256 -c Codexflare-0.1.1-macOS-arm64-build20586.dmg.sha256
+shasum -a 256 -c Codexflare-0.2.1-macOS-arm64.dmg.sha256
 ```
 
 将 `Codexflare.app` 拖到 **Applications** 后运行，不要直接在只读 DMG 内运行。DMG 内嵌 Python / PyObjC，默认使用原入口模式，数据保存在 `~/.local/share/codexflare`（或绝对路径 `XDG_DATA_HOME` 下的 `codexflare/`）。默认动画及已缩图背景可直接使用；自定义视频导入需要另行安装 FFmpeg / ffprobe，DMG 不内嵌这两个工具。

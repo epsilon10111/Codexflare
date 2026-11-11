@@ -12,27 +12,27 @@ Codexflare is an unofficial local appearance editor. It does not include Codex, 
 | macOS arm64 | `26.1021.31345 / 21828`, `26.1013.31256 / 20586` | `/Applications/Codex.app` or `/Applications/ChatGPT.app` |
 | Windows x64 | `26.1021.31345 / 21828` | Microsoft Store / MSIX `26.1021.3705.0` |
 
-**The v0.1.0 RPM and DEB are Linux packages; the v0.1.1 DMG supports macOS build 20586 only.** Current `main` source supports both macOS builds above and Windows. Integration into main does not add build 21828 support to the published DMG. Allow approximately 1.6 GB for a Linux / macOS copy, plus temporary space during updates. macOS original-entry mode also keeps a full official backup and prepared candidate. Windows creates only a shortcut to launch the installed standard app, without copying it. The older `26.1002.52244 / 13536` (MSIX `26.1002.7124.0`) is a historical reference and has not been retested natively with the new launcher. Published packages retain their original version restrictions. Run `python tools/manage.py check` (use `.venv/bin/python` on macOS) for a read-only check. Resource hashes, minified bindings and CSS-module hashes are discovered automatically; missing or ambiguous window/background structures stop application. Structural checks do not replace native validation. After an official update, check and reapply; original-entry backup and source-change protections remain in place.
+**v0.2.1 provides Linux RPM/DEB, macOS arm64 DMG, and Windows x64 source ZIP packages.** Old assets retain their original scope; the v0.1.1 DMG supports build 20586 only. See [validation](../VALIDATION.md) for current tests and the unresolved freeze investigation. Allow approximately 1.6 GB for a Linux / macOS copy, plus temporary space during updates. macOS original-entry mode also keeps a full official backup and prepared candidate. Windows creates only a shortcut to launch the installed standard app, without copying it. The older `26.1002.52244 / 13536` (MSIX `26.1002.7124.0`) is a historical reference and has not been retested natively with the new launcher. Old packages retain their original version restrictions. Run `python tools/manage.py check` (use `.venv/bin/python` on macOS) for a read-only check. Resource hashes, minified bindings and CSS-module hashes are discovered automatically; missing or ambiguous window/background structures stop application. Structural checks do not replace native validation. After an official update, check and reapply; original-entry backup and source-change protections remain in place.
 
 <a id="linux"></a>
 
 ## Install a Linux release
 
-Download a package and its matching checksum file from [the Linux v0.1.0 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.0), then run these commands in the download directory.
+Download a package and its matching checksum file from [v0.2.1 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.2.1), then run these commands in the download directory.
 
 ### Fedora
 
 ```bash
 sha256sum --ignore-missing -c SHA256SUMS
-sudo dnf install ./codexflare-0.1.0-1.noarch.rpm
+sudo dnf install ./codexflare-0.2.1-1.noarch.rpm
 codexflare
 ```
 
 ### Debian 12+ / Ubuntu 24.04+
 
 ```bash
-sha256sum -c codexflare_0.1.0-1_all.deb.sha256
-sudo apt install ./codexflare_0.1.0-1_all.deb
+sha256sum -c codexflare_0.2.1-1_all.deb.sha256
+sudo apt install ./codexflare_0.2.1-1_all.deb
 codexflare
 ```
 
@@ -40,15 +40,15 @@ Packages install Python 3.11+, GTK 3, PyGObject, WebKit2 4.1, and basic GStreame
 
 <a id="macos-dmg"></a>
 
-## Install the macOS DMG (build 20586)
+## Install the macOS DMG (arm64)
 
-Download the DMG and matching `.sha256` file from the [v0.1.1 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.1.1), then run:
+Download the DMG and matching `.sha256` file from the [v0.2.1 Release](https://github.com/epsilon10111/Codexflare/releases/tag/v0.2.1), then run:
 
 ```bash
-shasum -a 256 -c Codexflare-0.1.1-macOS-arm64-build20586.dmg.sha256
+shasum -a 256 -c Codexflare-0.2.1-macOS-arm64.dmg.sha256
 ```
 
-Drag `Codexflare.app` into Applications and run it there. The DMG bundles Python / PyObjC and defaults to [original-entry mode](#macos-original). The default video and resized backgrounds need no additional tools; custom video imports require separately installed FFmpeg / ffprobe. The app is ad-hoc signed and not Apple-notarized. Validation used Apple Silicon / macOS 26.6.2. Complete [installation instructions (Chinese)](../packaging/macos/安装说明.txt) are included in the DMG.
+Drag `Codexflare.app` into Applications and run it there. The DMG bundles Python / PyObjC and defaults to [original-entry mode](#macos-original). The default video and resized backgrounds need no additional tools; custom video imports require separately installed FFmpeg / ffprobe. The app is ad-hoc signed and not Apple-notarized. Historical app validation used Apple Silicon / macOS 26.6.2; current package and editor tests are recorded in VALIDATION.md. Complete [installation instructions (Chinese)](../packaging/macos/安装说明.txt) are included in the DMG.
 
 If an older source installation modified ChatGPT through original-entry mode, restore the official app with that editor, quit normally and wait for restoration before enabling the DMG version. Do not migrate old state or official backups directly. Users of independent copies do not need to restore the original app.
 
@@ -109,6 +109,8 @@ The official backup and state live in the installation's data directory as `Orig
 <a id="windows"></a>
 
 ### Windows
+
+Download the [Windows x64 source ZIP](https://github.com/epsilon10111/Codexflare/releases/download/v0.2.1/Codexflare-0.2.1-Windows-x64-source.zip), extract it fully, and run `Codexflare.cmd`. Install Python 3.13 x64 with the py launcher and Microsoft Edge WebView2 first. On first use, the script creates `.venv` and downloads Python dependencies. Keep the extracted directory and `.venv` after applying the launcher; settings remain in `.local/`.
 
 Complete the [clone step](#source) above first. Requires Python 3.12+ (3.13 x64 recommended) and [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/). Run in PowerShell without administrator privileges:
 
@@ -202,10 +204,10 @@ Run platform commands only on their respective systems; use `.venv/bin/python` f
 RPM builds require `rpm-build` and `desktop-file-utils`; DEB builds require `dpkg-deb` and `desktop-file-utils`. Both package committed resources only, defaulting to `HEAD`:
 
 ```bash
-python3 tools/build_rpm.py --ref v0.1.0
-python3 tools/rpm_smoke.py dist/codexflare-0.1.0-1.noarch.rpm
-python3 tools/build_deb.py --ref v0.1.0
-python3 tools/deb_smoke.py dist/codexflare_0.1.0-1_all.deb
+python3 tools/build_rpm.py --ref v0.2.1
+python3 tools/rpm_smoke.py dist/codexflare-0.2.1-1.noarch.rpm
+python3 tools/build_deb.py --ref v0.2.1
+python3 tools/deb_smoke.py dist/codexflare_0.2.1-1_all.deb
 ```
 
 RPM output in `dist/` includes a binary package, SRPM, source archive, and `SHA256SUMS`; DEB output includes the package and a separate `.deb.sha256`. Runtime packages contain the default WebM and both PNG backgrounds. Original MP4, legacy demo, and development tools remain in source distributions. System Codex and user data are excluded.
