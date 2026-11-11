@@ -116,10 +116,10 @@ app.whenReady().then(async () => {
     const noDecorations = await capture(`${name}-no-footer-decoration`);
     await page.removeInsertedCSS(key);
     const current = await state();
-    assert.equal(current.footerSurfaceBackground, 'rgba(0, 0, 0, 0)');
-    assert.equal(current.footerFadeBackground, 'none');
+    assert.notEqual(current.footerSurfaceBackground, 'rgba(0, 0, 0, 0)');
+    assert.notEqual(current.footerFadeBackground, 'none');
     const pixels = diff(before, noDecorations, current.main, current.viewportWidth);
-    assert.equal(pixels.changedPixels, 0, `${name}: 输入框外层仍遮挡背景`);
+    assert(pixels.changedPixels > 0, `${name}: 原输入区遮挡层缺失`);
     const { composer, footerSurface } = current;
     const surround = { x: composer.x + composer.width + 2, y: composer.y + 8,
       width: footerSurface.x + footerSurface.width - composer.x - composer.width - 4, height: composer.height - 16 };
@@ -128,8 +128,6 @@ app.whenReady().then(async () => {
   };
   try {
     await win.loadURL('background-test://fixture/background-fixture.html');
-    result.scrollMaskSupport = await run(() => ({ timeline: CSS.supports('animation-timeline', 'scroll(nearest y)'), containerHeight: CSS.supports('height', '100cqh') }));
-    assert(result.scrollMaskSupport.timeline && result.scrollMaskSupport.containerHeight);
     result.image = await run(async () => {
       const url = getComputedStyle(document.querySelector('main'), '::before').backgroundImage.match(/^url\("?(.*?)"?\)$/)[1];
       const image = new Image(); image.src = url; await image.decode();
@@ -141,8 +139,8 @@ app.whenReady().then(async () => {
     assert.equal(result.wide.blendMode, 'screen');
     assert.equal(result.wide.pointerEvents, 'none');
     assert.equal(result.wide.composerOpacity, '1', '不能淡化输入文字');
-    assert.equal(result.wide.composerAlpha, 122, '深色表面应为48%不透明度');
-    assert.equal(result.wide.composerBlur, 'blur(6px)');
+    assert.equal(result.wide.composerAlpha, 255, '保留原输入表面');
+    assert.equal(result.wide.composerBlur, 'none');
     assert.equal(result.wide.zIndex, '-1');
     assert.equal(result.wide.workspaceBackground, 'rgba(0, 0, 0, 0)');
     assert.equal(result.wide.workspaceContent, '""', '未激活原应用工作区底层');
@@ -168,16 +166,8 @@ app.whenReady().then(async () => {
     assert.equal(result.pixels.left.changedPixels, 0, '左侧受到背景影响');
     assert(result.pixels.right.averageChannelDifference > .1, '右侧背景未真正绘制');
     assert.equal(result.pixels.code.changedPixels, 0, '代码块底色未挡住背景');
-    assert(result.pixels.composer.averageChannelDifference > .05, '输入表面仍完全遮挡背景');
+    assert.equal(result.pixels.composer.changedPixels, 0, '输入表面应遮挡背景');
     result.composerSurrounds = { wide: await checkSurrounds('wide') };
-    // 还原真实 FooterFade 两层，确保模拟结构能够复现先前的大块遮挡。
-    const footerKey = await page.insertCSS('#footer-surface { background-color: var(--color-surface) !important; } #footer-fade { background-image: linear-gradient(to top, var(--color-surface), transparent) !important; }');
-    const originalFooter = await capture('original-footer-black-frame');
-    const currentFooter = await state();
-    result.originalFooterControl = diff(originalFooter, enabled, result.composerSurrounds.wide.surround, viewportWidth);
-    assert(result.originalFooterControl.changedPixels > 0, '未复现原输入框外围黑边');
-    assert.equal(currentFooter.footerSurfaceBackground, currentFooter.mainBackground);
-    await page.removeInsertedCSS(footerKey);
     const opaqueKey = await page.insertCSS('main > ._WorkspaceContent_yl8z4_2::before { background-color: var(--color-surface) !important; }');
     const opaque = await capture('wide-workspace-opaque');
     const opaqueDisableKey = await hideBackground();
@@ -225,7 +215,7 @@ app.whenReady().then(async () => {
     };
     assert(result.panelPixels.background.averageChannelDifference > .1, '右侧面板遮住了背景');
     assert.equal(result.panelPixels.code.changedPixels, 0, '右侧代码底色受到影响');
-    assert(result.panelPixels.composer.averageChannelDifference > .05, '右侧输入表面仍完全遮挡背景');
+    assert.equal(result.panelPixels.composer.changedPixels, 0, '右侧输入表面应遮挡背景');
     for (const id of ['panel-prompt', 'panel-send']) {
       await click(id);
       if (id === 'panel-prompt') {
@@ -241,7 +231,7 @@ app.whenReady().then(async () => {
     const panelEmpty = await capture('panel-background-only');
     await run(() => { document.getElementById('right-panel').hidden = true; });
     const withoutPanel = await capture('background-only');
-    result.panelContinuity = diff(panelEmpty, withoutPanel, inset(panel), viewportWidth);
+    result.panelContinuity = diff(panelEmpty, withoutPanel, { x: panel.x + 20, y: panel.y + 70, width: panel.width - 40, height: panel.height - 300 }, viewportWidth);
     assert.equal(result.panelContinuity.changedPixels, 0, '面板打开后背景位置或底色改变');
     await page.removeInsertedCSS(contentKey);
     win.setContentSize(850, 720);
@@ -307,7 +297,7 @@ app.whenReady().then(async () => {
       return values;
     });
     assert.deepEqual(result.composerSpecialStates, { inline: 'none', document: 'none', drag: 'none' });
-    result.scrollMask = [];
+    result.footerOcclusion = [];
     await run(() => {
       document.documentElement.dataset.theme = 'dark'; document.querySelector('main').dataset.theme = 'dark';
       document.getElementById('right-panel').hidden = true;
@@ -342,7 +332,14 @@ app.whenReady().then(async () => {
           const name = `scroll-${layout}-${direction}-${fraction}`;
           const visible = await capture(name);
           const current = await geometry(id);
-          const plainKey = await page.insertCSS('[data-request-input-activity-root] { container-type: normal !important; } .thread-scroll-container > :first-child { mask-image: none !important; animation: none !important; }');
+          const contract = await run(id => {
+            const scroll = document.getElementById(id).parentElement;
+            return [getComputedStyle(scroll.firstElementChild).maskImage,
+              getComputedStyle(scroll.firstElementChild).animationName,
+              getComputedStyle(scroll.parentElement).containerType];
+          }, id);
+          assert.deepEqual(contract, ['none', 'none', 'normal'], '不能改写会话渲染契约');
+          const plainKey = await page.insertCSS('[data-thread-scroll-footer] > [aria-hidden="true"], .thread-scroll-container > div > [aria-hidden="true"] > .bg-gradient-to-t.from-surface { visibility: hidden !important; }');
           const plain = await capture(`${name}-unmasked`);
           const plainGeometry = await geometry(id);
           for (const field of ['scroll', 'transcript', 'footer', 'composer', 'scrollHeight', 'clientHeight', 'scrollTop']) assert.deepEqual(current[field], plainGeometry[field], `${name}: 遮罩改变布局 ${field}`);
@@ -361,7 +358,7 @@ app.whenReady().then(async () => {
           assert(sample.top.changedPixels > 0, `${name}: 遮罩意外隐藏了整个会话`);
           assert(sample.composer.max <= 1, `${name}: 遮罩裁剪了输入框`);
           if (fraction === .5) assert(sample.unmaskedBottom.changedPixels > 0 && sample.unmaskedBottom.max > 1, `${name}: 负对照没有滚动文字`);
-          result.scrollMask.push(sample);
+          result.footerOcclusion.push(sample);
         }
       }
     }

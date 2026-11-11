@@ -111,8 +111,10 @@ class CurrentWindowsPatchTests(unittest.TestCase):
                         self.assertIn(f'./assets/{name}', html)
                     css = archive.read('webview/assets/codex-background.css').decode()
                     self.assertIn('_WorkspaceContent_azz1c_2', css)
-                    self.assertIn('_ComposerLayoutRoot_1q7o3_2', css)
-                    self.assertIn('._background_106nk_2._fade_106nk_2.from-surface', css)
+                    self.assertNotIn('_ComposerLayoutRoot_', css)
+                    self.assertNotIn('container-type:', css)
+                    self.assertNotIn('animation-timeline:', css)
+                    self.assertNotIn('backdrop-filter:', css)
                     self.assertNotIn('_WorkspaceContent_yl8z4_2', css)
                     self.assertEqual(self.source.read_bytes(), before)
 

@@ -26,7 +26,9 @@ else:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--runtime', type=Path, default=ROOT / ('.local/Codexflare Runtime.app' if sys.platform == 'darwin' else '.local/runtime'))
-    parser.add_argument('--startup', action='store_true', help='验证真实动画到模拟工作区的首帧衔接')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--startup', action='store_true', help='验证真实动画到模拟工作区的首帧衔接')
+    mode.add_argument('--performance', action='store_true', help='测量长会话滚动和渲染进程内存')
     args = parser.parse_args()
     (ROOT / 'work').mkdir(exist_ok=True)
     output = Path(tempfile.mkdtemp(prefix='background-smoke-', dir=ROOT / 'work'))
@@ -47,7 +49,7 @@ def main():
         archive.read('webview/assets/codex-background.png')
         system = Asar(manage_macos.SOURCE / manage_macos.ASAR if macos else '/usr/lib/chatgpt/resources/app.asar')
         fixture = (ROOT / 'tests/background_fixture.html').read_text()
-        probe = 'startup_probe.cjs' if args.startup else 'background_probe.cjs'
+        probe = 'performance_probe.cjs' if args.performance else 'startup_probe.cjs' if args.startup else 'background_probe.cjs'
         timeout_ms = 45000
         early = entrypoint(archive)
         probe_path = str(Path(early).parent / 'background-probe.cjs')
