@@ -25,7 +25,7 @@
 
 ## 发布验证
 
-Linux 包、Windows 源码 ZIP 和 macOS DMG 的最终构建结果在发布前补充。三平台使用同一份背景样式。Windows ZIP 不含 Python，需 Python 3.13 x64 和系统 WebView2；macOS DMG 使用 ad-hoc 签名、未公证，不继承供应商签名特权。
+Linux RPM/DEB 已从提交 1dcece5 构建并通过内容、只读资源、内置素材、HTTP 保存及用户命名空间安装/卸载检查；未解析安装依赖，未向主机安装。Windows（Python 3.13.17）：219 项，178 通过、41 跳过，真实 WebView2 编辑器播放、上传、保存、错误和导航测试通过，源码 ZIP 自检通过。macOS arm64 的源码 Cocoa/WKWebView 编辑器、DMG 构建、深层签名校验、内嵌自检和镜像验证通过。验证运行：[GitHub Actions 43007404705](https://github.com/epsilon10111/Codexflare/actions/runs/43007404705)。最终发布构建还会检查 DMG 中应用搬到新位置后的签名、自检和编辑器；其结果与依赖版本记录在发行附件及对应 Actions 运行中。三平台使用同一份背景样式。Windows ZIP 不含 Python，需 Python 3.13 x64 和系统 WebView2；macOS DMG 使用 ad-hoc 签名、未公证，不继承供应商签名特权。
 
 ## 未验证项
 

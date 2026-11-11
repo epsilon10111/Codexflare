@@ -81,7 +81,7 @@ sudo apt install ./codexflare_0.2.1-1_all.deb
 codexflare
 ```
 
-也可从应用菜单打开 Codexflare。首版包未签名；校验文件、依赖和卸载步骤见[安装指南](docs/guide.zh-CN.md#linux)。
+也可从应用菜单打开 Codexflare。安装包未签名；校验文件、依赖和卸载步骤见[安装指南](docs/guide.zh-CN.md#linux)。
 
 </details>
 

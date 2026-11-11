@@ -36,7 +36,7 @@ sudo apt install ./codexflare_0.2.1-1_all.deb
 codexflare
 ```
 
-安装包会安装 Python 3.11+、GTK 3、PyGObject、WebKit2 4.1 和 GStreamer 基础媒体依赖；也可从应用菜单打开 **Codexflare**。安装包本身不会修改 Codex。`noarch` / `all` 表示编辑器没有本机二进制，不扩大补丁兼容范围。首版包未签名，SHA256 仅用于下载完整性校验。
+安装包会安装 Python 3.11+、GTK 3、PyGObject、WebKit2 4.1 和 GStreamer 基础媒体依赖；也可从应用菜单打开 **Codexflare**。安装包本身不会修改 Codex。`noarch` / `all` 表示编辑器没有本机二进制，不扩大补丁兼容范围。安装包未签名，SHA256 仅用于下载完整性校验。
 
 <a id="macos-dmg"></a>
 
